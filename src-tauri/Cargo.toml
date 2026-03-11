@@ -1,0 +1,39 @@
+[package]
+name = "jiyu-music"
+version = "0.1.0"
+description = "Jiyu Music Desktop Application"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-shell = "2.0"
+tauri-plugin-dialog = "2.0"
+tauri-plugin-mcp-bridge = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
+chrono = "0.4"
+reqwest = { version = "0.11", features = ["json", "stream"] }
+tokio-stream = "0.1"
+url = "2.5"
+async-trait = "0.1"
+base64 = "0.21"
+hex = "0.4"
+thiserror = "1.0"
+urlencoding = "2.1"
+lazy_static = "1.4"
+rodio = { version = "0.17", features = ["wav", "mp3", "flac"] }
+regex = "1"
+
+[features]
+# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
