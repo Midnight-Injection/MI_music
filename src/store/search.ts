@@ -93,9 +93,11 @@ export const useSearchStore = defineStore('search', () => {
 
   // Set search results
   function setResults(results: SearchResult) {
-    searchResults.value = results.data
+    // 创建新数组引用以确保响应式更新
+    searchResults.value = Array.from(results.data)
     totalCount.value = results.total
     totalPages.value = Math.ceil(results.total / pageSize)
+    console.log('[SearchStore] setResults called, results count:', searchResults.value.length, 'total:', results.total)
   }
 
   // Append search results (for pagination)

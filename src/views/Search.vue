@@ -109,9 +109,12 @@
 
           <div class="song-list">
             <SongItem
-              v-for="music in searchResults"
+              v-for="(music, index) in searchResults"
               :key="music.id"
               :music="music"
+              v-motion
+              :initial="{ opacity: 0, y: 20 }"
+              :enter="{ opacity: 1, y: 0, transition: { delay: index * 50, duration: 300 } }"
               @play="handlePlay"
               @add-to-list="handleAddToList"
               @add-to-playlist="handleAddToPlaylist"
@@ -146,6 +149,7 @@ import { useSearchStore } from '../store/search'
 import { usePlayerStore } from '../store/player'
 import { usePlaylistStore } from '../store/playlist'
 import { useUserSourceStore } from '../stores/userSource'
+import { useSettingsStore } from '../store/settings'
 import { useScriptRuntime, type MusicSource, type ScriptCapability } from '../composables/useScriptRuntime'
 import SongItem from '../components/SongItem.vue'
 import { invoke } from '@tauri-apps/api/core'
@@ -187,6 +191,7 @@ const searchStore = useSearchStore()
 const playerStore = usePlayerStore()
 const playlistStore = usePlaylistStore()
 const userSourceStore = useUserSourceStore()
+const settingsStore = useSettingsStore()
 const scriptRuntime = useScriptRuntime()
 
 const searchInputRef = ref<HTMLInputElement>()
@@ -198,7 +203,7 @@ const isSearchingLocal = ref(false)
 const debounceTimer = ref<number>()
 const searchError = ref('')
 const builtInChannelIds = ref<string[]>(['kw'])
-const selectedUserSourceId = ref<string>('') // 空字符串表示"自动选择"
+const selectedUserSourceId = ref<string>(settingsStore.settings.activeUserSourceId || '') // 从设置中读取初始值
 const scriptCapabilities = ref<Record<string, ScriptCapability>>({})
 
 // 自定义音源选项（包含搜索能力信息）
@@ -503,8 +508,11 @@ async function handleSearch() {
   try {
     isSearchingLocal.value = true
     searchStore.isSearching = true
+    console.log('[Search] handleSearch: starting search for:', keyword, 'channel:', selectedChannel.value)
     const data = await runSearch(keyword, selectedChannel.value, 1, searchStore.pageSize)
+    console.log('[Search] handleSearch: got results:', data.length, 'items')
     searchStore.setResults({ data, total: data.length, channel: selectedChannel.value })
+    console.log('[Search] handleSearch: setResults called, store.searchResults.length:', searchStore.searchResults.length)
   } catch (error) {
     console.error('Search failed:', error)
     searchStore.clearResults()

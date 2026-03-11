@@ -101,12 +101,13 @@ function formatDuration(seconds: number): string {
   align-items: center;
   padding: 8px 16px;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.2s ease;
   cursor: pointer;
 
   &:hover,
   &.is-hover {
     background-color: var(--bg-hover);
+    transform: translateX(4px);
   }
 
   &.is-playing {

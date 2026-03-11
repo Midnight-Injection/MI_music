@@ -11,6 +11,21 @@ import { invoke } from '@tauri-apps/api/core'
 const audioElement = typeof Audio !== 'undefined' ? new Audio() : null
 let audioEventsBound = false
 
+// 暴露 audioElement 到 window 以便调试
+;(() => {
+  if (audioElement) {
+    (window as any).__PLAYER_AUDIO__ = audioElement
+    console.log('[Player] audioElement exposed to window.__PLAYER_AUDIO__')
+    console.log('[Player] Initial audioElement state:', {
+      volume: audioElement.volume,
+      muted: audioElement.muted,
+      paused: audioElement.paused,
+      src: audioElement.src,
+      defaultMuted: audioElement.defaultMuted
+    })
+  }
+})()
+
 // Source ID mapping
 const SOURCE_ID_MAP: Record<string, MusicSource> = {
   kw: 'kw',
@@ -45,7 +60,11 @@ export const usePlayerStore = defineStore('player', () => {
   const hasLyrics = computed(() => lyrics.value.length > 0)
 
   function syncAudioState() {
-    if (!audioElement) return
+    if (!audioElement) {
+      console.log('[Player] syncAudioState: audioElement is null')
+      return
+    }
+    console.log('[Player] syncAudioState: setting volume:', volume.value, 'playbackRate:', playbackRate.value, 'current volume:', audioElement.volume, 'muted:', audioElement.muted)
     audioElement.volume = volume.value
     audioElement.playbackRate = playbackRate.value
   }
@@ -56,7 +75,16 @@ export const usePlayerStore = defineStore('player', () => {
     audioElement.preload = 'auto'
 
     audioElement.addEventListener('loadedmetadata', () => {
+      console.log('[Player] loadedmetadata event, duration:', audioElement.duration)
       duration.value = Number.isFinite(audioElement.duration) ? audioElement.duration : 0
+    })
+
+    audioElement.addEventListener('canplay', () => {
+      console.log('[Player] canplay event, readyState:', audioElement.readyState, 'duration:', audioElement.duration, 'volume:', audioElement.volume, 'muted:', audioElement.muted)
+    })
+
+    audioElement.addEventListener('playing', () => {
+      console.log('[Player] playing event - audio is now playing')
     })
 
     audioElement.addEventListener('timeupdate', () => {
@@ -64,24 +92,32 @@ export const usePlayerStore = defineStore('player', () => {
     })
 
     audioElement.addEventListener('play', () => {
+      console.log('[Player] play event - setting isPlaying to true')
       isPlaying.value = true
     })
 
     audioElement.addEventListener('pause', () => {
+      console.log('[Player] pause event - setting isPlaying to false')
       isPlaying.value = false
     })
 
     audioElement.addEventListener('ended', () => {
+      console.log('[Player] ended event - song finished')
       isPlaying.value = false
       playNext()
     })
 
     audioElement.addEventListener('error', () => {
-      console.error('[Player] Audio element playback failed:', audioElement.error)
+      console.error('[Player] Audio element playback failed:', audioElement.error, 'code:', audioElement.error?.code, 'message:', audioElement.error?.message)
       isPlaying.value = false
     })
 
+    audioElement.addEventListener('volumechange', () => {
+      console.log('[Player] volumechange event - volume:', audioElement.volume, 'muted:', audioElement.muted)
+    })
+
     audioEventsBound = true
+    console.log('[Player] Audio events bound, audioElement id:', audioElement.id, 'volume:', audioElement.volume, 'muted:', audioElement.muted)
     syncAudioState()
   }
 
@@ -243,12 +279,34 @@ export const usePlayerStore = defineStore('player', () => {
         throw new Error('当前环境不支持音频播放')
       }
 
+      // 添加详细的音频状态日志
+      console.log('[Player] Before sync - audioElement state:', {
+        src: audioElement.src?.substring(0, 60),
+        paused: audioElement.paused,
+        volume: audioElement.volume,
+        muted: audioElement.muted,
+        currentTime: audioElement.currentTime,
+        readyState: audioElement.readyState
+      })
+
       syncAudioState()
+
+      console.log('[Player] After sync - audioElement state:', {
+        volume: audioElement.volume,
+        muted: audioElement.muted,
+        playbackRate: audioElement.playbackRate
+      })
+
       if (audioElement.src !== url) {
+        console.log('[Player] Setting new src, old:', audioElement.src?.substring(0, 50), 'new:', url?.substring(0, 50))
         audioElement.src = url
       }
       audioElement.currentTime = 0
+
+      console.log('[Player] Calling play()...')
       await audioElement.play()
+      console.log('[Player] play() succeeded, audioElement.paused:', audioElement.paused, 'audioElement.currentTime:', audioElement.currentTime)
+
       isPlaying.value = true
     } catch (error) {
       console.error('[Player] playMusic error:', error)
@@ -271,11 +329,23 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   async function resumeMusic() {
+    console.log('[Player] resumeMusic called, audioElement:', !!audioElement, 'src:', audioElement?.src?.substring(0, 50))
+    if (!audioElement) {
+      console.error('[Player] resumeMusic: audioElement is null')
+      return
+    }
+    if (!audioElement.src) {
+      console.error('[Player] resumeMusic: audioElement has no src')
+      return
+    }
     isPlaying.value = true
     try {
-      await audioElement?.play()
+      console.log('[Player] resumeMusic: calling play(), currentTime:', audioElement.currentTime, 'duration:', audioElement.duration)
+      await audioElement.play()
+      console.log('[Player] resumeMusic: play() succeeded')
     } catch (error) {
-      console.error('[Player] Failed to resume audio:', error)
+      console.error('[Player] Failed to resume audio:', error, 'src:', audioElement.src?.substring(0, 50))
+      isPlaying.value = false
     }
   }
 

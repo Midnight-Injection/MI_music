@@ -12,10 +12,12 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@formkit/auto-animate": "^0.9.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-shell": "^2.0.0",
+    "@vueuse/motion": "^3.0.3",
     "crypto-js": "^4.2.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",

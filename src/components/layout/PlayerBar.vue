@@ -1,5 +1,11 @@
 <template>
-  <div class="player-bar" :class="{ 'mini-mode': isMiniMode }">
+  <div
+    class="player-bar"
+    :class="{ 'mini-mode': isMiniMode }"
+    v-motion
+    :initial="{ opacity: 0, y: 100 }"
+    :enter="{ opacity: 1, y: 0, transition: { duration: 500, ease: 'easeOut' } }"
+  >
     <!-- Song Info Section -->
     <div class="song-info" @click="goToDetail">
       <div v-if="player.currentMusic" class="cover-wrapper">
