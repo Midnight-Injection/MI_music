@@ -1,205 +1,193 @@
-// ============================================
-// Theme Variables for Jiyu Music
-// ============================================
-
 :root {
-  // Primary Theme Colors (default: green)
-  --primary-color: #1db954;
-  --primary-hover: #1ed760;
-  --primary-active: #169c46;
-  --primary-light: #e8f5ec;
+  --sidebar-width: 228px;
+  --header-height: 76px;
+  --player-bar-height: 102px;
+  --page-max-width: 1320px;
+  --radius-xs: 10px;
+  --radius-sm: 16px;
+  --radius-md: 24px;
+  --radius-lg: 32px;
 
-  // Secondary colors
-  --secondary-color: #191414;
-  --accent-color: #1db954;
+  --primary-color: #f97316;
+  --primary-hover: #fb923c;
+  --primary-active: #ea580c;
+  --primary-light: rgba(249, 115, 22, 0.14);
+  --secondary-color: #111827;
+  --accent-color: #22c55e;
+  --accent-soft: rgba(34, 197, 94, 0.14);
 
-  // Background colors (light mode)
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #eeeeee;
-  --bg-hover: #e8e8e8;
-  --bg-active: #dddddd;
-  --bg-elevated: #ffffff;
+  --bg-primary: #fffaf4;
+  --bg-secondary: rgba(255, 255, 255, 0.82);
+  --bg-tertiary: rgba(255, 243, 228, 0.88);
+  --bg-hover: rgba(255, 237, 213, 0.96);
+  --bg-active: rgba(253, 230, 138, 0.88);
+  --bg-elevated: rgba(255, 255, 255, 0.94);
+  --bg-overlay: rgba(15, 23, 42, 0.48);
+  --surface-strong: rgba(255, 255, 255, 0.72);
 
-  // Border colors
-  --border-color: #d3d3d3;
-  --border-light: #e0e0e0;
-  --border-dark: #b0b0b0;
+  --border-color: rgba(148, 163, 184, 0.24);
+  --border-light: rgba(255, 255, 255, 0.72);
+  --border-dark: rgba(71, 85, 105, 0.18);
 
-  // Text colors
-  --text-primary: #191414;
-  --text-secondary: #616161;
-  --text-tertiary: #9e9e9e;
-  --text-disabled: #bdbdbd;
+  --text-primary: #1f2937;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #cbd5e1;
   --text-on-primary: #ffffff;
 
-  // UI Elements
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 18px 45px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 28px 80px rgba(15, 23, 42, 0.16);
+  --shadow-xl: 0 40px 120px rgba(15, 23, 42, 0.18);
+  --shadow: var(--shadow-md);
+  --glass-blur: blur(22px);
 
-  // Status colors
-  --success-color: #1db954;
-  --warning-color: #ffa726;
-  --error-color: #ef5350;
-  --info-color: #42a5f5;
+  --success-color: #16a34a;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #3b82f6;
 
-  // Transition
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 350ms ease;
+  --transition-fast: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-normal: 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-slow: 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --app-gradient:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, #fff7ed 52%, #fffaf5 100%);
 }
 
-// Dark Mode
-[data-theme-color='dark'] {
-  --bg-primary: #121212;
-  --bg-secondary: #181818;
-  --bg-tertiary: #202020;
-  --bg-hover: #282828;
-  --bg-active: #303030;
-  --bg-elevated: #1e1e1e;
-
-  --border-color: #333;
-  --border-light: #3a3a3a;
-  --border-dark: #404040;
-
-  --text-primary: #ffffff;
-  --text-secondary: #b3b3b3;
-  --text-tertiary: #7f7f7f;
-  --text-disabled: #5f5f5f;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-// Theme Color Variants
-// Green Theme (default)
 [data-theme-color='green'] {
   --primary-color: #1db954;
   --primary-hover: #1ed760;
   --primary-active: #169c46;
-  --primary-light: #e8f5ec;
+  --primary-light: rgba(29, 185, 84, 0.14);
 }
 
-// Blue Theme
 [data-theme-color='blue'] {
   --primary-color: #007bff;
   --primary-hover: #0056b3;
   --primary-active: #004494;
-  --primary-light: #e7f1ff;
+  --primary-light: rgba(0, 123, 255, 0.14);
 }
 
-// Red Theme
 [data-theme-color='red'] {
   --primary-color: #e91e63;
   --primary-hover: #c2185b;
   --primary-active: #880e4f;
-  --primary-light: #fce4ec;
+  --primary-light: rgba(233, 30, 99, 0.14);
 }
 
-// Pink Theme
 [data-theme-color='pink'] {
   --primary-color: #ff4081;
   --primary-hover: #f50057;
   --primary-active: #c51162;
-  --primary-light: #fce4ec;
+  --primary-light: rgba(255, 64, 129, 0.14);
 }
 
-// Purple Theme
 [data-theme-color='purple'] {
   --primary-color: #9c27b0;
   --primary-hover: #7b1fa2;
   --primary-active: #6a1b9a;
-  --primary-light: #f3e5f5;
+  --primary-light: rgba(156, 39, 176, 0.14);
 }
 
-// Orange Theme
 [data-theme-color='orange'] {
   --primary-color: #ff9800;
   --primary-hover: #f57c00;
   --primary-active: #ef6c00;
-  --primary-light: #fff3e0;
+  --primary-light: rgba(255, 152, 0, 0.14);
 }
 
-// Black Theme
 [data-theme-color='black'] {
   --primary-color: #212121;
   --primary-hover: #424242;
   --primary-active: #000000;
-  --primary-light: #f5f5f5;
+  --primary-light: rgba(33, 33, 33, 0.14);
 }
 
-// Grey Theme
 [data-theme-color='grey'] {
   --primary-color: #607d8b;
   --primary-hover: #546e7a;
   --primary-active: #455a64;
-  --primary-light: #eceff1;
+  --primary-light: rgba(96, 125, 139, 0.14);
 }
 
-// Custom Theme (uses CSS variable for custom color)
 [data-theme-color='custom'] {
   --primary-color: var(--custom-primary-color, #1db954);
   --primary-hover: var(--custom-primary-hover, #1ed760);
   --primary-active: var(--custom-primary-active, #169c46);
-  --primary-light: var(--custom-primary-light, #e8f5ec);
+  --primary-light: var(--custom-primary-light, rgba(29, 185, 84, 0.14));
 }
 
-// Light Mode (explicit)
-[data-theme-mode='light'] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #eeeeee;
-  --bg-hover: #e8e8e8;
-  --bg-active: #dddddd;
-  --bg-elevated: #ffffff;
-
-  --border-color: #d3d3d3;
-  --border-light: #e0e0e0;
-  --border-dark: #b0b0b0;
-
-  --text-primary: #191414;
-  --text-secondary: #616161;
-  --text-tertiary: #9e9e9e;
-  --text-disabled: #bdbdbd;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-// Dark Mode (explicit)
+[data-theme-color='dark'],
 [data-theme-mode='dark'] {
-  --bg-primary: #121212;
-  --bg-secondary: #181818;
-  --bg-tertiary: #202020;
-  --bg-hover: #282828;
-  --bg-active: #303030;
-  --bg-elevated: #1e1e1e;
+  --bg-primary: #09111f;
+  --bg-secondary: rgba(15, 23, 42, 0.76);
+  --bg-tertiary: rgba(30, 41, 59, 0.84);
+  --bg-hover: rgba(51, 65, 85, 0.84);
+  --bg-active: rgba(71, 85, 105, 0.86);
+  --bg-elevated: rgba(15, 23, 42, 0.92);
+  --bg-overlay: rgba(2, 6, 23, 0.64);
+  --surface-strong: rgba(15, 23, 42, 0.68);
 
-  --border-color: #333;
-  --border-light: #3a3a3a;
-  --border-dark: #404040;
+  --border-color: rgba(148, 163, 184, 0.16);
+  --border-light: rgba(226, 232, 240, 0.08);
+  --border-dark: rgba(15, 23, 42, 0.96);
 
-  --text-primary: #ffffff;
-  --text-secondary: #b3b3b3;
-  --text-tertiary: #7f7f7f;
-  --text-disabled: #5f5f5f;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #64748b;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 10px 24px rgba(2, 6, 23, 0.3);
+  --shadow-md: 0 18px 45px rgba(2, 6, 23, 0.42);
+  --shadow-lg: 0 28px 80px rgba(2, 6, 23, 0.52);
+  --shadow-xl: 0 40px 120px rgba(2, 6, 23, 0.6);
+  --shadow: var(--shadow-md);
+  --app-gradient:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 0%, rgba(56, 189, 248, 0.18), transparent 24%),
+    linear-gradient(180deg, #07101d 0%, #0b1324 48%, #09111f 100%);
 }
 
-// Smooth theme transitions
+[data-theme-mode='light'] {
+  --bg-primary: #fffaf4;
+  --bg-secondary: rgba(255, 255, 255, 0.82);
+  --bg-tertiary: rgba(255, 243, 228, 0.88);
+  --bg-hover: rgba(255, 237, 213, 0.96);
+  --bg-active: rgba(253, 230, 138, 0.88);
+  --bg-elevated: rgba(255, 255, 255, 0.94);
+  --bg-overlay: rgba(15, 23, 42, 0.48);
+  --surface-strong: rgba(255, 255, 255, 0.72);
+
+  --border-color: rgba(148, 163, 184, 0.24);
+  --border-light: rgba(255, 255, 255, 0.72);
+  --border-dark: rgba(71, 85, 105, 0.18);
+
+  --text-primary: #1f2937;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #cbd5e1;
+
+  --shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 18px 45px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 28px 80px rgba(15, 23, 42, 0.16);
+  --shadow-xl: 0 40px 120px rgba(15, 23, 42, 0.18);
+  --shadow: var(--shadow-md);
+  --app-gradient:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, #fff7ed 52%, #fffaf5 100%);
+}
+
 * {
-  transition-property: color, background-color, border-color;
+  transition-property: color, background-color, border-color, box-shadow, transform;
   transition-timing-function: ease;
   transition-duration: var(--transition-normal);
 }
 
-// Disable transitions for theme changes
 .theme-transition-disabled * {
   transition: none !important;
 }

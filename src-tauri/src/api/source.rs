@@ -93,6 +93,15 @@ pub struct MusicInfo {
     pub songmid: String,
     /// Album ID
     pub album_id: String,
+    /// Kugou hash or source-specific hash
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hash: Option<String>,
+    /// QQ media mid required by some resolvers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub str_media_mid: Option<String>,
+    /// Migu copyright ID used by some resolvers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub copyright_id: Option<String>,
     /// Duration in MM:SS format
     pub interval: String,
     /// Album name

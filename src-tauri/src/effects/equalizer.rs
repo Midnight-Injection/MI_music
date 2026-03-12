@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_equalizer_bands() {
-        let eq = Equalizer::new();
+        let mut eq = Equalizer::new();
         assert_eq!(eq.get_all_bands(), [0.0; 10]);
 
         eq.set_band(0, 6.0);

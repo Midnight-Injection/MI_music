@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "lint": "eslint src --ext .vue,.ts",
+    "lint:fix": "eslint src --ext .vue,.ts --fix",
     "format": "prettier --write src/"
   },
   "dependencies": {
@@ -17,8 +18,9 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-shell": "^2.0.0",
-    "@vueuse/motion": "^3.0.3",
+    "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
+    "motion-v": "^2.0.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"

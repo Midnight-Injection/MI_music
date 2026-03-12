@@ -33,6 +33,7 @@ urlencoding = "2.1"
 lazy_static = "1.4"
 rodio = { version = "0.17", features = ["wav", "mp3", "flac"] }
 regex = "1"
+md5 = "0.7"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

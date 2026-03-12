@@ -179,7 +179,7 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
-import type { DownloadSettings, NamingFormat } from '../../types/download'
+import type { DownloadSettings } from '../../types/download'
 
 interface Emits {
   update: [settings: DownloadSettings]

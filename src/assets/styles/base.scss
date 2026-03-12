@@ -9,14 +9,32 @@ body,
 #app {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow: hidden;
 }
 
 body {
-  background: var(--bg-primary);
+  font-family:
+    'Avenir Next',
+    'SF Pro Display',
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
   color: var(--text-primary);
-  transition: background 0.3s, color 0.3s;
+  background: var(--app-gradient);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 18%, rgba(249, 115, 22, 0.08), transparent 16%),
+    radial-gradient(circle at 88% 10%, rgba(59, 130, 246, 0.08), transparent 14%);
 }
 
 a {
@@ -24,34 +42,181 @@ a {
   color: inherit;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  outline: none;
-}
-
+button,
 input,
 select,
 textarea {
-  font-family: inherit;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
   outline: none;
+  background: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  background: var(--primary-light);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-tertiary) 42%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: color-mix(in srgb, var(--primary-color) 38%, transparent);
+  background-clip: content-box;
+}
+
+.glass-panel {
+  background: var(--surface-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+}
+
+.page-shell {
+  width: min(100%, var(--page-max-width));
+  margin: 0 auto;
+  padding: 24px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.page-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: var(--radius-md);
+}
+
+.page-title {
+  font-size: clamp(1.65rem, 2vw, 2.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.page-subtitle {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 640px;
+  font-size: 0.96rem;
+}
+
+.page-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.section-card {
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.page-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.page-kicker::before {
+  content: '';
+  width: 24px;
+  height: 1px;
+  background: color-mix(in srgb, var(--primary-color) 42%, transparent);
+}
+
+.page-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.page-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: var(--text-on-primary);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.app-button.secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.app-grid {
+  display: grid;
+  gap: 18px;
+}
+
+@media (max-width: 1024px) {
+  .page-shell {
+    padding: 20px 18px 0;
+  }
+
+  .page-hero {
+    padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    padding: 18px 14px 0;
+  }
 }

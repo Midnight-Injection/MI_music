@@ -14,8 +14,14 @@ pub struct UserSourceScript {
     pub sources: HashMap<String, UserSourceInfo>,
     pub allow_show_update_alert: bool,
     pub enabled: bool,
+    #[serde(default = "default_user_source_priority")]
+    pub priority: i32,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+fn default_user_source_priority() -> i32 {
+    100
 }
 
 /// 用户音源信息

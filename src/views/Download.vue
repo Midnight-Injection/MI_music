@@ -1,5 +1,13 @@
 <template>
-  <div class="download-page">
+  <div class="download-page page-shell">
+    <section class="page-hero glass-panel">
+      <div>
+        <span class="page-kicker">Download Control</span>
+        <h1 class="page-title">下载状态、路径和并发统一收口。</h1>
+        <p class="page-subtitle">让设置、任务队列和批量操作各归其位，不再都挤在同一层级上。</p>
+      </div>
+    </section>
+
     <div class="download-header">
       <h1>下载管理</h1>
       <div class="batch-actions">
@@ -49,7 +57,7 @@
           </button>
         </div>
 
-        <div class="queue-list">
+        <div class="queue-list" v-auto-animate>
           <DownloadItem
             v-for="item in currentList"
             :key="item.id"
@@ -96,6 +104,8 @@ const currentList = computed(() => {
       return downloadQueue.value.completed
     case 'failed':
       return downloadQueue.value.failed
+    default:
+      return []
   }
 })
 
@@ -270,7 +280,6 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .download-page {
-  padding: 20px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -304,10 +313,12 @@ onUnmounted(() => {
   .queue-panel {
     flex: 1;
     background: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
 
     .queue-tabs {
       display: flex;

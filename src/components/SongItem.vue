@@ -24,7 +24,10 @@
     </div>
 
     <div class="song-info">
-      <div class="song-name" :title="music.name">{{ music.name }}</div>
+      <div class="song-name-row">
+        <div class="song-name" :title="music.name">{{ music.name }}</div>
+        <span v-if="displayQualityLabel" class="song-quality">{{ displayQualityLabel }}</span>
+      </div>
       <div class="song-artist" :title="music.artist">{{ music.artist }}</div>
     </div>
 
@@ -55,8 +58,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { usePlayerStore } from '../store/player'
-import { usePlaylistStore } from '../store/playlist'
 import type { MusicInfo } from '../types/music'
+import { formatQualityLabel, getTrackDisplayQuality } from '../lib/trackQuality'
 
 interface Props {
   music: MusicInfo
@@ -75,6 +78,8 @@ const isHover = ref(false)
 const isPlaying = computed(() => {
   return playerStore.currentMusic?.id === props.music.id && playerStore.isPlaying
 })
+
+const displayQualityLabel = computed(() => formatQualityLabel(getTrackDisplayQuality(props.music)))
 
 function handlePlay() {
   emit('play', props.music)
@@ -170,13 +175,21 @@ function formatDuration(seconds: number): string {
     min-width: 0;
     margin-right: 16px;
 
+    .song-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      margin-bottom: 4px;
+    }
+
     .song-name {
       font-size: 14px;
       color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 4px;
+      min-width: 0;
     }
 
     .song-artist {
@@ -185,6 +198,17 @@ function formatDuration(seconds: number): string {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .song-quality {
+      flex-shrink: 0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--primary-light) 88%, transparent);
+      color: var(--primary-color);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
     }
   }
 

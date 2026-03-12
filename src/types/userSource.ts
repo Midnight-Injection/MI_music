@@ -10,6 +10,7 @@ export interface UserSourceScript {
   sources: Record<string, UserSourceInfo>
   allow_show_update_alert: boolean
   enabled: boolean
+  priority: number
   created_at: number
   updated_at: number
 }

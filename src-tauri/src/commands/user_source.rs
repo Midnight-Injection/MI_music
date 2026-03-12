@@ -1,9 +1,36 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
+use serde::Deserialize;
 
-use crate::types::{UserSourceScript, ScriptMetadata};
+use crate::types::{UserSourceInfo, UserSourceScript, ScriptMetadata};
 
 const USER_SOURCES_FILE: &str = "user_sources.json";
+
+#[derive(Debug, Deserialize)]
+struct StoredUserSourceScript {
+    id: String,
+    name: String,
+    version: String,
+    description: String,
+    author: String,
+    homepage: String,
+    script: String,
+    sources: std::collections::HashMap<String, UserSourceInfo>,
+    allow_show_update_alert: bool,
+    enabled: bool,
+    priority: Option<i32>,
+    created_at: i64,
+    updated_at: i64,
+}
+
+fn normalize_source_priorities(sources: &mut [UserSourceScript], raw_priorities: &[Option<i32>]) {
+    for (index, source) in sources.iter_mut().enumerate() {
+        let raw_priority = raw_priorities.get(index).copied().flatten();
+        if raw_priority.unwrap_or(0) <= 0 {
+            source.priority = (index as i32) + 1;
+        }
+    }
+}
 
 /// 获取用户音源存储路径
 fn get_user_sources_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -114,8 +141,28 @@ pub async fn read_user_sources(app: &AppHandle) -> Result<Vec<UserSourceScript>,
         .await
         .map_err(|e| format!("Failed to read user sources file: {}", e))?;
 
-    let sources: Vec<UserSourceScript> = serde_json::from_str(&content)
+    let stored_sources: Vec<StoredUserSourceScript> = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse user sources: {}", e))?;
+    let raw_priorities: Vec<Option<i32>> = stored_sources.iter().map(|source| source.priority).collect();
+    let mut sources: Vec<UserSourceScript> = stored_sources
+        .into_iter()
+        .map(|source| UserSourceScript {
+            id: source.id,
+            name: source.name,
+            version: source.version,
+            description: source.description,
+            author: source.author,
+            homepage: source.homepage,
+            script: source.script,
+            sources: source.sources,
+            allow_show_update_alert: source.allow_show_update_alert,
+            enabled: source.enabled,
+            priority: source.priority.unwrap_or_default(),
+            created_at: source.created_at,
+            updated_at: source.updated_at,
+        })
+        .collect();
+    normalize_source_priorities(&mut sources, &raw_priorities);
 
     Ok(sources)
 }
@@ -157,6 +204,8 @@ pub async fn import_user_source_from_file(app: AppHandle, file_path: String) -> 
     // 生成 ID
     let now = chrono::Utc::now().timestamp();
     let id = format!("user_{}", now);
+    let mut sources = read_user_sources(&app).await?;
+    let next_priority = sources.iter().map(|source| source.priority).max().unwrap_or(0) + 1;
 
     // 创建用户音源对象
     let user_source = UserSourceScript {
@@ -170,12 +219,12 @@ pub async fn import_user_source_from_file(app: AppHandle, file_path: String) -> 
         sources: metadata.sources.unwrap_or_default(),
         allow_show_update_alert: metadata.allow_show_update_alert.unwrap_or(false),
         enabled: true,
+        priority: next_priority,
         created_at: now,
         updated_at: now,
     };
 
     // 读取现有音源并添加新的
-    let mut sources = read_user_sources(&app).await?;
     sources.push(user_source.clone());
 
     // 保存到本地
@@ -205,7 +254,8 @@ pub async fn get_user_source(app: AppHandle, id: String) -> Result<UserSourceScr
 pub async fn update_user_source(
     app: AppHandle,
     id: String,
-    enabled: bool,
+    enabled: Option<bool>,
+    priority: Option<i32>,
 ) -> Result<UserSourceScript, String> {
     let mut sources = read_user_sources(&app).await?;
 
@@ -213,7 +263,12 @@ pub async fn update_user_source(
         .find(|s| s.id == id)
         .ok_or_else(|| format!("User source not found: {}", id))?;
 
-    source.enabled = enabled;
+    if let Some(enabled) = enabled {
+        source.enabled = enabled;
+    }
+    if let Some(priority) = priority {
+        source.priority = priority.max(1);
+    }
     source.updated_at = chrono::Utc::now().timestamp();
 
     let updated = source.clone();

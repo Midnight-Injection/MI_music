@@ -3,10 +3,8 @@ import { ref, computed } from 'vue'
 import type { MusicInfo } from '../types/music'
 import type { PlayMode } from '../types/player'
 import type { LyricLine } from '../components/lyrics/types'
-import { useUserSourceStore } from '../stores/userSource'
-import { useSettingsStore } from './settings'
-import { useScriptRuntime, type MusicSource, type ScriptMusicInfo } from '../composables/useScriptRuntime'
-import { invoke } from '@tauri-apps/api/core'
+import { localizePlaybackUrl } from '../modules/playback/playbackAsset'
+import { usePlaybackResolver } from '../modules/playback/playbackResolver'
 
 const audioElement = typeof Audio !== 'undefined' ? new Audio() : null
 let audioEventsBound = false
@@ -26,15 +24,6 @@ let audioEventsBound = false
   }
 })()
 
-// Source ID mapping
-const SOURCE_ID_MAP: Record<string, MusicSource> = {
-  kw: 'kw',
-  kg: 'kg',
-  tx: 'tx',
-  wy: 'wy',
-  mg: 'mg',
-}
-
 export const usePlayerStore = defineStore('player', () => {
   const currentMusic = ref<MusicInfo | null>(null)
   const isPlaying = ref(false)
@@ -45,6 +34,8 @@ export const usePlayerStore = defineStore('player', () => {
   const playlist = ref<MusicInfo[]>([])
   const currentIndex = ref(0)
   const playbackRate = ref(1)
+  const resolvedQuality = ref<string | null>(null)
+  const resolvedResolver = ref<string | null>(null)
 
   // Lyrics state
   const lyrics = ref<LyricLine[]>([])
@@ -123,135 +114,6 @@ export const usePlayerStore = defineStore('player', () => {
 
   bindAudioEvents()
 
-  function resolveMusicChannel(music: MusicInfo): MusicSource {
-    const preferredChannel = music.searchChannel || music.source
-    if (preferredChannel && SOURCE_ID_MAP[preferredChannel]) {
-      return SOURCE_ID_MAP[preferredChannel]
-    }
-
-    if (music.id) {
-      const sourcePart = music.id.split('_')[0]
-      if (SOURCE_ID_MAP[sourcePart]) {
-        return SOURCE_ID_MAP[sourcePart]
-      }
-    }
-
-    return 'kw'
-  }
-
-  // Convert MusicInfo to ScriptMusicInfo for user sources
-  function toScriptMusicInfo(music: MusicInfo, sourceId: string): ScriptMusicInfo {
-    const info: ScriptMusicInfo = {
-      name: music.name,
-      singer: music.artist,
-      albumName: music.album,
-      interval: music.duration,
-      source: sourceId,
-    }
-
-    if (music.albumId) info.albumId = music.albumId
-    if (sourceId === 'kg') info.hash = music.hash || music.songmid
-    else info.songmid = music.songmid
-
-    if (!info.songmid && !info.hash && music.id) {
-      const parts = music.id.split('_')
-      if (parts.length >= 2) {
-        if (sourceId === 'kg') info.hash = parts.slice(1).join('_')
-        else info.songmid = parts.slice(1).join('_')
-      }
-    }
-
-    return info
-  }
-
-  // Resolve music URL from user sources
-  async function resolveMusicUrl(music: MusicInfo): Promise<string> {
-    console.log('[Player] resolveMusicUrl called for:', music.name, 'source:', music.source, 'searchChannel:', music.searchChannel, 'playbackUserSourceId:', music.playbackUserSourceId)
-    const userSourceStore = useUserSourceStore()
-
-    if (!userSourceStore.isLoaded) {
-      try {
-        await userSourceStore.loadUserSources()
-        console.log('[Player] User sources loaded, count:', userSourceStore.userSources.length)
-      } catch (error) {
-        console.error('[Player] Failed to load user sources:', error)
-      }
-    }
-
-    console.log('[Player] enabledSources:', userSourceStore.enabledSources.length, userSourceStore.enabledSources.map(s => s.name))
-
-    const sourceId = resolveMusicChannel(music)
-
-    console.log('[Player] Resolved sourceId:', sourceId)
-
-    const settingsStore = useSettingsStore()
-    const activeUserSourceId = settingsStore.settings.activeUserSourceId
-    const enabledSources = userSourceStore.enabledSources
-    const boundUserSourceId = music.playbackUserSourceId
-
-    console.log('[Player] activeUserSourceId from settings:', activeUserSourceId)
-    console.log('[Player] enabledSources count:', enabledSources.length)
-
-    const sourcesToTry = boundUserSourceId
-      ? (() => {
-          const boundSource = enabledSources.find(source => source.id === boundUserSourceId)
-          const fallbackSources = enabledSources.filter(source => source.id !== boundUserSourceId)
-          return boundSource ? [boundSource, ...fallbackSources] : fallbackSources
-        })()
-      : (() => {
-          if (!activeUserSourceId) return enabledSources
-
-          const activeSource = enabledSources.find(source => source.id === activeUserSourceId)
-          const fallbackSources = enabledSources.filter(source => source.id !== activeUserSourceId)
-          return activeSource ? [activeSource, ...fallbackSources] : enabledSources
-        })()
-
-    console.log('[Player] sourcesToTry:', sourcesToTry.length, sourcesToTry.map(s => s.name))
-
-    if (sourcesToTry.length > 0) {
-      const scriptRuntime = useScriptRuntime()
-      await scriptRuntime.initialize()
-
-      for (const userSource of sourcesToTry) {
-        try {
-          console.log('[Player] Trying user source:', userSource.name)
-          const scriptInfo = toScriptMusicInfo(music, sourceId)
-          const url = await scriptRuntime.getMusicUrl(sourceId, scriptInfo, '320k', userSource.id)
-
-          if (url) {
-            console.log('[Player] Got URL from user source:', userSource.name, url)
-            return url
-          } else {
-            console.log('[Player] No URL from user source:', userSource.name)
-          }
-        } catch (error) {
-          console.error('[Player] Failed to get URL from user source:', userSource.name, error)
-          // 继续尝试下一个音源
-        }
-      }
-    } else if (boundUserSourceId) {
-      console.warn('[Player] Bound user source is unavailable, falling back to built-in:', boundUserSourceId)
-    } else {
-      console.log('[Player] No user sources to try, falling back to built-in')
-    }
-
-    const songId = sourceId === 'kg' ? (music.hash || music.songmid) : music.songmid
-    if (songId) {
-      try {
-        const url = await invoke<string>('get_song_url', {
-          songId,
-          source: sourceId,
-          quality: '320k',
-        })
-        if (url) return url
-      } catch (error) {
-        console.error('[Player] Failed to get built-in song url:', error)
-      }
-    }
-
-    return music.url
-  }
-
   async function playMusic(music: MusicInfo): Promise<void> {
     if (!music) {
       throw new Error('无效的音乐信息')
@@ -261,19 +123,32 @@ export const usePlayerStore = defineStore('player', () => {
 
     try {
       console.log('[Player] Attempting to play:', music.name, 'source:', music.source, 'songmid:', music.songmid)
-
-      const url = await resolveMusicUrl(music)
-      console.log('[Player] Resolved URL:', url)
+      const playbackResolver = usePlaybackResolver()
+      const resolution = await playbackResolver.resolve(music)
+      const url = resolution.url
+      const playbackUrl = await localizePlaybackUrl(url)
+      console.log(
+        '[Player] Resolved URL:',
+        url,
+        'playback:',
+        playbackUrl,
+        'via:',
+        resolution.resolver,
+        'channel:',
+        resolution.channel,
+      )
 
       if (!url) {
         throw new Error(`未获取到可播放链接: ${music.name} - source: ${music.source}, songmid: ${music.songmid || 'N/A'}`)
       }
 
-      resolvedUrl.value = url
+      resolvedUrl.value = playbackUrl || url
+      resolvedQuality.value = resolution.quality || null
+      resolvedResolver.value = resolution.resolver
       currentMusic.value = music
       currentTime.value = 0
 
-      console.log('[Player] Playing:', music.name, 'URL:', url)
+      console.log('[Player] Playing:', music.name, 'URL:', playbackUrl || url)
 
       if (!audioElement) {
         throw new Error('当前环境不支持音频播放')
@@ -297,9 +172,10 @@ export const usePlayerStore = defineStore('player', () => {
         playbackRate: audioElement.playbackRate
       })
 
-      if (audioElement.src !== url) {
-        console.log('[Player] Setting new src, old:', audioElement.src?.substring(0, 50), 'new:', url?.substring(0, 50))
-        audioElement.src = url
+      const nextSrc = playbackUrl || url
+      if (audioElement.src !== nextSrc) {
+        console.log('[Player] Setting new src, old:', audioElement.src?.substring(0, 50), 'new:', nextSrc?.substring(0, 50))
+        audioElement.src = nextSrc
       }
       audioElement.currentTime = 0
 
@@ -438,6 +314,8 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = 0
     duration.value = 0
     resolvedUrl.value = null
+    resolvedQuality.value = null
+    resolvedResolver.value = null
   }
 
   function setLyrics(lines: LyricLine[]) {
@@ -480,6 +358,8 @@ export const usePlayerStore = defineStore('player', () => {
     hasMusic,
     hasLyrics,
     resolvedUrl,
+    resolvedQuality,
+    resolvedResolver,
     isLoadingUrl,
     playMusic,
     pauseMusic,

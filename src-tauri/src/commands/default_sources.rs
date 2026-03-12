@@ -168,6 +168,7 @@ pub async fn import_default_sources(app: AppHandle) -> Result<Vec<UserSourceScri
                 sources: default_sources,
                 allow_show_update_alert: false,
                 enabled: true,
+                priority: existing_sources.iter().map(|source| source.priority).max().unwrap_or(0) + 1,
                 created_at: now,
                 updated_at: now,
             };

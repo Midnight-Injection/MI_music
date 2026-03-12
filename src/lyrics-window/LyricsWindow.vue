@@ -17,6 +17,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window'
 
 const currentLyric = ref('')
 const nextLyric = ref('')
@@ -25,19 +26,19 @@ const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 
 let lyrics: { text: string; time: number }[] = []
-let _currentIndex = 0
+let unlisten: (() => void) | null = null
 
 onMounted(async () => {
   // Listen for lyrics updates from the main window
-  const unlisten = await getCurrentWebviewWindow().listen('lyrics-update', (event: { payload: string }) => {
+  unlisten = await getCurrentWebviewWindow().listen('lyrics-update', (event: { payload: string }) => {
     if (event.payload) {
       parseLyricsUpdate(event.payload)
     }
   })
+})
 
-  onUnmounted(() => {
-    unlisten.then(fn => fn())
-  })
+onUnmounted(() => {
+  unlisten?.()
 })
 
 function parseLyricsUpdate(data: string) {
@@ -93,13 +94,9 @@ function handleMouseMove(e: MouseEvent) {
   const dx = e.clientX - dragOffset.value.x
   const dy = e.clientY - dragOffset.value.y
 
-  getCurrentWebviewWindow().then(window => {
-    window.getPosition().then(pos => {
-      window.setPosition({
-        x: pos.x + dx,
-        y: pos.y + dy
-      })
-    })
+  const window = getCurrentWindow()
+  window.innerPosition().then((pos) => {
+    window.setPosition(new LogicalPosition(pos.x + dx, pos.y + dy))
   })
 
   dragOffset.value = {

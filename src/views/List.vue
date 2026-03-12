@@ -219,6 +219,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePlaylistStore } from '../store/playlist'
 import { usePlayerStore } from '../store/player'
 import type { MusicInfo } from '../types/music'
+import type { Playlist } from '../types/playlist'
 
 const playlistStore = usePlaylistStore()
 const playerStore = usePlayerStore()
@@ -228,14 +229,26 @@ const newPlaylistName = ref('')
 const draggedIndex = ref<number | null>(null)
 const draggedOverIndex = ref<number | null>(null)
 
-const contextMenu = ref({
+type ContextMenuType = 'song' | 'playlist'
+
+interface ContextMenuState {
+  show: boolean
+  x: number
+  y: number
+  type: ContextMenuType
+  music: MusicInfo | null
+  musicIndex: number
+  playlist: Playlist | null
+}
+
+const contextMenu = ref<ContextMenuState>({
   show: false,
   x: 0,
   y: 0,
-  type: 'song' | 'playlist',
-  music: null as MusicInfo | null,
+  type: 'song',
+  music: null,
   musicIndex: -1,
-  playlist: null as any
+  playlist: null,
 })
 
 const addToMenu = ref({
@@ -301,7 +314,7 @@ function playAll() {
   }
 }
 
-function playMusic(music: MusicInfo, index: number): void {
+function playMusic(_music: MusicInfo, index: number): void {
   if (currentPlaylist.value) {
     playerStore.setPlaylist([...currentPlaylist.value.musics], index)
   }
@@ -362,7 +375,7 @@ function handleDrop(event: DragEvent, toIndex: number) {
   draggedOverIndex.value = null
 }
 
-function showPlaylistMenu(event: MouseEvent, playlist: any) {
+function showPlaylistMenu(event: MouseEvent, playlist: Playlist) {
   contextMenu.value = {
     show: true,
     x: event.clientX,
@@ -418,7 +431,7 @@ function hideAddToMenu() {
 
 function addToPlaylist(playlistId: string) {
   if (addToMenu.value.music) {
-    playlistStore.addMusicToPlaylist(playlistId, addToMenu.value.music.id)
+    playlistStore.addMusicToPlaylist(playlistId, addToMenu.value.music)
   }
   hideAddToMenu()
 }
@@ -454,7 +467,7 @@ function deletePlaylistFromContext() {
   hideContextMenu()
 }
 
-function handleClickOutside(event: MouseEvent) {
+function handleClickOutside() {
   if (contextMenu.value.show) {
     hideContextMenu()
   }

@@ -1,12 +1,21 @@
 // API module for music source integrations
 // This module handles API calls to various music sources
 
+pub mod helpers;
 mod source;
+pub mod kugou;
+pub mod migu;
 pub mod kuwo;
+pub mod qq;
+pub mod netease;
 
 pub use source::{
     MusicSource, MusicInfo, LyricInfo, Quality, QualityInfo, MusicSourceError, Result
 };
+pub use kugou::KugouSource;
+pub use migu::MiguSource;
+pub use netease::NeteaseSource;
+pub use qq::QqSource;
 pub use kuwo::KuwoSource;
 
 use std::collections::HashMap;
@@ -23,6 +32,10 @@ impl SourceRegistry {
 
         // Register Kuwo source
         sources.insert("kw".to_string(), Box::new(KuwoSource::new()));
+        sources.insert("kg".to_string(), Box::new(KugouSource::new()));
+        sources.insert("wy".to_string(), Box::new(NeteaseSource::new()));
+        sources.insert("tx".to_string(), Box::new(QqSource::new()));
+        sources.insert("mg".to_string(), Box::new(MiguSource::new()));
 
         Self { sources }
     }
@@ -57,8 +70,12 @@ mod tests {
     fn test_source_registry() {
         let registry = SourceRegistry::new();
 
-        // Test that Kuwo source is registered
+        // Test that all built-in sources are registered
         assert!(registry.has_source("kw"));
+        assert!(registry.has_source("kg"));
+        assert!(registry.has_source("wy"));
+        assert!(registry.has_source("tx"));
+        assert!(registry.has_source("mg"));
         assert!(!registry.has_source("invalid"));
 
         // Test getting source
@@ -69,5 +86,9 @@ mod tests {
         // Test listing sources
         let sources = registry.list_sources();
         assert!(sources.contains(&"kw".to_string()));
+        assert!(sources.contains(&"kg".to_string()));
+        assert!(sources.contains(&"wy".to_string()));
+        assert!(sources.contains(&"tx".to_string()));
+        assert!(sources.contains(&"mg".to_string()));
     }
 }

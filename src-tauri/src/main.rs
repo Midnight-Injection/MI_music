@@ -51,6 +51,9 @@ fn main() {
             jiyu_music::get_lyric,
             jiyu_music::get_source_playlist,
             jiyu_music::get_available_sources,
+            jiyu_music::probe_media_url,
+            jiyu_music::cache_media_url,
+            jiyu_music::load_cached_media_blob,
             // Download commands (from download.rs)
             jiyu_music::create_download_task,
             jiyu_music::get_download_tasks,

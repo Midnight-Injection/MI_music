@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ['dist/', 'node_modules/', 'src-tauri/', '洛雪音乐-音源/'],
   env: {
     node: true,
     browser: true,

@@ -1,5 +1,5 @@
 <template>
-  <div class="lyric-display" ref="displayRef">
+  <div class="lyric-display">
     <div v-if="loading" class="lyric-loading">
       <div class="loading-spinner"></div>
       <p>加载歌词中...</p>
@@ -20,7 +20,7 @@
       <p class="hint">播放音乐时自动加载歌词</p>
     </div>
 
-    <div v-else class="lyric-content" ref="contentRef">
+    <div v-else class="lyric-content">
       <div class="lyric-lines-container" ref="linesContainerRef">
         <LyricLine
           v-for="(line, index) in visibleLines"
@@ -72,7 +72,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 import LyricLine from './LyricLine.vue'
 import type { LyricLine as LyricLineType } from './types'
 
@@ -80,8 +80,6 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const displayRef = ref<HTMLElement>()
-const contentRef = ref<HTMLElement>()
 const linesContainerRef = ref<HTMLElement>()
 
 const loading = ref(false)

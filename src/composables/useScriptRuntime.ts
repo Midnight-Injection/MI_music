@@ -25,6 +25,8 @@ export interface ScriptMusicInfo {
   singer: string
   songmid?: string
   hash?: string
+  strMediaMid?: string
+  copyrightId?: string
   albumId?: string
   albumName?: string
   interval?: number
@@ -65,6 +67,79 @@ export interface ScriptCapability {
 }
 
 const lxInstances = new Map<string, ScriptInstance>()
+
+function serializeError(error: unknown): string {
+  if (error instanceof Error) return error.message || error.name || 'Unknown error'
+  if (typeof error === 'string') return error
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
+  }
+  return String(error)
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label} timeout after ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
+  }
+}
+
+function extractMusicUrl(result: unknown): string | null {
+  if (typeof result === 'string') {
+    const value = result.trim()
+    return value || null
+  }
+
+  if (Array.isArray(result)) {
+    for (const item of result) {
+      const url = extractMusicUrl(item)
+      if (url) return url
+    }
+    return null
+  }
+
+  if (result && typeof result === 'object') {
+    const record = result as Record<string, unknown>
+    const directCandidates = [
+      record.url,
+      record.data,
+      record.result,
+      record.playUrl,
+      record.play_url,
+    ]
+
+    for (const candidate of directCandidates) {
+      const url = extractMusicUrl(candidate)
+      if (url) return url
+    }
+
+    if (record.data && typeof record.data === 'object') {
+      const url = extractMusicUrl((record.data as Record<string, unknown>).url)
+      if (url) return url
+    }
+
+    if (record.result && typeof record.result === 'object') {
+      const url = extractMusicUrl((record.result as Record<string, unknown>).url)
+      if (url) return url
+    }
+  }
+
+  return null
+}
 
 function buildCapabilityFromSource(source: Pick<UserSourceScript, 'sources'>): ScriptCapability {
   const channels = Object.keys(source.sources || {})
@@ -371,8 +446,12 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
       aesEncrypt(buffer: Uint8Array | string, mode: string, key: Uint8Array | string, iv?: Uint8Array | string): any {
         try {
           const data = typeof buffer === 'string' ? buffer : CryptoJS.lib.WordArray.create(buffer as any)
-          const keyWordArray = typeof key === 'string' ? key : CryptoJS.lib.WordArray.create(key as any)
-          const ivWordArray = iv ? (typeof iv === 'string' ? iv : CryptoJS.lib.WordArray.create(iv as any)) : undefined
+          const keyWordArray = typeof key === 'string' ? CryptoJS.enc.Utf8.parse(key) : CryptoJS.lib.WordArray.create(key as any)
+          const ivWordArray = iv
+            ? typeof iv === 'string'
+              ? CryptoJS.enc.Utf8.parse(iv)
+              : CryptoJS.lib.WordArray.create(iv as any)
+            : undefined
 
           let encrypted: any
           if (mode.toLowerCase() === 'cbc') {
@@ -546,19 +625,40 @@ async function getMusicUrlFromScript(
 
     for (const handler of instance.handlers) {
       try {
-        const result = await handler(event)
-        if (result && typeof result === 'string') {
-          console.log(`[ScriptRuntime] Got URL from ${source.id}:`, result)
-          return result
+        const result = await withTimeout(
+          handler(event),
+          2500,
+          `musicUrl ${source.name}/${musicSource}/${quality}`,
+        )
+        const url = extractMusicUrl(result)
+        if (url) {
+          console.log(
+            `[ScriptRuntime] Got URL from ${source.id}/${musicSource}/${quality}:`,
+            url,
+          )
+          return url
+        }
+
+        if (result != null) {
+          console.warn(
+            `[ScriptRuntime] Handler returned non-url result for ${source.id}/${musicSource}/${quality}:`,
+            result,
+          )
         }
       } catch (error) {
-        console.error(`[ScriptRuntime] Handler error in ${source.id} (${source.name}):`, error)
+        console.error(
+          `[ScriptRuntime] Handler error in ${source.id} (${source.name}) for ${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+          serializeError(error),
+        )
       }
     }
 
     return null
   } catch (error) {
-    console.error(`[ScriptRuntime] getMusicUrl failed:`, error)
+    console.error(
+      `[ScriptRuntime] getMusicUrl failed for ${source.id}/${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+      serializeError(error),
+    )
     return null
   }
 }
@@ -596,7 +696,11 @@ async function searchFromScript(
 
       for (const handler of instance.handlers) {
         try {
-          const handlerResult = await handler(event)
+          const handlerResult = await withTimeout(
+            handler(event),
+            4000,
+            `search ${source.name}/${channel}/${keyword}`,
+          )
           const items = extractSearchItems(handlerResult).map(item => {
             if (item && typeof item === 'object' && !Array.isArray(item)) {
               return {
@@ -608,14 +712,17 @@ async function searchFromScript(
           })
           if (items.length) results.push(...items)
         } catch (error) {
-          console.error(`[ScriptRuntime] Search handler error in ${source.id}/${channel}:`, error)
+          console.error(
+            `[ScriptRuntime] Search handler error in ${source.id}/${channel}/${keyword}:`,
+            serializeError(error),
+          )
         }
       }
     }
 
     return results
   } catch (error) {
-    console.error(`[ScriptRuntime] search failed:`, error)
+    console.error(`[ScriptRuntime] search failed:`, serializeError(error))
     return []
   }
 }

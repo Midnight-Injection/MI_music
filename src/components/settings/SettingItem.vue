@@ -27,7 +27,7 @@
         :disabled="disabled"
         class="setting-item__select"
       >
-        <option v-for="option in options" :key="option.value" :value="option.value">
+        <option v-for="option in options" :key="String(option.value)" :value="option.value">
           {{ option.label }}
         </option>
       </select>
@@ -89,7 +89,7 @@
       <div v-else-if="type === 'color-palette'" class="setting-item__palette">
         <button
           v-for="color in options"
-          :key="color.value"
+          :key="String(color.value)"
           :class="['setting-item__color-button', { active: internalValue === color.value }]"
           :style="{ backgroundColor: color.color }"
           :disabled="disabled"

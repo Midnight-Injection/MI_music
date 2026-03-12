@@ -31,11 +31,17 @@ export function useMusicUrlResolver() {
       interval: music.duration,
       source: sourceId,
     }
+
+    if (music.albumId) info.albumId = music.albumId
+    if (music.strMediaMid) info.strMediaMid = music.strMediaMid
+    if (music.copyrightId) info.copyrightId = music.copyrightId
+    if (sourceId === 'kg') info.hash = music.hash || music.songmid
+    else if (music.songmid) info.songmid = music.songmid
     
     // Add source-specific fields based on the source
     // These would typically come from the search result
     // For now, we extract from the music.id or other fields
-    if (music.id) {
+    if (!info.songmid && !info.hash && music.id) {
       // Parse the ID to extract songmid/hash if available
       // Format is usually: source_songid
       const parts = music.id.split('_')

@@ -53,11 +53,20 @@ export const useUserSourceStore = defineStore('userSource', () => {
   const userSources = ref<UserSourceScript[]>([])
   const isLoading = ref(false)
   const isLoaded = ref(false)
+  let hasTriedImportDefaults = false
+
+  function sortSources(sources: UserSourceScript[]): UserSourceScript[] {
+    return [...sources].sort((left, right) => {
+      if (left.priority !== right.priority) return left.priority - right.priority
+      return left.created_at - right.created_at
+    })
+  }
 
   // 计算属性：启用的音源
   const enabledSources = computed(() =>
-    userSources.value.filter(s => s.enabled)
+    sortSources(userSources.value.filter(s => s.enabled))
   )
+  const sortedUserSources = computed(() => sortSources(userSources.value))
 
   // 加载用户音源
   async function loadUserSources(force = false) {
@@ -90,7 +99,18 @@ export const useUserSourceStore = defineStore('userSource', () => {
         isLoaded.value = true
         return
       }
-      const sources = await invokeFn('get_user_sources') as UserSourceScript[]
+      let sources = await invokeFn('get_user_sources') as UserSourceScript[]
+
+      if (!sources.length && !hasTriedImportDefaults) {
+        hasTriedImportDefaults = true
+        try {
+          await invokeFn('import_default_sources')
+          sources = await invokeFn('get_user_sources') as UserSourceScript[]
+        } catch (error) {
+          console.warn('[UserSourceStore] Failed to auto-import default sources:', error)
+        }
+      }
+
       userSources.value = sources
       isLoaded.value = true
       console.log('[UserSourceStore] Loaded', sources.length, 'user sources, enabled:', sources.filter(s => s.enabled).length)
@@ -172,6 +192,28 @@ export const useUserSourceStore = defineStore('userSource', () => {
     }
   }
 
+  async function updateSourcePriority(id: string, priority: number) {
+    try {
+      if (!invokeFn) {
+        console.warn('[UserSourceStore] Tauri invoke not available')
+        return
+      }
+      const normalizedPriority = Math.max(1, Math.floor(priority || 1))
+      const updated = await invokeFn('update_user_source', {
+        id,
+        priority: normalizedPriority
+      }) as UserSourceScript
+
+      const index = userSources.value.findIndex(s => s.id === id)
+      if (index !== -1) {
+        userSources.value[index] = updated
+      }
+    } catch (error) {
+      console.error('Failed to update user source priority:', error)
+      throw error
+    }
+  }
+
   // 删除音源
   async function deleteSource(id: string) {
     try {
@@ -217,9 +259,11 @@ export const useUserSourceStore = defineStore('userSource', () => {
     isLoading,
     isLoaded,
     enabledSources,
+    sortedUserSources,
     loadUserSources,
     importSource,
     toggleSource,
+    updateSourcePriority,
     deleteSource,
     exportSource,
     getSourceById,

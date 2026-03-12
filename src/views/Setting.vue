@@ -93,7 +93,7 @@
               </button>
             </div>
           </div>
-          <p class="section-description">导入 JS 自定义音源脚本。参考 lx-music 的方式，当前只选择一个"当前自定义音源"作为全局音源：如果脚本支持搜索，会用于各平台渠道搜索；播放时也会用于补充链接解析。点击"导入默认音源"可批量导入项目自带的音源脚本。</p>
+          <p class="section-description">导入 JS 自定义音源脚本。数字越小优先级越高；当前音源仍会优先参与对应歌曲的解析。播放器里的音频质量设置会直接影响这里的解析档位选择。</p>
 
           <div v-if="userSourceStore.isLoading" class="loading-state">
             <div class="loading-spinner"></div>
@@ -112,7 +112,7 @@
 
           <div v-else class="user-source-list">
             <div
-              v-for="source in userSourceStore.userSources"
+              v-for="source in userSourceStore.sortedUserSources"
               :key="source.id"
               class="user-source-card"
               :class="{ disabled: !source.enabled }"
@@ -145,6 +145,18 @@
                 </div>
               </div>
               <p v-if="source.description" class="card-description">{{ source.description }}</p>
+              <div class="card-priority">
+                <span class="card-priority__label">优先级</span>
+                <input
+                  class="card-priority__input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  :value="source.priority"
+                  @change="handlePriorityChange(source.id, $event)"
+                />
+                <span class="card-priority__hint">数字越小越优先</span>
+              </div>
               <div class="card-actions">
                 <button
                   :class="['action-btn', 'primary', { active: settingsStore.settings.activeUserSourceId === source.id }]"
@@ -645,6 +657,10 @@ async function setActiveUserSource(id: string) {
   showToast('当前自定义音源已切换')
 }
 
+function getPreferredEnabledUserSource(excludeId?: string) {
+  return userSourceStore.enabledSources.find(source => source.id !== excludeId)
+}
+
 async function toggleUserSource(id: string, enabled: boolean) {
   try {
     await userSourceStore.toggleSource(id, enabled)
@@ -654,7 +670,7 @@ async function toggleUserSource(id: string, enabled: boolean) {
     }
 
     if (!enabled && settingsStore.settings.activeUserSourceId === id) {
-      const fallback = userSourceStore.userSources.find(source => source.id !== id && source.enabled)
+      const fallback = getPreferredEnabledUserSource(id)
       settingsStore.updateSetting('activeUserSourceId', fallback?.id || '')
     }
 
@@ -671,7 +687,7 @@ async function deleteUserSource(id: string) {
     try {
       await userSourceStore.deleteSource(id)
       if (settingsStore.settings.activeUserSourceId === id) {
-        const fallback = userSourceStore.userSources.find(source => source.id !== id && source.enabled)
+        const fallback = getPreferredEnabledUserSource(id)
         settingsStore.updateSetting('activeUserSourceId', fallback?.id || '')
       }
       showToast('自定义音源已删除')
@@ -679,6 +695,19 @@ async function deleteUserSource(id: string) {
       console.error('Failed to delete user source:', error)
       showToast('删除失败', 'error')
     }
+  }
+}
+
+async function handlePriorityChange(id: string, event: Event) {
+  const input = event.target as HTMLInputElement
+  const nextPriority = Math.max(1, Math.floor(Number(input.value) || 1))
+
+  try {
+    await userSourceStore.updateSourcePriority(id, nextPriority)
+    showToast('优先级已更新')
+  } catch (error) {
+    console.error('Failed to update source priority:', error)
+    showToast('更新优先级失败', 'error')
   }
 }
 
@@ -1277,6 +1306,41 @@ onMounted(async () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.card-priority {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 14px;
+}
+
+.card-priority__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.card-priority__input {
+  width: 78px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 16%, transparent);
+  }
+}
+
+.card-priority__hint {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .card-status {

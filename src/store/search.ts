@@ -14,15 +14,16 @@ export const useSearchStore = defineStore('search', () => {
   const currentKeyword = ref('')
   const currentChannel = ref('kw')
   const currentPage = ref(1)
-  const totalPages = ref(0)
   const totalCount = ref(0)
+  const hasNextPage = ref(false)
   const pageSize = 30
 
   const searchHistory = ref<SearchHistoryItem[]>([])
   const maxHistoryItems = 20
 
   const hasResults = computed(() => searchResults.value.length > 0)
-  const canLoadMore = computed(() => currentPage.value < totalPages.value)
+  const canLoadMore = computed(() => hasNextPage.value)
+  const canGoPrev = computed(() => currentPage.value > 1)
 
   // Load search history from localStorage
   function loadHistory() {
@@ -87,34 +88,24 @@ export const useSearchStore = defineStore('search', () => {
     searchResults.value = []
     currentKeyword.value = ''
     currentPage.value = 1
-    totalPages.value = 0
     totalCount.value = 0
+    hasNextPage.value = false
   }
 
   // Set search results
   function setResults(results: SearchResult) {
-    // 创建新数组引用以确保响应式更新
     searchResults.value = Array.from(results.data)
-    totalCount.value = results.total
-    totalPages.value = Math.ceil(results.total / pageSize)
-    console.log('[SearchStore] setResults called, results count:', searchResults.value.length, 'total:', results.total)
-  }
-
-  // Append search results (for pagination)
-  function appendResults(results: SearchResult) {
-    searchResults.value.push(...results.data)
+    totalCount.value = results.total ?? results.data.length
+    currentChannel.value = results.channel
+    currentPage.value = results.page ?? 1
+    hasNextPage.value = results.hasMore ?? false
   }
 
   // Update current search params
-  function setSearchParams(keyword: string, channel: string) {
+  function setSearchParams(keyword: string, channel: string, page = 1) {
     currentKeyword.value = keyword
     currentChannel.value = channel
-    currentPage.value = 1
-  }
-
-  // Increment page number
-  function nextPage() {
-    currentPage.value++
+    currentPage.value = page
   }
 
   return {
@@ -123,19 +114,18 @@ export const useSearchStore = defineStore('search', () => {
     currentKeyword,
     currentChannel,
     currentPage,
-    totalPages,
     totalCount,
+    hasNextPage,
     pageSize,
     searchHistory,
     hasResults,
     canLoadMore,
+    canGoPrev,
     loadHistory,
     addToHistory,
     clearHistory,
     clearResults,
     setResults,
-    appendResults,
     setSearchParams,
-    nextPage
   }
 })

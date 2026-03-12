@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { MusicInfo } from '../types/music'
 import type { Playlist, PlaylistInfo } from '../types/playlist'
 
 export const usePlaylistStore = defineStore('playlist', () => {
@@ -61,17 +62,12 @@ export const usePlaylistStore = defineStore('playlist', () => {
     }))
   }
 
-  function addMusicToPlaylist(playlistId: string, musicId: string) {
+  function addMusicToPlaylist(playlistId: string, music: MusicInfo) {
     const playlist = playlists.value.find((p) => p.id === playlistId)
     if (playlist) {
-      playlist.musics.push({
-        id: musicId,
-        name: '',
-        artist: '',
-        album: '',
-        duration: 0,
-        url: ''
-      })
+      const exists = playlist.musics.some((item) => item.id === music.id)
+      if (exists) return
+      playlist.musics.push({ ...music })
       playlist.updatedAt = Date.now()
     }
   }

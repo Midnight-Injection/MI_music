@@ -249,7 +249,7 @@ mod tests {
         assert!(!player.is_paused());
 
         player.pause().unwrap();
-        assert!(player.is_playing());
+        assert!(!player.is_playing());
         assert!(player.is_paused());
 
         player.resume().unwrap();

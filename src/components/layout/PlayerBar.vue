@@ -1,215 +1,96 @@
 <template>
-  <div
-    class="player-bar"
-    :class="{ 'mini-mode': isMiniMode }"
-    v-motion
-    :initial="{ opacity: 0, y: 100 }"
-    :enter="{ opacity: 1, y: 0, transition: { duration: 500, ease: 'easeOut' } }"
+  <motion.div
+    class="player-bar glass-panel"
+    :initial="{ opacity: 0, y: 40 }"
+    :animate="{ opacity: 1, y: 0, transition: { duration: 0.35 } }"
   >
-    <!-- Song Info Section -->
-    <div class="song-info" @click="goToDetail">
-      <div v-if="player.currentMusic" class="cover-wrapper">
-        <img
-          :src="player.currentMusic.cover || defaultCover"
-          :alt="player.currentMusic.name"
-          class="cover"
-          @error="handleCoverError"
-          loading="lazy"
-        />
-        <div class="cover-tooltip">
-          <img :src="player.currentMusic.cover || defaultCover" alt="" />
-        </div>
-      </div>
-      <div v-else class="cover-wrapper">
-        <div class="cover-placeholder">🎵</div>
-      </div>
+    <div class="player-bar__main" @click="goToDetail">
+      <img
+        v-if="player.currentMusic"
+        :src="player.currentMusic.cover || defaultCover"
+        :alt="player.currentMusic.name"
+        class="player-bar__cover"
+        @error="handleCoverError"
+      />
+      <div v-else class="player-bar__cover player-bar__cover--placeholder"></div>
 
-      <div v-if="player.currentMusic" class="track-info">
-        <div class="track-name scroll-text" :data-text="player.currentMusic.name">
-          {{ player.currentMusic.name }}
+      <div class="player-bar__track">
+        <div class="player-bar__title-row">
+          <strong>{{ player.currentMusic?.name || '未播放' }}</strong>
+          <span v-if="currentQualityLabel" class="player-bar__quality">{{ currentQualityLabel }}</span>
         </div>
-        <div class="track-artist">{{ player.currentMusic.artist }}</div>
-      </div>
-      <div v-else class="track-info empty">
-        <div class="track-name">未播放</div>
+        <span>{{ player.currentMusic?.artist || '选择一首歌开始试听' }}</span>
       </div>
     </div>
 
-    <!-- Main Controls Section -->
-    <div class="main-controls">
-      <!-- Play Mode Toggle -->
-      <button
-        class="control-btn mode-btn"
-        @click="togglePlayMode"
-        :title="playModeTitle"
-      >
-        <span>{{ playModeIcon }}</span>
+    <div class="player-bar__controls">
+      <button class="player-bar__btn" :title="playModeTitle" @click="togglePlayMode">
+        {{ playModeIcon }}
       </button>
-
-      <!-- Previous Track -->
-      <button class="control-btn" @click="player.playPrevious" title="上一首">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-        </svg>
+      <button class="player-bar__btn" title="上一首" @click="player.playPrevious">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
       </button>
-
-      <!-- Play/Pause -->
-      <button
-        class="control-btn play-btn"
-        @click="togglePlay"
-        :title="player.isPlaying ? '暂停 (Space)' : '播放 (Space)'"
-      >
-        <svg v-if="player.isPlaying" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-        <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
+      <button class="player-bar__play" :title="player.isPlaying ? '暂停' : '播放'" @click="togglePlay">
+        <svg v-if="player.isPlaying" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+        <svg v-else viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
       </button>
-
-      <!-- Next Track -->
-      <button class="control-btn" @click="player.playNext" title="下一首">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-        </svg>
-      </button>
-
-      <!-- Playback Rate -->
-      <button
-        class="control-btn rate-btn"
-        @click="cyclePlaybackRate"
-        :title="`播放速度: ${player.playbackRate}x`"
-      >
-        <span class="rate-text">{{ player.playbackRate }}x</span>
+      <button class="player-bar__btn" title="下一首" @click="player.playNext">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
       </button>
     </div>
 
-    <!-- Progress Bar Section -->
-    <div class="progress-section">
-      <span class="time current-time">{{ formatTime(player.currentTime) }}</span>
+    <div class="player-bar__timeline">
+      <span>{{ formatTime(player.currentTime) }}</span>
       <div
-        class="progress-bar"
+        ref="progressBarRef"
+        class="player-bar__progress"
         @click="handleSeek"
         @mousedown="startDrag"
         @mouseup="stopDrag"
         @mouseleave="stopDrag"
         @mousemove="handleDragSeek"
-        ref="progressBarRef"
       >
-        <div class="progress-track">
-          <div
-            class="progress-fill"
-            :style="{ width: progressPercent + '%' }"
-          ></div>
-          <div
-            class="progress-thumb"
-            :style="{ left: progressPercent + '%' }"
-          ></div>
-          <!-- Hover Preview -->
-          <div
-            v-if="hoverTime !== null"
-            class="hover-preview"
-            :style="{ left: hoverPercent + '%' }"
-          >
-            <span class="hover-time">{{ formatTime(hoverTime) }}</span>
-          </div>
+        <div class="player-bar__progress-track">
+          <div class="player-bar__progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+          <div class="player-bar__progress-thumb" :style="{ left: `${progressPercent}%` }"></div>
         </div>
       </div>
-      <span class="time duration">{{ formatTime(player.duration) }}</span>
+      <span>{{ formatTime(player.duration) }}</span>
     </div>
 
-    <!-- Extra Controls Section -->
-    <div class="extra-controls">
-      <!-- Mini/Full Mode Toggle -->
-      <button
-        class="control-btn"
-        @click="toggleMiniMode"
-        :title="isMiniMode ? '展开播放器' : '迷你模式'"
-      >
-        <svg v-if="isMiniMode" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-        </svg>
-        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
-        </svg>
-      </button>
-
-      <!-- Lyrics Toggle -->
-      <button
-        class="control-btn"
-        @click="toggleLyrics"
-        :class="{ active: showLyrics }"
-        title="歌词 (L)"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-        </svg>
-      </button>
-
-      <!-- Playlist Toggle -->
-      <button
-        class="control-btn"
-        @click="togglePlaylist"
-        :class="{ active: showPlaylist }"
-        title="播放列表 (P)"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/>
-        </svg>
-      </button>
-
-      <!-- Volume Control -->
-      <div class="volume-control">
-        <button
-          class="control-btn"
-          @click="toggleMute"
-          :title="isMuted ? '取消静音 (M)' : '静音 (M)'"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path v-if="isMuted || volumeValue === 0" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-            <path v-else-if="volumeValue < 0.5" d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
-            <path v-else d="M3 9v6h4l5 5V4L9 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-          </svg>
-        </button>
-        <input
-          v-model.number="volumeValue"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          class="volume-slider"
-          @input="handleVolumeChange"
-          title="音量"
-        />
-      </div>
+    <div class="player-bar__side">
+      <button class="player-bar__text-btn" @click="cyclePlaybackRate">{{ player.playbackRate }}x</button>
+      <button class="player-bar__text-btn" @click="toggleMute">{{ isMuted ? '取消静音' : '静音' }}</button>
+      <input v-model.number="volumeValue" type="range" min="0" max="1" step="0.01" @input="handleVolumeChange" />
     </div>
-  </div>
+  </motion.div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { motion } from 'motion-v'
 import { useRouter } from 'vue-router'
 import { usePlayerStore } from '../../store/player'
 import type { PlayMode } from '../../types/player'
+import { formatQualityLabel, getTrackDisplayQuality } from '../../lib/trackQuality'
 
 const router = useRouter()
 const player = usePlayerStore()
 
-const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="48"%3E🎵%3C/text%3E%3C/svg%3E'
-const showLyrics = ref(false)
-const showPlaylist = ref(false)
+const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23111827" width="120" height="120"/%3E%3Ccircle cx="60" cy="60" r="30" fill="%23f97316" fill-opacity="0.28"/%3E%3C/svg%3E'
 const isDragging = ref(false)
 const volumeValue = ref(player.volume)
 const isMuted = ref(false)
 const previousVolume = ref(1)
-const isMiniMode = ref(false)
 const progressBarRef = ref<HTMLElement | null>(null)
-const hoverTime = ref<number | null>(null)
-const hoverPercent = ref(0)
 
 const progressPercent = computed(() => {
-  if (player.duration === 0) return 0
-  return (player.currentTime / player.duration) * 100
+  if (!player.duration) return 0
+  return Math.max(0, Math.min(100, (player.currentTime / player.duration) * 100))
+})
+
+const currentQualityLabel = computed(() => {
+  return formatQualityLabel(player.resolvedQuality || getTrackDisplayQuality(player.currentMusic))
 })
 
 const playModeIcon = computed(() => {
@@ -238,12 +119,18 @@ const playModeTitle = computed(() => {
   }
 })
 
+watch(
+  () => player.volume,
+  (nextValue) => {
+    volumeValue.value = nextValue
+    isMuted.value = nextValue === 0
+  },
+  { immediate: true },
+)
+
 function togglePlay() {
-  if (player.isPlaying) {
-    player.pauseMusic()
-  } else {
-    player.resumeMusic()
-  }
+  if (player.isPlaying) player.pauseMusic()
+  else player.resumeMusic()
 }
 
 function toggleMute() {
@@ -252,11 +139,12 @@ function toggleMute() {
     volumeValue.value = 0
     player.setVolume(0)
     isMuted.value = true
-  } else {
-    volumeValue.value = previousVolume.value
-    player.setVolume(previousVolume.value)
-    isMuted.value = false
+    return
   }
+
+  volumeValue.value = previousVolume.value
+  player.setVolume(previousVolume.value)
+  isMuted.value = false
 }
 
 function togglePlayMode() {
@@ -267,36 +155,22 @@ function togglePlayMode() {
 }
 
 function cyclePlaybackRate() {
-  const rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+  const rates = [0.75, 1, 1.25, 1.5, 1.75, 2]
   const currentIndex = rates.indexOf(player.playbackRate)
   const nextIndex = (currentIndex + 1) % rates.length
-  player.setPlaybackRate(rates[nextIndex])
-}
-
-function toggleLyrics() {
-  showLyrics.value = !showLyrics.value
-}
-
-function togglePlaylist() {
-  showPlaylist.value = !showPlaylist.value
-}
-
-function toggleMiniMode() {
-  isMiniMode.value = !isMiniMode.value
+  player.setPlaybackRate(rates[nextIndex] ?? 1)
 }
 
 function goToDetail() {
-  if (player.currentMusic) {
-    router.push('/player')
-  }
+  if (player.currentMusic) router.push('/player')
 }
 
 function handleSeek(event: MouseEvent) {
-  const progressBar = event.currentTarget as HTMLElement
+  const progressBar = progressBarRef.value ?? (event.currentTarget as HTMLElement | null)
+  if (!progressBar || !player.duration) return
   const rect = progressBar.getBoundingClientRect()
   const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-  const newTime = percent * player.duration
-  player.setProgress(newTime)
+  player.setProgress(percent * player.duration)
 }
 
 function startDrag() {
@@ -308,18 +182,8 @@ function stopDrag() {
 }
 
 function handleDragSeek(event: MouseEvent) {
-  const progressBar = event.currentTarget as HTMLElement
-  const rect = progressBar.getBoundingClientRect()
-  const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-
-  // Update hover preview
-  hoverPercent.value = percent * 100
-  hoverTime.value = percent * player.duration
-
-  if (isDragging.value) {
-    const newTime = percent * player.duration
-    player.setProgress(newTime)
-  }
+  if (!isDragging.value) return
+  handleSeek(event)
 }
 
 function handleVolumeChange() {
@@ -333,17 +197,14 @@ function handleCoverError(event: Event) {
 }
 
 function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00'
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 function handleKeyboardShortcuts(event: KeyboardEvent) {
-  // Ignore if typing in input
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-    return
-  }
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
 
   switch (event.code) {
     case 'Space':
@@ -358,29 +219,9 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
       event.preventDefault()
       player.setProgress(Math.min(player.duration, player.currentTime + 5))
       break
-    case 'ArrowUp':
-      event.preventDefault()
-      const newVolUp = Math.min(1, player.volume + 0.1)
-      volumeValue.value = newVolUp
-      player.setVolume(newVolUp)
-      break
-    case 'ArrowDown':
-      event.preventDefault()
-      const newVolDown = Math.max(0, player.volume - 0.1)
-      volumeValue.value = newVolDown
-      player.setVolume(newVolDown)
-      break
     case 'KeyM':
       event.preventDefault()
       toggleMute()
-      break
-    case 'KeyL':
-      event.preventDefault()
-      toggleLyrics()
-      break
-    case 'KeyP':
-      event.preventDefault()
-      togglePlaylist()
       break
     case 'KeyN':
       event.preventDefault()
@@ -404,474 +245,173 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .player-bar {
-  position: fixed;
-  bottom: 0;
-  left: 200px;
-  right: 0;
-  height: 80px;
-  background: rgba(24, 24, 24, 0.95);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) auto minmax(220px, 1fr) auto;
   align-items: center;
-  padding: 0 24px;
-  gap: 24px;
-  z-index: 1000;
-  transition: all 0.3s ease;
-
-  @media (max-width: 768px) {
-    left: 0;
-    padding: 0 16px;
-    gap: 16px;
-  }
-
-  &.mini-mode {
-    height: 4px;
-    padding: 0;
-    gap: 0;
-
-    .song-info,
-    .main-controls,
-    .extra-controls {
-      display: none;
-    }
-
-    .progress-section {
-      width: 100%;
-      gap: 0;
-
-      .time {
-        display: none;
-      }
-
-      .progress-bar {
-        .progress-track {
-          background: rgba(255, 255, 255, 0.05);
-        }
-      }
-    }
-  }
+  gap: 14px;
+  min-height: 78px;
+  padding: 12px 16px;
+  border-radius: 22px;
+  box-shadow: var(--shadow-sm);
 }
 
-// Song Info Section
-.song-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 200px;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-
-  &:hover {
-    opacity: 0.8;
-  }
-
-  .cover-wrapper {
-    position: relative;
-    width: 56px;
-    height: 56px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-
-    .cover {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-
-    &:hover .cover {
-      transform: scale(1.1);
-    }
-
-    .cover-tooltip {
-      position: absolute;
-      bottom: 70px;
-      left: 50%;
-      transform: translateX(-50%) scale(0.8);
-      width: 200px;
-      height: 200px;
-      border-radius: 8px;
-      overflow: hidden;
-      background: rgba(0, 0, 0, 0.9);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.2s ease;
-      z-index: 1001;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    }
-
-    &:hover .cover-tooltip {
-      opacity: 1;
-      transform: translateX(-50%) scale(1);
-    }
-  }
-
-  .cover-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    font-size: 24px;
-  }
-
-  .track-info {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-
-    .track-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #ffffff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 4px;
-
-      &.scroll-text {
-        display: inline-block;
-        animation: scroll 20s linear infinite;
-      }
-    }
-
-    .track-artist {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    &.empty .track-name {
-      color: rgba(255, 255, 255, 0.4);
-    }
-  }
-}
-
-@keyframes scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
-}
-
-// Main Controls
-.main-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .control-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-      transform: scale(1.05);
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-
-    &.play-btn {
-      width: 48px;
-      height: 48px;
-      background: #ffffff;
-      color: #000000;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.9);
-        transform: scale(1.08);
-      }
-    }
-
-    &.mode-btn {
-      font-size: 18px;
-    }
-
-    &.rate-btn {
-      width: 48px;
-      font-size: 11px;
-      font-weight: 600;
-
-      .rate-text {
-        color: #1db954;
-      }
-    }
-  }
-}
-
-// Progress Section
-.progress-section {
-  flex: 1;
+.player-bar__main {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
+  cursor: pointer;
+}
 
-  .time {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    font-variant-numeric: tabular-nums;
-    min-width: 40px;
-    text-align: center;
-  }
+.player-bar__cover {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+}
 
-  .progress-bar {
-    flex: 1;
-    height: 12px;
+.player-bar__cover--placeholder {
+  background: linear-gradient(135deg, var(--primary-light), rgba(59, 130, 246, 0.12));
+}
+
+.player-bar__track {
+  min-width: 0;
+
+  .player-bar__title-row {
     display: flex;
     align-items: center;
-    cursor: pointer;
-    position: relative;
+    gap: 8px;
+    min-width: 0;
+  }
 
-    .progress-track {
-      position: relative;
-      width: 100%;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      overflow: visible;
+  strong,
+  > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-      .progress-fill {
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        background: linear-gradient(90deg, #1db954, #1ed760);
-        border-radius: 2px;
-        transition: width 0.1s ease;
-        pointer-events: none;
-      }
+  strong {
+    font-size: 0.92rem;
+  }
 
-      .progress-thumb {
-        position: absolute;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        width: 12px;
-        height: 12px;
-        background: #ffffff;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        opacity: 0;
-        transition: opacity 0.2s ease, left 0.1s ease;
-        pointer-events: none;
-      }
-
-      .hover-preview {
-        position: absolute;
-        bottom: 20px;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        pointer-events: none;
-        white-space: nowrap;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-
-        .hover-time {
-          font-variant-numeric: tabular-nums;
-        }
-      }
-    }
-
-    &:hover .progress-thumb {
-      opacity: 1;
-    }
-
-    &:hover .progress-track {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    &:hover .hover-preview {
-      opacity: 1;
-    }
+  > span {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
   }
 }
 
-// Extra Controls
-.extra-controls {
+.player-bar__quality {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-light) 88%, transparent);
+  color: var(--primary-color);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.player-bar__controls,
+.player-bar__side {
   display: flex;
   align-items: center;
   gap: 8px;
+}
 
-  .control-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
+.player-bar__btn,
+.player-bar__text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-      transform: scale(1.05);
-    }
-
-    &.active {
-      color: #1db954;
-      background: rgba(29, 185, 84, 0.1);
-
-      &:hover {
-        background: rgba(29, 185, 84, 0.2);
-      }
-    }
-  }
-
-  .volume-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 120px;
-
-    .volume-slider {
-      flex: 1;
-      height: 4px;
-      -webkit-appearance: none;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      outline: none;
-      cursor: pointer;
-
-      &::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
-        background: #ffffff;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        transition: transform 0.2s ease;
-
-        &:hover {
-          transform: scale(1.2);
-        }
-      }
-
-      &::-webkit-slider-runnable-track {
-        height: 4px;
-        border-radius: 2px;
-      }
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.15);
-      }
-    }
+  svg {
+    width: 16px;
+    height: 16px;
   }
 }
 
-// Responsive Design
-@media (max-width: 1024px) {
-  .song-info {
-    min-width: 160px;
+.player-bar__play {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
 
-    .cover-wrapper {
-      width: 48px;
-      height: 48px;
-    }
-  }
-
-  .extra-controls {
-    .volume-control {
-      width: 100px;
-    }
-  }
-
-  .main-controls .rate-btn {
-    width: 40px;
+  svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
-@media (max-width: 768px) {
+.player-bar__timeline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.player-bar__progress {
+  width: 100%;
+  cursor: pointer;
+}
+
+.player-bar__progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
+}
+
+.player-bar__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary-color), #facc15);
+}
+
+.player-bar__progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: var(--shadow-sm);
+  transform: translate(-50%, -50%);
+}
+
+.player-bar__side {
+  min-width: 0;
+
+  input {
+    width: 88px;
+    accent-color: var(--primary-color);
+  }
+}
+
+@media (max-width: 1120px) {
   .player-bar {
-    height: 70px;
-    padding: 0 12px;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .song-info {
-    min-width: 120px;
-    gap: 8px;
-
-    .cover-wrapper {
-      width: 44px;
-      height: 44px;
-
-      .cover-tooltip {
-        display: none;
-      }
-    }
-
-    .track-info {
-      .track-name {
-        font-size: 13px;
-      }
-
-      .track-artist {
-        font-size: 11px;
-      }
-    }
-  }
-
-  .main-controls .control-btn {
-    width: 36px;
-    height: 36px;
-
-    &.play-btn {
-      width: 42px;
-      height: 42px;
-    }
-
-    &.rate-btn {
-      display: none;
-    }
-  }
-
-  .extra-controls {
-    gap: 4px;
-
-    .volume-control {
-      width: 80px;
-    }
-  }
-
-  .progress-section {
-    gap: 8px;
-
-    .time {
-      font-size: 10px;
-      min-width: 35px;
-    }
+  .player-bar__controls,
+  .player-bar__side {
+    justify-content: flex-start;
   }
 }
 </style>
