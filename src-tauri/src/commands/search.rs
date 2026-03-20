@@ -4,10 +4,12 @@ use crate::api::helpers::{apply_media_request_headers, build_client, build_media
 use crate::api::SourceRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
+use std::time::Duration;
 use std::{path::Path, path::PathBuf};
 use tauri::{AppHandle, Manager};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use tokio::task::JoinSet;
 use url::Url;
 
 /// Global source registry
@@ -91,6 +93,75 @@ pub async fn search_music_sources(
     Ok(wrapped)
 }
 
+/// Search for music from multiple sources and merge partial successes.
+#[tauri::command]
+pub async fn search_all_music_sources(
+    keyword: String,
+    sources: Vec<String>,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<MusicInfoWrapper>, String> {
+    let requested_sources = if sources.is_empty() {
+        get_registry().list_sources()
+    } else {
+        sources
+    };
+
+    let mut tasks = JoinSet::new();
+
+    for source in requested_sources {
+        let keyword = keyword.clone();
+        tasks.spawn(async move {
+            let registry = get_registry();
+            let music_source = registry
+                .get_source(&source)
+                .ok_or_else(|| format!("Unknown music source: {}", source))?;
+
+            let result = tokio::time::timeout(
+                Duration::from_secs(5),
+                music_source.search(&keyword, page, limit),
+            )
+            .await;
+
+            match result {
+                Ok(Ok(results)) => Ok(results),
+                Ok(Err(error)) => Err(format!("{}: {}", source, error)),
+                Err(_) => Err(format!("{}: 搜索超时", source)),
+            }
+        });
+    }
+
+    let mut merged_results = Vec::new();
+    let mut failures = Vec::new();
+
+    while let Some(result) = tasks.join_next().await {
+        match result {
+            Ok(Ok(results)) => merged_results.extend(results),
+            Ok(Err(error)) => failures.push(error),
+            Err(error) => failures.push(format!("搜索任务失败: {}", error)),
+        }
+    }
+
+    if merged_results.is_empty() && !failures.is_empty() {
+        return Err(format!(
+            "综合搜索失败，所有渠道均不可用（{}）",
+            failures.join("；")
+        ));
+    }
+
+    if !failures.is_empty() {
+        eprintln!(
+            "[Search] Aggregate search skipped failed channels: {}",
+            failures.join("；")
+        );
+    }
+
+    Ok(merged_results
+        .into_iter()
+        .map(MusicInfoWrapper::from)
+        .collect())
+}
+
 /// Get song playback URL
 #[tauri::command]
 pub async fn get_song_url(
@@ -172,10 +243,24 @@ pub fn get_available_sources() -> Vec<String> {
 #[tauri::command]
 pub async fn probe_media_url(url: String) -> Result<bool, String> {
     let client = build_client();
-    let request = apply_media_request_headers(client.get(&url), &url).header("Range", "bytes=0-1");
-    let response = request.send().await.map_err(|e: reqwest::Error| e.to_string())?;
+    let ranged_request =
+        apply_media_request_headers(client.get(&url), &url).header("Range", "bytes=0-1");
+    let ranged_response = ranged_request
+        .send()
+        .await
+        .map_err(|e: reqwest::Error| e.to_string())?;
 
-    Ok(response.status().is_success() || response.status().as_u16() == 206)
+    if ranged_response.status().is_success() || ranged_response.status().as_u16() == 206 {
+        return Ok(true);
+    }
+
+    let fallback_request = apply_media_request_headers(client.get(&url), &url);
+    let fallback_response = fallback_request
+        .send()
+        .await
+        .map_err(|e: reqwest::Error| e.to_string())?;
+
+    Ok(fallback_response.status().is_success() || fallback_response.status().as_u16() == 206)
 }
 
 fn infer_media_extension(url: &str, content_type: Option<&str>) -> &'static str {

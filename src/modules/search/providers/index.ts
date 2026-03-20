@@ -1,13 +1,13 @@
 import { invoke } from '@tauri-apps/api/core'
 import type {
+  BuiltInSearchChannel,
   ChannelSearchResultItem,
   MusicInfo,
-  SearchChannel,
 } from '../../../types/music'
 import { normalizeChannelSearchResult } from '../normalize'
 import type { SearchProvider } from '../types'
 
-function createBuiltInProvider(channel: SearchChannel): SearchProvider {
+function createBuiltInProvider(channel: BuiltInSearchChannel): SearchProvider {
   return {
     channel,
     async search(keyword: string, page: number, limit: number): Promise<MusicInfo[]> {
@@ -22,7 +22,7 @@ function createBuiltInProvider(channel: SearchChannel): SearchProvider {
   }
 }
 
-export const searchProviders: Record<SearchChannel, SearchProvider> = {
+export const searchProviders: Record<BuiltInSearchChannel, SearchProvider> = {
   kw: createBuiltInProvider('kw'),
   kg: createBuiltInProvider('kg'),
   tx: createBuiltInProvider('tx'),
@@ -31,7 +31,7 @@ export const searchProviders: Record<SearchChannel, SearchProvider> = {
 }
 
 export async function searchBuiltInTracks(
-  channel: SearchChannel,
+  channel: BuiltInSearchChannel,
   keyword: string,
   page: number,
   limit: number,

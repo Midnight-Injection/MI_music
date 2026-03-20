@@ -1,5 +1,6 @@
 import type { ScriptCapability } from '../../composables/useScriptRuntime'
 import type {
+  BuiltInSearchChannel,
   ChannelSearchResultItem,
   MusicInfo,
   QualityInfo,
@@ -9,12 +10,12 @@ import type {
 export type SearchTrack = MusicInfo
 
 export interface SearchProvider {
-  channel: SearchChannel
+  channel: BuiltInSearchChannel
   search(keyword: string, page: number, limit: number): Promise<SearchTrack[]>
 }
 
 export interface SearchRuntimeSnapshot {
-  builtInChannelIds: SearchChannel[]
+  builtInChannelIds: BuiltInSearchChannel[]
   scriptCapabilities: Record<string, ScriptCapability>
 }
 

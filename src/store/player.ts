@@ -3,8 +3,13 @@ import { ref, computed } from 'vue'
 import type { MusicInfo } from '../types/music'
 import type { PlayMode } from '../types/player'
 import type { LyricLine } from '../components/lyrics/types'
+import type { MusicSource } from '../composables/useScriptRuntime'
 import { localizePlaybackUrl } from '../modules/playback/playbackAsset'
+import { useLyricResolver } from '../modules/playback/lyricResolver'
 import { usePlaybackResolver } from '../modules/playback/playbackResolver'
+import { rememberSuccessfulSource } from '../modules/playback/sourceSuccessCache'
+import type { PlaybackResolution } from '../modules/playback/types'
+import { useSettingsStore } from './settings'
 
 const audioElement = typeof Audio !== 'undefined' ? new Audio() : null
 let audioEventsBound = false
@@ -25,6 +30,7 @@ let audioEventsBound = false
 })()
 
 export const usePlayerStore = defineStore('player', () => {
+  const settingsStore = useSettingsStore()
   const currentMusic = ref<MusicInfo | null>(null)
   const isPlaying = ref(false)
   const currentTime = ref(0)
@@ -35,7 +41,9 @@ export const usePlayerStore = defineStore('player', () => {
   const currentIndex = ref(0)
   const playbackRate = ref(1)
   const resolvedQuality = ref<string | null>(null)
-  const resolvedResolver = ref<string | null>(null)
+  const resolvedResolver = ref<PlaybackResolution['resolver'] | null>(null)
+  const resolvedChannel = ref<MusicSource | null>(null)
+  const resolvedUserSourceId = ref<string | null>(null)
 
   // Lyrics state
   const lyrics = ref<LyricLine[]>([])
@@ -46,6 +54,7 @@ export const usePlayerStore = defineStore('player', () => {
   // Resolved URL state
   const resolvedUrl = ref<string | null>(null)
   const isLoadingUrl = ref(false)
+  const lyricRequestId = ref(0)
 
   const hasMusic = computed(() => currentMusic.value !== null)
   const hasLyrics = computed(() => lyrics.value.length > 0)
@@ -58,6 +67,60 @@ export const usePlayerStore = defineStore('player', () => {
     console.log('[Player] syncAudioState: setting volume:', volume.value, 'playbackRate:', playbackRate.value, 'current volume:', audioElement.volume, 'muted:', audioElement.muted)
     audioElement.volume = volume.value
     audioElement.playbackRate = playbackRate.value
+  }
+
+  function syncCurrentLyricIndexForTime(timeSeconds = currentTime.value) {
+    if (!lyrics.value.length) {
+      currentLyricIndex.value = 0
+      return
+    }
+
+    const targetMs = Math.max(0, timeSeconds * 1000 + lyricsOffset.value)
+    let activeIndex = 0
+
+    for (let index = 0; index < lyrics.value.length; index += 1) {
+      if (lyrics.value[index].time_ms <= targetMs) activeIndex = index
+      else break
+    }
+
+    currentLyricIndex.value = activeIndex
+  }
+
+  function resetLyricsState() {
+    lyrics.value = []
+    currentLyricIndex.value = 0
+    lyricsOffset.value = 0
+  }
+
+  async function resolveLyricsForTrack(
+    music: MusicInfo,
+    resolution: PlaybackResolution,
+  ) {
+    const requestId = ++lyricRequestId.value
+    const lyricResolver = useLyricResolver()
+
+    resetLyricsState()
+
+    try {
+      const result = await lyricResolver.resolve(
+        music,
+        resolution.userSourceId,
+        resolution.channel,
+      )
+
+      if (requestId !== lyricRequestId.value) return
+      if (!result?.lines.length) {
+        resetLyricsState()
+        return
+      }
+
+      setLyrics(result.lines)
+      setLyricsOffset(result.offset)
+    } catch (error) {
+      if (requestId !== lyricRequestId.value) return
+      resetLyricsState()
+      console.warn('[Player] Failed to resolve lyrics:', error)
+    }
   }
 
   function bindAudioEvents() {
@@ -80,6 +143,7 @@ export const usePlayerStore = defineStore('player', () => {
 
     audioElement.addEventListener('timeupdate', () => {
       currentTime.value = audioElement.currentTime
+      syncCurrentLyricIndexForTime(audioElement.currentTime)
     })
 
     audioElement.addEventListener('play', () => {
@@ -114,6 +178,21 @@ export const usePlayerStore = defineStore('player', () => {
 
   bindAudioEvents()
 
+  function applyResolvedPlaybackState(resolution: PlaybackResolution) {
+    resolvedQuality.value = resolution.quality || null
+    resolvedResolver.value = resolution.resolver
+    resolvedChannel.value = resolution.channel
+    resolvedUserSourceId.value = resolution.userSourceId || null
+  }
+
+  function clearResolvedPlaybackState() {
+    resolvedUrl.value = null
+    resolvedQuality.value = null
+    resolvedResolver.value = null
+    resolvedChannel.value = null
+    resolvedUserSourceId.value = null
+  }
+
   async function playMusic(music: MusicInfo): Promise<void> {
     if (!music) {
       throw new Error('无效的音乐信息')
@@ -143,8 +222,7 @@ export const usePlayerStore = defineStore('player', () => {
       }
 
       resolvedUrl.value = playbackUrl || url
-      resolvedQuality.value = resolution.quality || null
-      resolvedResolver.value = resolution.resolver
+      applyResolvedPlaybackState(resolution)
       currentMusic.value = music
       currentTime.value = 0
 
@@ -184,6 +262,17 @@ export const usePlayerStore = defineStore('player', () => {
       console.log('[Player] play() succeeded, audioElement.paused:', audioElement.paused, 'audioElement.currentTime:', audioElement.currentTime)
 
       isPlaying.value = true
+
+      if (resolution.userSourceId) {
+        rememberSuccessfulSource(
+          music,
+          settingsStore.settings.audioQuality,
+          resolution.userSourceId,
+          resolution.quality,
+        )
+      }
+
+      void resolveLyricsForTrack(music, resolution)
     } catch (error) {
       console.error('[Player] playMusic error:', error)
       // Clear loading state
@@ -227,6 +316,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   async function setProgress(time: number) {
     currentTime.value = time
+    syncCurrentLyricIndexForTime(time)
     try {
       if (audioElement) {
         audioElement.currentTime = Math.max(0, time)
@@ -303,6 +393,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function clearPlaylist() {
+    lyricRequestId.value += 1
     playlist.value = []
     currentIndex.value = 0
     pauseMusic()
@@ -313,14 +404,13 @@ export const usePlayerStore = defineStore('player', () => {
     currentMusic.value = null
     currentTime.value = 0
     duration.value = 0
-    resolvedUrl.value = null
-    resolvedQuality.value = null
-    resolvedResolver.value = null
+    resetLyricsState()
+    clearResolvedPlaybackState()
   }
 
   function setLyrics(lines: LyricLine[]) {
-    lyrics.value = lines
-    currentLyricIndex.value = 0
+    lyrics.value = [...lines].sort((left, right) => left.time_ms - right.time_ms)
+    syncCurrentLyricIndexForTime()
   }
 
   function setCurrentLyricIndex(index: number) {
@@ -329,6 +419,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   function setLyricsOffset(offset: number) {
     lyricsOffset.value = offset
+    syncCurrentLyricIndexForTime()
   }
 
   function toggleLyrics() {
@@ -336,9 +427,8 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function clearLyrics() {
-    lyrics.value = []
-    currentLyricIndex.value = 0
-    lyricsOffset.value = 0
+    lyricRequestId.value += 1
+    resetLyricsState()
   }
 
   return {
@@ -360,6 +450,8 @@ export const usePlayerStore = defineStore('player', () => {
     resolvedUrl,
     resolvedQuality,
     resolvedResolver,
+    resolvedChannel,
+    resolvedUserSourceId,
     isLoadingUrl,
     playMusic,
     pauseMusic,

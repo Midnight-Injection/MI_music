@@ -1,234 +1,287 @@
 <template>
   <div class="player-detail">
-    <!-- Back Button -->
-    <button class="back-btn" @click="goBack" title="返回">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-      </svg>
-    </button>
+    <div class="player-detail__backdrop" :style="backdropStyle"></div>
+    <div class="player-detail__overlay"></div>
 
-    <!-- Main Content -->
-    <div class="player-content">
-      <!-- Album Art -->
-      <div class="album-art-section">
-        <div class="album-art-wrapper">
-          <img
-            v-if="player.currentMusic"
-            :src="player.currentMusic.cover || defaultCover"
-            :alt="player.currentMusic.name"
-            class="album-art"
-            @error="handleCoverError"
-          />
-          <div v-else class="album-art-placeholder">
-            <span class="placeholder-icon">🎵</span>
+    <div class="player-detail__shell">
+      <header class="detail-topbar">
+        <button class="back-btn" @click="goBack" title="返回">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </button>
+
+        <div class="detail-topbar__copy">
+          <p class="detail-topbar__eyebrow">正在播放</p>
+          <p class="detail-topbar__hint">{{ topbarHint }}</p>
+        </div>
+
+        <div class="detail-topbar__status">
+          <span class="detail-chip">{{ currentSourceSummary }}</span>
+          <span v-if="player.resolvedQuality" class="detail-chip detail-chip--accent">
+            {{ formatQualityLabel(player.resolvedQuality) }}
+          </span>
+        </div>
+      </header>
+
+      <section class="detail-stage">
+        <aside class="detail-rail">
+          <div class="cover-card">
+            <img
+              v-if="player.currentMusic"
+              :src="player.currentMusic.cover || defaultCover"
+              :alt="player.currentMusic.name"
+              class="album-art"
+              @error="handleCoverError"
+            />
+            <div v-else class="album-art album-art--placeholder">
+              <span>未播放</span>
+            </div>
+
+            <div class="cover-card__glow"></div>
           </div>
-        </div>
 
-        <!-- Track Info -->
-        <div v-if="player.currentMusic" class="track-detail">
-          <h1 class="track-title">{{ player.currentMusic.name }}</h1>
-          <p class="track-artist-album">
-            {{ player.currentMusic.artist }} · {{ player.currentMusic.album }}
-          </p>
-        </div>
-        <div v-else class="track-detail">
-          <h1 class="track-title">未播放</h1>
-          <p class="track-artist-album">选择一首歌曲开始播放</p>
-        </div>
-      </div>
+          <div class="track-copy">
+            <p class="track-copy__eyebrow">{{ currentSourceSummary }}</p>
+            <h1 class="track-copy__title">{{ player.currentMusic?.name || '未播放' }}</h1>
+            <p class="track-copy__subtitle">{{ currentSubtitle }}</p>
+          </div>
 
-      <!-- Lyrics Section -->
-      <div class="lyrics-section">
-        <div class="lyrics-header">
-          <h2>歌词</h2>
-          <button
-            class="lyrics-toggle"
-            @click="toggleLyricsView"
-            :title="showFullLyrics ? '收起' : '展开'"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path v-if="showFullLyrics" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-              <path v-else d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
-            </svg>
-          </button>
-        </div>
-
-        <div class="lyrics-content" :class="{ expanded: showFullLyrics }">
-          <div v-if="lyrics.length > 0" class="lyrics-lines">
-            <p
-              v-for="(line, index) in lyrics"
-              :key="index"
-              class="lyric-line"
-              :class="{ active: isCurrentLyric(index) }"
+          <div v-if="playbackInfoRows.length" class="detail-facts">
+            <div
+              v-for="item in playbackInfoRows"
+              :key="item.label"
+              class="detail-facts__row"
             >
-              {{ line }}
-            </p>
+              <span class="detail-facts__label">{{ item.label }}</span>
+              <span class="detail-facts__value">{{ item.value }}</span>
+            </div>
           </div>
-          <div v-else class="no-lyrics">
-            <p>暂无歌词</p>
+        </aside>
+
+        <section class="lyrics-stage glass-panel">
+          <div class="section-head section-head--lyrics">
+            <div>
+              <p class="section-head__eyebrow">歌词</p>
+              <h2>当前歌词</h2>
+            </div>
+            <p class="section-head__note">{{ lyricsHeaderText }}</p>
           </div>
-        </div>
-      </div>
 
-      <!-- Queue Section -->
-      <div class="queue-section">
-        <div class="queue-header">
-          <h2>播放队列</h2>
-          <span class="queue-count">{{ player.playlist.length }} 首歌曲</span>
-        </div>
+          <div ref="lyricsScrollerRef" class="lyrics-scroller">
+            <div v-if="player.hasLyrics" class="lyrics-lines">
+              <div
+                v-for="(line, index) in lyricRows"
+                :key="`${line.time_ms}-${index}`"
+                :ref="(el) => setLyricLineRef(el, index)"
+                class="lyric-line"
+                :class="{ active: index === player.currentLyricIndex }"
+              >
+                <p class="lyric-line__text">{{ line.text || '...' }}</p>
+                <p v-if="line.translation" class="lyric-line__translation">{{ line.translation }}</p>
+              </div>
+            </div>
+            <div v-else class="lyrics-empty">
+              <p>当前歌曲暂无歌词</p>
+              <span>切换歌曲后会自动更新</span>
+            </div>
+          </div>
+        </section>
 
-        <div class="queue-list">
-          <div
-            v-for="(track, index) in player.playlist"
-            :key="track.id"
-            class="queue-item"
-            :class="{ active: index === player.currentIndex }"
-            @click="playTrack(index)"
-          >
-            <div class="queue-item-cover">
+        <aside class="queue-stage glass-panel">
+          <div class="section-head">
+            <div>
+              <p class="section-head__eyebrow">队列</p>
+              <h2>接下来播放</h2>
+            </div>
+            <p class="section-head__note">{{ player.playlist.length }} 首歌曲</p>
+          </div>
+
+          <div v-if="player.playlist.length" class="queue-list">
+            <button
+              v-for="(track, index) in player.playlist"
+              :key="track.id"
+              type="button"
+              class="queue-item"
+              :class="{ active: index === player.currentIndex }"
+              @click="playTrack(index)"
+            >
               <img
+                class="queue-item__cover"
                 :src="track.cover || defaultCover"
                 :alt="track.name"
                 @error="handleCoverError"
               />
-              <div v-if="index === player.currentIndex && player.isPlaying" class="playing-indicator">
-                <div class="bar"></div>
-                <div class="bar"></div>
-                <div class="bar"></div>
+              <div class="queue-item__info">
+                <span class="queue-item__title">{{ track.name }}</span>
+                <span class="queue-item__artist">{{ track.artist }}</span>
               </div>
+              <span class="queue-item__duration">{{ formatTime(track.duration) }}</span>
+            </button>
+          </div>
+          <div v-else class="queue-empty">
+            <p>播放队列为空</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="controls-strip glass-panel">
+        <div class="progress-container">
+          <span class="time-label">{{ formatTime(player.currentTime) }}</span>
+          <div
+            ref="progressBarRef"
+            class="progress-bar-large"
+            @click="handleSeek"
+            @mousedown="startDrag"
+            @mouseup="stopDrag"
+            @mouseleave="stopDrag"
+            @mousemove="handleDragSeek"
+          >
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+              <div class="progress-thumb" :style="{ left: `${progressPercent}%` }"></div>
             </div>
-            <div class="queue-item-info">
-              <div class="queue-item-title">{{ track.name }}</div>
-              <div class="queue-item-artist">{{ track.artist }}</div>
+          </div>
+          <span class="time-label">{{ formatTime(player.duration) }}</span>
+        </div>
+
+        <div class="controls-strip__body">
+          <div class="controls-strip__track">
+            <img
+              v-if="player.currentMusic"
+              :src="player.currentMusic.cover || defaultCover"
+              :alt="player.currentMusic.name"
+              class="controls-strip__cover"
+              @error="handleCoverError"
+            />
+            <div v-else class="controls-strip__cover controls-strip__cover--placeholder"></div>
+
+            <div class="controls-strip__copy">
+              <strong>{{ player.currentMusic?.name || '未播放' }}</strong>
+              <span>{{ player.currentMusic?.artist || '选择一首歌曲开始播放' }}</span>
             </div>
-            <div class="queue-item-duration">{{ formatTime(track.duration) }}</div>
+          </div>
+
+          <div class="control-buttons">
+            <button
+              class="control-btn-large"
+              @click="togglePlayMode"
+              :title="playModeTitle"
+            >
+              <span class="mode-icon">{{ playModeIcon }}</span>
+            </button>
+
+            <button class="control-btn-large" @click="player.playPrevious" title="上一首">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+
+            <button
+              class="play-btn-large"
+              @click="togglePlay"
+              :title="player.isPlaying ? '暂停' : '播放'"
+            >
+              <svg v-if="player.isPlaying" width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              </svg>
+              <svg v-else width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </button>
+
+            <button class="control-btn-large" @click="player.playNext" title="下一首">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="controls-strip__tools">
+            <button class="control-btn-large" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path v-if="isMuted || volumeValue === 0" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                <path v-else d="M3 9v6h4l5 5V4L9 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            </button>
+
+            <input
+              v-model.number="volumeValue"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              class="volume-slider-large"
+              @input="handleVolumeChange"
+            />
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Bottom Controls -->
-    <div class="bottom-controls">
-      <!-- Progress Bar -->
-      <div class="progress-container">
-        <span class="time-label">{{ formatTime(player.currentTime) }}</span>
-        <div
-          class="progress-bar-large"
-          @click="handleSeek"
-          @mousedown="startDrag"
-          @mouseup="stopDrag"
-          @mouseleave="stopDrag"
-          @mousemove="handleDragSeek"
-        >
-          <div class="progress-track">
-            <div
-              class="progress-fill"
-              :style="{ width: progressPercent + '%' }"
-            ></div>
-            <div
-              class="progress-thumb"
-              :style="{ left: progressPercent + '%' }"
-            ></div>
-          </div>
-        </div>
-        <span class="time-label">{{ formatTime(player.duration) }}</span>
-      </div>
-
-      <!-- Control Buttons -->
-      <div class="control-buttons">
-        <!-- Play Mode -->
-        <button
-          class="control-btn-large"
-          @click="togglePlayMode"
-          :title="playModeTitle"
-        >
-          <span class="mode-icon">{{ playModeIcon }}</span>
-        </button>
-
-        <!-- Previous -->
-        <button class="control-btn-large" @click="player.playPrevious" title="上一首">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-          </svg>
-        </button>
-
-        <!-- Play/Pause -->
-        <button
-          class="play-btn-large"
-          @click="togglePlay"
-          :title="player.isPlaying ? '暂停' : '播放'"
-        >
-          <svg v-if="player.isPlaying" width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-          </svg>
-          <svg v-else width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </button>
-
-        <!-- Next -->
-        <button class="control-btn-large" @click="player.playNext" title="下一首">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-          </svg>
-        </button>
-
-        <!-- Volume -->
-        <div class="volume-control-large">
-          <button class="control-btn-large" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path v-if="isMuted || volumeValue === 0" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-              <path v-else d="M3 9v6h4l5 5V4L9 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-          </button>
-          <input
-            v-model.number="volumeValue"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            class="volume-slider-large"
-            @input="handleVolumeChange"
-          />
-        </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlayerStore } from '../store/player'
+import { useUserSourceStore } from '../stores/userSource'
 import type { PlayMode } from '../types/player'
+import { getPlaybackSourceDisplayInfo } from '../lib/playbackSource'
+import { formatQualityLabel } from '../lib/trackQuality'
 
 const router = useRouter()
 const player = usePlayerStore()
+const userSourceStore = useUserSourceStore()
 
-const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="48"%3E🎵%3C/text%3E%3C/svg%3E'
-const showFullLyrics = ref(false)
+const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23111b2e" width="200" height="200"/%3E%3Ccircle cx="100" cy="100" r="54" fill="%23ffffff" fill-opacity="0.08"/%3E%3C/svg%3E'
 const isDragging = ref(false)
 const volumeValue = ref(player.volume)
-const isMuted = ref(false)
-const previousVolume = ref(1)
+const isMuted = ref(player.volume === 0)
+const previousVolume = ref(player.volume || 1)
+const progressBarRef = ref<HTMLElement | null>(null)
+const lyricsScrollerRef = ref<HTMLElement | null>(null)
+const lyricLineRefs = ref<HTMLElement[]>([])
 
-// Mock lyrics data - in a real app, this would come from the player store or API
-const lyrics = ref<string[]>([
-  '这是示例歌词第一行',
-  '这是示例歌词第二行',
-  '这是示例歌词第三行',
-  '这是示例歌词第四行',
-  '这是示例歌词第五行',
-  '歌词会随着音乐滚动',
-  '提供更好的用户体验',
-  '在实际应用中',
-  '歌词应该从音乐文件或API获取',
-  '并同步高亮显示当前行'
-])
-
+const lyricRows = computed(() => player.lyrics)
 const progressPercent = computed(() => {
-  if (player.duration === 0) return 0
-  return (player.currentTime / player.duration) * 100
+  if (!player.duration) return 0
+  return Math.max(0, Math.min(100, (player.currentTime / player.duration) * 100))
+})
+
+const playbackSourceInfo = computed(() => getPlaybackSourceDisplayInfo({
+  currentMusic: player.currentMusic,
+  resolvedChannel: player.resolvedChannel,
+  resolvedResolver: player.resolvedResolver,
+  resolvedUserSourceId: player.resolvedUserSourceId,
+  userSources: userSourceStore.userSources,
+}))
+
+const playbackInfoRows = computed(() => {
+  const rows: Array<{ label: string; value: string }> = []
+  if (playbackSourceInfo.value.primaryLabel) rows.push({ label: '当前音源', value: playbackSourceInfo.value.primaryLabel })
+  if (playbackSourceInfo.value.userSourceLabel) rows.push({ label: '自定义音源', value: playbackSourceInfo.value.userSourceLabel })
+  if (playbackSourceInfo.value.channelLabel) rows.push({ label: '播放渠道', value: playbackSourceInfo.value.channelLabel })
+  if (playbackSourceInfo.value.resolverLabel) rows.push({ label: '解析方式', value: playbackSourceInfo.value.resolverLabel })
+  if (player.resolvedQuality) rows.push({ label: '实际音质', value: formatQualityLabel(player.resolvedQuality) })
+  return rows
+})
+
+const currentSubtitle = computed(() => {
+  if (!player.currentMusic) return '选择一首歌曲开始播放'
+  const artist = player.currentMusic.artist || '未知歌手'
+  const album = player.currentMusic.album || '未知专辑'
+  return `${artist} · ${album}`
+})
+
+const currentSourceSummary = computed(() => playbackSourceInfo.value.compactLabel || '播放详情')
+const lyricsHeaderText = computed(() => player.hasLyrics ? '跟随当前播放位置自动聚焦' : '当前歌曲暂无歌词')
+const topbarHint = computed(() => `${player.isPlaying ? '正在播放' : '已暂停'} · Esc 返回 · 空格播放`)
+
+const backdropStyle = computed(() => {
+  const cover = player.currentMusic?.cover
+  if (!cover) return {}
+  return { backgroundImage: `url("${cover}")` }
 })
 
 const playModeIcon = computed(() => {
@@ -257,16 +310,33 @@ const playModeTitle = computed(() => {
   }
 })
 
+watch(() => player.volume, (value) => {
+  volumeValue.value = value
+  isMuted.value = value === 0
+  if (value > 0) previousVolume.value = value
+}, { immediate: true })
+
+watch(lyricRows, () => {
+  lyricLineRefs.value = []
+})
+
+watch(() => player.currentLyricIndex, () => {
+  scrollActiveLyricIntoView()
+}, { flush: 'post' })
+
+watch(() => player.currentMusic?.id, async () => {
+  lyricLineRefs.value = []
+  await nextTick()
+  scrollActiveLyricIntoView(false)
+}, { flush: 'post' })
+
 function goBack() {
   router.back()
 }
 
 function togglePlay() {
-  if (player.isPlaying) {
-    player.pauseMusic()
-  } else {
-    player.resumeMusic()
-  }
+  if (player.isPlaying) player.pauseMusic()
+  else player.resumeMusic()
 }
 
 function toggleMute() {
@@ -275,42 +345,31 @@ function toggleMute() {
     volumeValue.value = 0
     player.setVolume(0)
     isMuted.value = true
-  } else {
-    volumeValue.value = previousVolume.value
-    player.setVolume(previousVolume.value)
-    isMuted.value = false
+    return
   }
+
+  volumeValue.value = previousVolume.value || 1
+  player.setVolume(volumeValue.value)
+  isMuted.value = volumeValue.value === 0
 }
 
 function togglePlayMode() {
   const modes: PlayMode[] = ['loop', 'single', 'random']
   const currentIndex = modes.indexOf(player.playMode)
-  const nextIndex = (currentIndex + 1) % modes.length
-  player.setPlayMode(modes[nextIndex])
-}
-
-function toggleLyricsView() {
-  showFullLyrics.value = !showFullLyrics.value
+  player.setPlayMode(modes[(currentIndex + 1) % modes.length] ?? 'loop')
 }
 
 function playTrack(index: number) {
-  if (player.playlist[index]) {
-    player.playMusic(player.playlist[index])
-  }
-}
-
-function isCurrentLyric(index: number): boolean {
-  // Simple logic - in a real app, this would use lyric timestamps
-  const currentLyricIndex = Math.floor((player.currentTime / player.duration) * lyrics.value.length)
-  return index === currentLyricIndex
+  if (!player.playlist[index]) return
+  player.setPlaylist([...player.playlist], index)
 }
 
 function handleSeek(event: MouseEvent) {
-  const progressBar = event.currentTarget as HTMLElement
+  const progressBar = progressBarRef.value ?? (event.currentTarget as HTMLElement | null)
+  if (!progressBar || !player.duration) return
   const rect = progressBar.getBoundingClientRect()
   const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-  const newTime = percent * player.duration
-  player.setProgress(newTime)
+  player.setProgress(percent * player.duration)
 }
 
 function startDrag() {
@@ -323,11 +382,7 @@ function stopDrag() {
 
 function handleDragSeek(event: MouseEvent) {
   if (!isDragging.value) return
-  const progressBar = event.currentTarget as HTMLElement
-  const rect = progressBar.getBoundingClientRect()
-  const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-  const newTime = percent * player.duration
-  player.setProgress(newTime)
+  handleSeek(event)
 }
 
 function handleVolumeChange() {
@@ -340,17 +395,42 @@ function handleCoverError(event: Event) {
   img.src = defaultCover
 }
 
+function setLyricLineRef(element: unknown, index: number) {
+  const target = element instanceof HTMLElement
+    ? element
+    : (typeof element === 'object' && element !== null && '$el' in element && element.$el instanceof HTMLElement
+        ? element.$el
+        : null)
+
+  if (!target) return
+  lyricLineRefs.value[index] = target
+}
+
+function scrollActiveLyricIntoView(smooth = true) {
+  const container = lyricsScrollerRef.value
+  const activeLine = lyricLineRefs.value[player.currentLyricIndex]
+  if (!container || !activeLine) return
+
+  const containerRect = container.getBoundingClientRect()
+  const activeRect = activeLine.getBoundingClientRect()
+  const activeTop = activeRect.top - containerRect.top + container.scrollTop
+  const targetTop = activeTop - container.clientHeight * 0.5 + activeRect.height * 0.5
+
+  container.scrollTo({
+    top: Math.max(0, targetTop),
+    behavior: smooth ? 'smooth' : 'auto',
+  })
+}
+
 function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00'
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 function handleKeyboardShortcuts(event: KeyboardEvent) {
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-    return
-  }
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
 
   switch (event.code) {
     case 'Escape':
@@ -361,11 +441,22 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
       event.preventDefault()
       togglePlay()
       break
+    case 'ArrowLeft':
+      event.preventDefault()
+      player.setProgress(Math.max(0, player.currentTime - 5))
+      break
+    case 'ArrowRight':
+      event.preventDefault()
+      player.setProgress(Math.min(player.duration, player.currentTime + 5))
+      break
   }
 }
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeyboardShortcuts)
+  nextTick(() => {
+    scrollActiveLyricIntoView(false)
+  })
 })
 
 onUnmounted(() => {
@@ -377,514 +468,684 @@ onUnmounted(() => {
 .player-detail {
   position: fixed;
   top: 0;
-  left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  display: flex;
-  flex-direction: column;
-  z-index: 2000;
+  left: var(--sidebar-width);
   overflow: hidden;
+  color: #f8fafc;
+  background: #06111f;
+}
+
+.player-detail__backdrop,
+.player-detail__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.player-detail__backdrop {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.18), transparent 24%);
+  background-size: cover;
+  background-position: center;
+  filter: blur(34px) saturate(1.2);
+  transform: scale(1.08);
+  opacity: 0.38;
+}
+
+.player-detail__overlay {
+  background:
+    linear-gradient(180deg, rgba(3, 9, 22, 0.4) 0%, rgba(3, 9, 22, 0.88) 100%),
+    linear-gradient(135deg, rgba(6, 16, 34, 0.94) 0%, rgba(10, 24, 46, 0.9) 48%, rgba(5, 11, 24, 0.96) 100%);
+}
+
+.player-detail__shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  height: 100%;
+  padding: 24px 28px 22px;
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(22px);
+}
+
+.detail-topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
 }
 
 .back-btn {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  width: 48px;
-  height: 48px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  color: white;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 10;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateX(-2px);
   }
 }
 
-.player-content {
-  flex: 1;
-  display: flex;
-  gap: 48px;
-  padding: 100px 48px 48px;
-  overflow: hidden;
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    padding: 80px 24px 24px;
-    gap: 24px;
-    overflow-y: auto;
-  }
-}
-
-.album-art-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  max-width: 500px;
-
-  @media (max-width: 1024px) {
-    max-width: 100%;
-  }
-}
-
-.album-art-wrapper {
-  width: 100%;
-  aspect-ratio: 1;
-  max-width: 400px;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  margin-bottom: 32px;
-
-  @media (max-width: 768px) {
-    max-width: 300px;
-  }
-}
-
-.album-art {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.album-art-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-
-  .placeholder-icon {
-    font-size: 80px;
-  }
-}
-
-.track-detail {
-  text-align: center;
-
-  .track-title {
-    font-size: 32px;
-    font-weight: 700;
-    color: #ffffff;
-    margin-bottom: 12px;
-
-    @media (max-width: 768px) {
-      font-size: 24px;
-    }
-  }
-
-  .track-artist-album {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.7);
-
-    @media (max-width: 768px) {
-      font-size: 14px;
-    }
-  }
-}
-
-.lyrics-section,
-.queue-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 24px;
-  overflow: hidden;
-
-  @media (max-width: 1024px) {
-    max-height: 400px;
-  }
-}
-
-.lyrics-header,
-.queue-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #ffffff;
-    margin: 0;
-  }
-
-  .queue-count {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
-  }
-}
-
-.lyrics-toggle {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-}
-
-.lyrics-content {
-  flex: 1;
-  overflow-y: auto;
-  mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-
-  &.expanded {
-    mask-image: none;
-    -webkit-mask-image: none;
-  }
-
-  .lyrics-lines {
-    .lyric-line {
-      font-size: 16px;
-      line-height: 2;
-      color: rgba(255, 255, 255, 0.6);
-      transition: all 0.3s ease;
-      cursor: pointer;
-      padding: 4px 0;
-
-      &:hover {
-        color: rgba(255, 255, 255, 0.8);
-      }
-
-      &.active {
-        font-size: 18px;
-        font-weight: 600;
-        color: #1db954;
-      }
-    }
-  }
-
-  .no-lyrics {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: rgba(255, 255, 255, 0.4);
-  }
-}
-
-.queue-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.queue-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  &.active {
-    background: rgba(29, 185, 84, 0.2);
-
-    .queue-item-title {
-      color: #1db954;
-    }
-  }
-}
-
-.queue-item-cover {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  overflow: hidden;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .playing-indicator {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-
-    .bar {
-      width: 3px;
-      background: #1db954;
-      animation: equalizer 1s ease-in-out infinite;
-
-      &:nth-child(1) {
-        height: 12px;
-        animation-delay: 0s;
-      }
-
-      &:nth-child(2) {
-        height: 18px;
-        animation-delay: 0.2s;
-      }
-
-      &:nth-child(3) {
-        height: 14px;
-        animation-delay: 0.4s;
-      }
-    }
-  }
-}
-
-@keyframes equalizer {
-  0%, 100% {
-    transform: scaleY(1);
-  }
-  50% {
-    transform: scaleY(0.5);
-  }
-}
-
-.queue-item-info {
-  flex: 1;
+.detail-topbar__copy {
   min-width: 0;
 }
 
-.queue-item-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #ffffff;
-  white-space: nowrap;
+.detail-topbar__eyebrow,
+.section-head__eyebrow,
+.track-copy__eyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.detail-topbar__hint {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.95rem;
+}
+
+.detail-topbar__status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+}
+
+.detail-chip--accent {
+  background: rgba(34, 197, 94, 0.16);
+  color: #c7ffd9;
+}
+
+.detail-stage {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
+}
+
+.detail-rail {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cover-card {
+  position: relative;
+  padding: 16px;
+  border-radius: 30px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.queue-item-artist {
-  font-size: 12px;
+.cover-card__glow {
+  position: absolute;
+  right: -18%;
+  bottom: -18%;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 70%);
+  pointer-events: none;
+}
+
+.album-art {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+}
+
+.album-art--placeholder {
+  display: grid;
+  place-items: center;
   color: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
 }
 
-.queue-item-duration {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+.track-copy {
+  padding: 2px 4px;
 }
 
-.bottom-controls {
-  flex-shrink: 0;
-  padding: 32px 48px;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+.track-copy__title {
+  margin: 12px 0 0;
+  font-size: clamp(2.4rem, 4vw, 4.4rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  word-break: break-word;
+}
 
-  @media (max-width: 768px) {
-    padding: 24px;
+.track-copy__subtitle {
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.detail-facts__row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.detail-facts__label {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.82rem;
+}
+
+.detail-facts__value {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.94rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.lyrics-stage,
+.queue-stage,
+.controls-strip {
+  min-width: 0;
+}
+
+.lyrics-stage,
+.queue-stage {
+  min-height: 0;
+  border-radius: 30px;
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 8px 0 0;
+    font-size: 1.28rem;
+    line-height: 1.1;
   }
+}
+
+.section-head__note {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.section-head--lyrics h2 {
+  font-size: 1.4rem;
+}
+
+.lyrics-scroller,
+.queue-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.lyrics-scroller {
+  position: relative;
+  flex: 1;
+  padding: 24px 12px 48px 0;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+.lyrics-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lyric-line {
+  max-width: 88%;
+  color: rgba(255, 255, 255, 0.32);
+  transition: color 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
+  opacity: 0.74;
+}
+
+.lyric-line.active {
+  color: #f8fafc;
+  opacity: 1;
+  transform: translateX(12px);
+}
+
+.lyric-line__text,
+.lyric-line__translation {
+  margin: 0;
+}
+
+.lyric-line__text {
+  font-size: clamp(1.28rem, 2.2vw, 2.3rem);
+  line-height: 1.34;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.lyric-line__translation {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.lyrics-empty,
+.queue-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  min-height: 180px;
+}
+
+.lyrics-empty span {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.88rem;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.queue-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  color: inherit;
+  text-align: left;
+  transition: background 0.18s ease, transform 0.18s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(2px);
+  }
+}
+
+.queue-item.active {
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.queue-item__cover {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.queue-item__info {
+  min-width: 0;
+}
+
+.queue-item__title,
+.queue-item__artist {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item__title {
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.queue-item__artist,
+.queue-item__duration {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.82rem;
+}
+
+.controls-strip {
+  border-radius: 28px;
+  padding: 16px 20px 18px;
 }
 
 .progress-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+}
 
-  .time-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-    font-variant-numeric: tabular-nums;
-    min-width: 45px;
-    text-align: center;
-  }
+.time-label {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.82rem;
 }
 
 .progress-bar-large {
-  flex: 1;
-  height: 16px;
-  display: flex;
-  align-items: center;
+  padding: 12px 0;
   cursor: pointer;
+}
 
-  .progress-track {
-    position: relative;
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-    overflow: visible;
+.progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
 
-    .progress-fill {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      background: linear-gradient(90deg, #1db954, #1ed760);
-      border-radius: 3px;
-      transition: width 0.1s ease;
-    }
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #22c55e);
+}
 
-    .progress-thumb {
-      position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 16px;
-      height: 16px;
-      background: #ffffff;
-      border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+}
+
+.controls-strip__body {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) auto minmax(0, 220px);
+  align-items: center;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.controls-strip__track {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.controls-strip__cover {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.controls-strip__cover--placeholder {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.controls-strip__copy {
+  min-width: 0;
+
+  strong,
+  span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  &:hover .progress-thumb {
-    opacity: 1;
+  strong {
+    font-size: 0.96rem;
   }
 
-  &:hover .progress-track {
-    background: rgba(255, 255, 255, 0.15);
+  span {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.84rem;
   }
 }
 
-.control-buttons {
+.control-buttons,
+.controls-strip__tools {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 24px;
+}
 
-  @media (max-width: 768px) {
-    gap: 16px;
+.control-buttons {
+  justify-content: center;
+  gap: 12px;
+}
+
+.controls-strip__tools {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.control-btn-large,
+.play-btn-large {
+  border: 0;
+  color: #fff;
+  transition: transform 0.16s ease, background 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
   }
 }
 
 .control-btn-large {
-  width: 56px;
-  height: 56px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  display: flex;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    transform: scale(1.05);
-  }
-
-  .mode-icon {
-    font-size: 24px;
-  }
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .play-btn-large {
   width: 64px;
   height: 64px;
-  border: none;
-  background: #1db954;
-  color: #ffffff;
-  cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(29, 185, 84, 0.4);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #22c55e, #38bdf8);
+  box-shadow: 0 18px 36px rgba(34, 197, 94, 0.28);
+}
 
-  &:hover {
-    background: #1ed760;
-    transform: scale(1.08);
-    box-shadow: 0 6px 20px rgba(29, 185, 84, 0.5);
+.mode-icon {
+  font-size: 1.05rem;
+}
+
+.volume-slider-large {
+  width: 128px;
+  accent-color: #22c55e;
+}
+
+@media (max-width: 1380px) {
+  .detail-stage {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 300px);
   }
 
-  @media (max-width: 768px) {
-    width: 56px;
-    height: 56px;
+  .track-copy__title {
+    font-size: clamp(2.1rem, 3vw, 3.6rem);
+  }
+
+  .lyric-line__text {
+    font-size: clamp(1.14rem, 2vw, 1.9rem);
   }
 }
 
-.volume-control-large {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 160px;
+@media (max-width: 1160px) {
+  .player-detail {
+    position: relative;
+    min-height: 100%;
+  }
+
+  .player-detail__shell {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .detail-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-rail {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .detail-facts {
+    grid-column: 1 / -1;
+  }
+
+  .lyrics-stage {
+    min-height: 440px;
+  }
+
+  .queue-stage {
+    min-height: 260px;
+  }
+
+  .controls-strip__body {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .controls-strip__track,
+  .controls-strip__tools {
+    width: 100%;
+  }
+
+  .controls-strip__track {
+    justify-content: flex-start;
+  }
+
+  .controls-strip__tools {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 720px) {
+  .player-detail__shell {
+    padding: 18px 16px 16px;
+    gap: 14px;
+  }
+
+  .detail-topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .detail-topbar__status {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .detail-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .cover-card {
+    max-width: 320px;
+  }
+
+  .lyrics-stage,
+  .queue-stage,
+  .controls-strip {
+    padding-left: 16px;
+    padding-right: 16px;
+    border-radius: 24px;
+  }
+
+  .lyric-line {
+    max-width: 100%;
+  }
+
+  .lyric-line.active {
+    transform: none;
+  }
+
+  .lyric-line__text {
+    font-size: 1.18rem;
+  }
+
+  .queue-item {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .queue-item__duration {
+    display: none;
+  }
+
+  .control-buttons {
+    gap: 10px;
+  }
+
+  .play-btn-large {
+    width: 58px;
+    height: 58px;
+  }
 
   .volume-slider-large {
-    flex: 1;
-    height: 4px;
-    -webkit-appearance: none;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    outline: none;
-    cursor: pointer;
-
-    &::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      background: #ffffff;
-      border-radius: 50%;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-      transition: transform 0.2s ease;
-
-      &:hover {
-        transform: scale(1.2);
-      }
-    }
-
-    &::-webkit-slider-runnable-track {
-      height: 4px;
-      border-radius: 2px;
-    }
+    width: 100%;
+    max-width: 180px;
   }
 }
 
-@media (max-width: 768px) {
-  .volume-control-large {
-    width: 120px;
-  }
-
-  .control-btn-large {
-    width: 48px;
-    height: 48px;
+@media (max-width: 900px) {
+  .player-detail {
+    top: 84px;
+    left: 0;
   }
 }
 </style>

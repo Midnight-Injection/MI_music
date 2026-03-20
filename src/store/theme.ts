@@ -22,6 +22,14 @@ const DEFAULT_THEME: ThemeSettings = {
 
 const STORAGE_KEY = 'theme-settings'
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function isDatabaseNotInitializedError(error: unknown): boolean {
+  return getErrorMessage(error).includes('Database not initialized')
+}
+
 // Check if running in Tauri
 const isTauri = () => {
   return '__TAURI__' in window
@@ -44,7 +52,9 @@ export const useThemeStore = defineStore('theme', () => {
           customColor: result.custom_color
         }
       } catch (e) {
-        console.error('Failed to load theme from Tauri, falling back to localStorage:', e)
+        if (!isDatabaseNotInitializedError(e)) {
+          console.error('Failed to load theme from Tauri, falling back to localStorage:', e)
+        }
         loadFromLocalStorage()
       }
     } else {
@@ -80,7 +90,9 @@ export const useThemeStore = defineStore('theme', () => {
           }
         })
       } catch (e) {
-        console.error('Failed to save theme to Tauri, falling back to localStorage:', e)
+        if (!isDatabaseNotInitializedError(e)) {
+          console.error('Failed to save theme to Tauri, falling back to localStorage:', e)
+        }
         saveToLocalStorage()
       }
     } else {
@@ -199,7 +211,9 @@ export const useThemeStore = defineStore('theme', () => {
         const { invoke } = await import('@tauri-apps/api/core')
         await invoke('reset_theme')
       } catch (e) {
-        console.error('Failed to reset theme via Tauri:', e)
+        if (!isDatabaseNotInitializedError(e)) {
+          console.error('Failed to reset theme via Tauri:', e)
+        }
         saveToLocalStorage()
       }
     } else {

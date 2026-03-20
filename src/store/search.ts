@@ -1,10 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { MusicInfo, SearchResult } from '../types/music'
+import type { MusicInfo, SearchChannel, SearchResult } from '../types/music'
+
+function isSearchChannel(value: string): value is SearchChannel {
+  return ['all', 'kw', 'kg', 'tx', 'wy', 'mg'].includes(value)
+}
 
 export interface SearchHistoryItem {
   keyword: string
-  channel: string
+  channel: SearchChannel | string
   timestamp: number
 }
 
@@ -12,7 +16,7 @@ export const useSearchStore = defineStore('search', () => {
   const searchResults = ref<MusicInfo[]>([])
   const isSearching = ref(false)
   const currentKeyword = ref('')
-  const currentChannel = ref('kw')
+  const currentChannel = ref<SearchChannel>('kw')
   const currentPage = ref(1)
   const totalCount = ref(0)
   const hasNextPage = ref(false)
@@ -51,7 +55,7 @@ export const useSearchStore = defineStore('search', () => {
   }
 
   // Add item to search history
-  function addToHistory(keyword: string, channel: string) {
+  function addToHistory(keyword: string, channel: SearchChannel | string) {
     if (!keyword.trim()) return
 
     // Remove existing entry if present
@@ -96,13 +100,13 @@ export const useSearchStore = defineStore('search', () => {
   function setResults(results: SearchResult) {
     searchResults.value = Array.from(results.data)
     totalCount.value = results.total ?? results.data.length
-    currentChannel.value = results.channel
+    currentChannel.value = isSearchChannel(results.channel) ? results.channel : 'kw'
     currentPage.value = results.page ?? 1
     hasNextPage.value = results.hasMore ?? false
   }
 
   // Update current search params
-  function setSearchParams(keyword: string, channel: string, page = 1) {
+  function setSearchParams(keyword: string, channel: SearchChannel, page = 1) {
     currentKeyword.value = keyword
     currentChannel.value = channel
     currentPage.value = page

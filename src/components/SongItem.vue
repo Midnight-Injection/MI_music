@@ -26,6 +26,7 @@
     <div class="song-info">
       <div class="song-name-row">
         <div class="song-name" :title="music.name">{{ music.name }}</div>
+        <span v-if="sourceLabel" class="song-source">{{ sourceLabel }}</span>
         <span v-if="displayQualityLabel" class="song-quality">{{ displayQualityLabel }}</span>
       </div>
       <div class="song-artist" :title="music.artist">{{ music.artist }}</div>
@@ -60,6 +61,7 @@ import { ref, computed } from 'vue'
 import { usePlayerStore } from '../store/player'
 import type { MusicInfo } from '../types/music'
 import { formatQualityLabel, getTrackDisplayQuality } from '../lib/trackQuality'
+import { CHANNEL_NAMES } from '../types/settings'
 
 interface Props {
   music: MusicInfo
@@ -80,6 +82,11 @@ const isPlaying = computed(() => {
 })
 
 const displayQualityLabel = computed(() => formatQualityLabel(getTrackDisplayQuality(props.music)))
+const sourceLabel = computed(() => {
+  const sourceId = String(props.music.source || props.music.searchChannel || '').trim()
+  if (!sourceId || sourceId === 'local') return null
+  return CHANNEL_NAMES[sourceId] || sourceId
+})
 
 function handlePlay() {
   emit('play', props.music)
@@ -209,6 +216,17 @@ function formatDuration(seconds: number): string {
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
+    }
+
+    .song-source {
+      flex-shrink: 0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
     }
   }
 

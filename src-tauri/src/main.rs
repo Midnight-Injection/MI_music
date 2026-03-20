@@ -47,6 +47,7 @@ fn main() {
             jiyu_music::get_all_settings,
             // Search commands
             jiyu_music::search_music_sources,
+            jiyu_music::search_all_music_sources,
             jiyu_music::get_song_url,
             jiyu_music::get_lyric,
             jiyu_music::get_source_playlist,

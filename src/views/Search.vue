@@ -86,11 +86,11 @@
 
       <div v-else-if="hasResults" class="results-container glass-panel section-card">
         <div class="results-header">
-          <div>
-            <span class="results-count">第 {{ currentPage }} 页 · 本页 {{ totalCount }} 条</span>
-            <p class="results-subtitle">当前渠道：{{ getChannelName(selectedChannel) }} · 每页 {{ searchStore.pageSize }} 条</p>
+            <div>
+              <span class="results-count">第 {{ currentPage }} 页 · 本页 {{ totalCount }} 条</span>
+              <p class="results-subtitle">{{ resultsSubtitle }}</p>
+            </div>
           </div>
-        </div>
 
         <div class="song-list" v-auto-animate>
           <motion.div
@@ -149,9 +149,8 @@ import type { SearchRuntimeSnapshot } from '../modules/search/types'
 import { usePlayerStore } from '../store/player'
 import { usePlaylistStore } from '../store/playlist'
 import { useSearchStore } from '../store/search'
-import { useSettingsStore } from '../store/settings'
 import type { SearchHistoryItem } from '../store/search'
-import type { MusicInfo } from '../types/music'
+import type { MusicInfo, SearchChannel } from '../types/music'
 
 const PLATFORM_SOURCE_OPTIONS = [
   { value: 'kw', label: '酷我' },
@@ -167,7 +166,6 @@ const route = useRoute()
 const searchStore = useSearchStore()
 const playerStore = usePlayerStore()
 const playlistStore = usePlaylistStore()
-const settingsStore = useSettingsStore()
 const searchService = useSearchService()
 
 const searchInputRef = ref<HTMLInputElement>()
@@ -178,8 +176,8 @@ const isLoadingMore = ref(false)
 const isSearchingLocal = ref(false)
 const debounceTimer = ref<number>()
 const searchError = ref('')
-const builtInChannelIds = ref<ChannelId[]>(['kw'])
-const selectedUserSourceId = ref<string>(settingsStore.settings.activeUserSourceId || '')
+const searchRequestId = ref(0)
+const builtInChannelIds = ref<SearchRuntimeSnapshot['builtInChannelIds']>(['kw'])
 const scriptCapabilities = ref<SearchRuntimeSnapshot['scriptCapabilities']>({})
 
 const searchResults = computed(() => searchStore.searchResults)
@@ -197,9 +195,9 @@ const availableChannelSet = computed(() =>
       builtInChannelIds: builtInChannelIds.value,
       scriptCapabilities: scriptCapabilities.value,
     },
-    selectedUserSourceId.value || undefined,
   ),
 )
+const resultsSubtitle = computed(() => `当前渠道：${getChannelName(selectedChannel.value)} · 每页 ${searchStore.pageSize} 条`)
 
 async function refreshAvailableChannels() {
   const availability = await searchService.refreshAvailability()
@@ -207,16 +205,28 @@ async function refreshAvailableChannels() {
   scriptCapabilities.value = availability.scriptCapabilities
 }
 
+function createSearchRequestId() {
+  searchRequestId.value += 1
+  return searchRequestId.value
+}
+
+function isActiveSearchRequest(requestId: number) {
+  return searchRequestId.value === requestId
+}
+
+function clearPendingSearchState() {
+  searchRequestId.value += 1
+  isSearchingLocal.value = false
+  isLoadingMore.value = false
+  searchStore.isSearching = false
+}
+
 function handleSearchInput() {
   showHistory.value = searchKeyword.value.length > 0
-
-  if (debounceTimer.value) clearTimeout(debounceTimer.value)
-  debounceTimer.value = window.setTimeout(() => {
-    if (searchKeyword.value.trim()) handleSearch()
-  }, 300)
 }
 
 function handleSearchSubmit() {
+  if (debounceTimer.value) clearTimeout(debounceTimer.value)
   return handleSearch()
 }
 
@@ -224,6 +234,7 @@ async function handleSearch(page = 1, trackHistory = true) {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
 
+  const requestId = createSearchRequestId()
   showHistory.value = false
   searchError.value = ''
 
@@ -235,21 +246,16 @@ async function handleSearch(page = 1, trackHistory = true) {
     }
     searchStore.isSearching = true
     const channel = selectedChannel.value
-    const preferredPlaybackUserSourceId = searchService.getPreferredPlaybackUserSourceId({
-      selectedUserSourceId: selectedUserSourceId.value || undefined,
-      activeUserSourceId: settingsStore.settings.activeUserSourceId,
-      scriptCapabilities: scriptCapabilities.value,
-    })
-    const data = await searchService.searchTracks({
+    const result = await searchService.searchTracks({
       keyword,
       channel,
       page,
       limit: searchStore.pageSize,
-      selectedUserSourceId: selectedUserSourceId.value || undefined,
-      preferredPlaybackUserSourceId,
     })
 
-    if (page > 1 && data.length === 0) {
+    if (!isActiveSearchRequest(requestId)) return
+
+    if (page > 1 && result.data.length === 0) {
       searchStore.setResults({
         ...buildSearchResultPayload(searchStore.searchResults, channel, page - 1, searchStore.pageSize),
         hasMore: false,
@@ -258,18 +264,20 @@ async function handleSearch(page = 1, trackHistory = true) {
     }
 
     searchStore.setSearchParams(keyword, channel, page)
-    searchStore.setResults(buildSearchResultPayload(data, channel, page, searchStore.pageSize))
+    searchStore.setResults(result)
 
     if (trackHistory && page === 1) {
       searchStore.addToHistory(keyword, channel)
     }
   } catch (error) {
+    if (!isActiveSearchRequest(requestId)) return
     console.error('Search failed:', error)
     if (page === 1) {
       searchStore.clearResults()
     }
     searchError.value = error instanceof Error ? error.message : String(error)
   } finally {
+    if (!isActiveSearchRequest(requestId)) return
     if (page === 1) {
       isSearchingLocal.value = false
     } else {
@@ -285,6 +293,8 @@ async function handlePageChange(page: number) {
 }
 
 function handleClear() {
+  if (debounceTimer.value) clearTimeout(debounceTimer.value)
+  clearPendingSearchState()
   searchKeyword.value = ''
   showHistory.value = false
   searchError.value = ''
@@ -296,11 +306,14 @@ function handleClear() {
 
 function handleChannelChange(channel: ChannelId) {
   if (selectedChannel.value === channel) return
+  if (debounceTimer.value) clearTimeout(debounceTimer.value)
+  clearPendingSearchState()
   selectedChannel.value = channel
   showHistory.value = false
+  searchError.value = ''
 
   if (searchKeyword.value.trim()) {
-    handleSearch()
+    void handleSearch()
   }
 }
 
@@ -309,8 +322,11 @@ function handleClearHistory() {
 }
 
 function handleHistoryClick(item: SearchHistoryItem) {
+  if (debounceTimer.value) clearTimeout(debounceTimer.value)
   searchKeyword.value = item.keyword
-  selectedChannel.value = item.channel as ChannelId
+  selectedChannel.value = availableChannelSet.value.has(item.channel as SearchChannel)
+    ? item.channel as ChannelId
+    : (Array.from(availableChannelSet.value)[0] as ChannelId | undefined) || 'kw'
   showHistory.value = false
   handleSearch()
 }
@@ -338,6 +354,7 @@ function handleAddToPlaylist(music: MusicInfo) {
 }
 
 function getChannelName(channel: string): string {
+  if (channel === 'all') return '综合(已停用)'
   return PLATFORM_SOURCE_OPTIONS.find((option) => option.value === channel)?.label || channel
 }
 
@@ -345,16 +362,8 @@ watch(
   availableChannelSet,
   (channels) => {
     if (!channels.has(selectedChannel.value)) {
-      selectedChannel.value = 'kw'
+      selectedChannel.value = (Array.from(channels)[0] as ChannelId | undefined) || 'kw'
     }
-  },
-  { immediate: true },
-)
-
-watch(
-  () => settingsStore.settings.activeUserSourceId,
-  (sourceId) => {
-    selectedUserSourceId.value = sourceId || ''
   },
   { immediate: true },
 )

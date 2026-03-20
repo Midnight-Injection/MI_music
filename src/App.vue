@@ -5,7 +5,10 @@
 
     <Sidebar class="app-shell__sidebar" />
 
-    <div class="app-shell__main">
+    <div
+      class="app-shell__main"
+      :class="{ 'app-shell__main--immersive': isPlayerDetail }"
+    >
       <Header v-if="showHeader" class="app-shell__header" />
 
       <RouterView v-slot="{ Component, route }">
@@ -23,12 +26,15 @@
       </RouterView>
     </div>
 
-    <PlayerBar class="app-shell__player" />
+    <PlayerBar v-if="showPlayerBar" class="app-shell__player" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { appDataDir } from '@tauri-apps/api/path'
+import { mkdir } from '@tauri-apps/plugin-fs'
 import { AnimatePresence, motion } from 'motion-v'
 import { RouterView, useRoute } from 'vue-router'
 import Sidebar from './components/layout/Sidebar.vue'
@@ -44,7 +50,21 @@ const settingsStore = useSettingsStore()
 const userSourceStore = useUserSourceStore()
 const route = useRoute()
 
-const showHeader = computed(() => route.name !== 'Search')
+const isPlayerDetail = computed(() => route.name === 'PlayerDetail')
+const showHeader = computed(() => route.name !== 'Search' && !isPlayerDetail.value)
+const showPlayerBar = computed(() => !isPlayerDetail.value)
+
+function isTauriContext() {
+  return typeof window !== 'undefined' && '__TAURI__' in window
+}
+
+async function initDatabase() {
+  if (!isTauriContext()) return
+
+  const dataDir = await appDataDir()
+  await mkdir(dataDir, { recursive: true })
+  await invoke('init_database', { appPath: dataDir })
+}
 
 onMounted(async () => {
   const saved = localStorage.getItem('settings')
@@ -56,7 +76,13 @@ onMounted(async () => {
     }
   }
 
-  themeStore.init()
+  try {
+    await initDatabase()
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+  }
+
+  await themeStore.init()
 
   try {
     await userSourceStore.loadUserSources()
@@ -119,6 +145,10 @@ onMounted(async () => {
   overflow: hidden;
 }
 
+.app-shell__main--immersive {
+  padding-bottom: 0;
+}
+
 .app-shell__header {
   position: relative;
   z-index: 2;
@@ -147,6 +177,11 @@ onMounted(async () => {
   .app-shell__main {
     padding-top: 84px;
     padding-bottom: calc(var(--player-bar-height) + 18px);
+  }
+
+  .app-shell__main--immersive {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .app-shell__player {

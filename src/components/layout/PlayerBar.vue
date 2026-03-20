@@ -20,6 +20,7 @@
           <span v-if="currentQualityLabel" class="player-bar__quality">{{ currentQualityLabel }}</span>
         </div>
         <span>{{ player.currentMusic?.artist || '选择一首歌开始试听' }}</span>
+        <span v-if="currentSourceLabel" class="player-bar__source">{{ currentSourceLabel }}</span>
       </div>
     </div>
 
@@ -71,11 +72,14 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { motion } from 'motion-v'
 import { useRouter } from 'vue-router'
 import { usePlayerStore } from '../../store/player'
+import { useUserSourceStore } from '../../stores/userSource'
 import type { PlayMode } from '../../types/player'
+import { getPlaybackSourceDisplayInfo } from '../../lib/playbackSource'
 import { formatQualityLabel, getTrackDisplayQuality } from '../../lib/trackQuality'
 
 const router = useRouter()
 const player = usePlayerStore()
+const userSourceStore = useUserSourceStore()
 
 const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23111827" width="120" height="120"/%3E%3Ccircle cx="60" cy="60" r="30" fill="%23f97316" fill-opacity="0.28"/%3E%3C/svg%3E'
 const isDragging = ref(false)
@@ -91,6 +95,16 @@ const progressPercent = computed(() => {
 
 const currentQualityLabel = computed(() => {
   return formatQualityLabel(player.resolvedQuality || getTrackDisplayQuality(player.currentMusic))
+})
+
+const currentSourceLabel = computed(() => {
+  return getPlaybackSourceDisplayInfo({
+    currentMusic: player.currentMusic,
+    resolvedChannel: player.resolvedChannel,
+    resolvedResolver: player.resolvedResolver,
+    resolvedUserSourceId: player.resolvedUserSourceId,
+    userSources: userSourceStore.userSources,
+  }).compactLabel
 })
 
 const playModeIcon = computed(() => {
@@ -303,6 +317,11 @@ onUnmounted(() => {
     color: var(--text-secondary);
     font-size: 0.78rem;
   }
+}
+
+.player-bar__source {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
 }
 
 .player-bar__quality {

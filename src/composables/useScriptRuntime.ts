@@ -40,13 +40,17 @@ interface MusicUrlRequestInfo {
   musicInfo: ScriptMusicInfo
 }
 
+interface LyricRequestInfo {
+  musicInfo: ScriptMusicInfo
+}
+
 interface SearchRequestInfo {
   keyword: string
   page: number
   limit: number
 }
 
-interface RequestEvent<TInfo = MusicUrlRequestInfo | SearchRequestInfo | Record<string, any>> {
+interface RequestEvent<TInfo = MusicUrlRequestInfo | LyricRequestInfo | SearchRequestInfo | Record<string, any>> {
   action: ScriptAction
   source: MusicSource
   info: TInfo
@@ -64,9 +68,12 @@ export interface ScriptCapability {
   channels: string[]
   canSearch: boolean
   canGetMusicUrl: boolean
+  canGetLyric: boolean
 }
 
 const lxInstances = new Map<string, ScriptInstance>()
+const SCRIPT_MUSIC_URL_TIMEOUT_MS = 12_000
+const SCRIPT_SEARCH_TIMEOUT_MS = 8_000
 
 function serializeError(error: unknown): string {
   if (error instanceof Error) return error.message || error.name || 'Unknown error'
@@ -151,6 +158,7 @@ function buildCapabilityFromSource(source: Pick<UserSourceScript, 'sources'>): S
     channels,
     canSearch: actionSet.has('search'),
     canGetMusicUrl: actionSet.has('musicUrl'),
+    canGetLyric: actionSet.has('lyric'),
   }
 }
 
@@ -323,6 +331,7 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
   const EVENT_NAMES = {
     request: 'request',
     inited: 'inited',
+    updateAlert: 'updateAlert',
     musicUrl: 'musicUrl',
     lyric: 'lyric',
     pic: 'pic',
@@ -421,6 +430,11 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
       bufToString(buf: Uint8Array, encoding?: string) {
         if (encoding === 'base64') {
           return btoa(String.fromCharCode.apply(null, Array.from(buf)))
+        }
+        if (encoding === 'hex') {
+          return Array.from(buf)
+            .map(item => item.toString(16).padStart(2, '0'))
+            .join('')
         }
         return new TextDecoder('utf-8').decode(buf)
       },
@@ -623,11 +637,12 @@ async function getMusicUrlFromScript(
       },
     }
 
+    let lastHandlerError: unknown = null
     for (const handler of instance.handlers) {
       try {
         const result = await withTimeout(
           handler(event),
-          2500,
+          SCRIPT_MUSIC_URL_TIMEOUT_MS,
           `musicUrl ${source.name}/${musicSource}/${quality}`,
         )
         const url = extractMusicUrl(result)
@@ -646,6 +661,7 @@ async function getMusicUrlFromScript(
           )
         }
       } catch (error) {
+        lastHandlerError = error
         console.error(
           `[ScriptRuntime] Handler error in ${source.id} (${source.name}) for ${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
           serializeError(error),
@@ -653,13 +669,14 @@ async function getMusicUrlFromScript(
       }
     }
 
+    if (lastHandlerError) throw lastHandlerError
     return null
   } catch (error) {
     console.error(
       `[ScriptRuntime] getMusicUrl failed for ${source.id}/${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
       serializeError(error),
     )
-    return null
+    throw error
   }
 }
 
@@ -698,7 +715,7 @@ async function searchFromScript(
         try {
           const handlerResult = await withTimeout(
             handler(event),
-            4000,
+            SCRIPT_SEARCH_TIMEOUT_MS,
             `search ${source.name}/${channel}/${keyword}`,
           )
           const items = extractSearchItems(handlerResult).map(item => {
@@ -724,6 +741,59 @@ async function searchFromScript(
   } catch (error) {
     console.error(`[ScriptRuntime] search failed:`, serializeError(error))
     return []
+  }
+}
+
+async function getLyricFromScript(
+  source: UserSourceScript,
+  musicSource: MusicSource,
+  musicInfo: ScriptMusicInfo,
+): Promise<unknown | null> {
+  try {
+    const existingInstance = lxInstances.get(source.id)
+    const instance = existingInstance ?? await initScript(source)
+
+    if (!instance || instance.handlers.length === 0) return null
+    const availableSources = Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
+    if (!availableSources[musicSource] || !availableSources[musicSource].actions?.includes('lyric')) return null
+
+    const event: RequestEvent<LyricRequestInfo> = {
+      action: 'lyric',
+      source: musicSource,
+      info: {
+        musicInfo,
+      },
+    }
+
+    let lastHandlerError: unknown = null
+    for (const handler of instance.handlers) {
+      try {
+        const result = await withTimeout(
+          handler(event),
+          SCRIPT_MUSIC_URL_TIMEOUT_MS,
+          `lyric ${source.name}/${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}`,
+        )
+
+        if (result != null) {
+          return result
+        }
+      } catch (error) {
+        lastHandlerError = error
+        console.error(
+          `[ScriptRuntime] Lyric handler error in ${source.id} (${source.name}) for ${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+          serializeError(error),
+        )
+      }
+    }
+
+    if (lastHandlerError) throw lastHandlerError
+    return null
+  } catch (error) {
+    console.error(
+      `[ScriptRuntime] getLyric failed for ${source.id}/${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+      serializeError(error),
+    )
+    throw error
   }
 }
 
@@ -779,6 +849,19 @@ export function useScriptRuntime() {
     return searchFromScript(source, keyword, page, limit, preferredChannel)
   }
 
+  async function getLyric(
+    sourceId: string,
+    musicSource: MusicSource,
+    musicInfo: ScriptMusicInfo,
+  ): Promise<unknown | null> {
+    await initialize()
+
+    const source = userSourceStore.enabledSources.find(item => item.id === sourceId)
+    if (!source) return null
+
+    return getLyricFromScript(source, musicSource, musicInfo)
+  }
+
   function getSourceCapabilities(): Record<string, ScriptCapability> {
     const result: Record<string, ScriptCapability> = {}
 
@@ -813,6 +896,7 @@ export function useScriptRuntime() {
     initialize,
     search,
     getMusicUrl,
+    getLyric,
     getAvailableSources,
     getSourceCapabilities,
     cleanup,

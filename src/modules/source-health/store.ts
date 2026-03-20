@@ -1,7 +1,7 @@
 import type { MusicSource } from '../../composables/useScriptRuntime'
 import type { UserSourceScript } from '../../types/userSource'
 
-export type HealthAction = 'search' | 'musicUrl'
+export type HealthAction = 'search' | 'musicUrl' | 'lyric'
 
 export interface SourceHealthRecord {
   channel: MusicSource
@@ -97,10 +97,6 @@ export function markSourceFailure(
   record.cooldownUntil = Date.now() + cooldownMs
 }
 
-function isCoolingDown(record: SourceHealthRecord | null): boolean {
-  return Boolean(record?.cooldownUntil && record.cooldownUntil > Date.now())
-}
-
 export function orderSourcesForAction(
   channel: MusicSource,
   action: HealthAction,
@@ -115,22 +111,7 @@ export function orderSourcesForAction(
       if (right.id === preferredSourceId) return 1
     }
 
-    const leftRecord = getSourceHealthRecord(channel, action, left.id)
-    const rightRecord = getSourceHealthRecord(channel, action, right.id)
-    const leftCoolingDown = isCoolingDown(leftRecord)
-    const rightCoolingDown = isCoolingDown(rightRecord)
-
-    if (leftCoolingDown !== rightCoolingDown) return leftCoolingDown ? 1 : -1
-
     if (left.priority !== right.priority) return left.priority - right.priority
-
-    const leftLastSuccess = leftRecord?.lastSuccessAt || 0
-    const rightLastSuccess = rightRecord?.lastSuccessAt || 0
-    if (leftLastSuccess !== rightLastSuccess) return rightLastSuccess - leftLastSuccess
-
-    const leftHasRecord = Boolean(leftRecord)
-    const rightHasRecord = Boolean(rightRecord)
-    if (leftHasRecord !== rightHasRecord) return leftHasRecord ? -1 : 1
 
     return left.created_at - right.created_at
   })

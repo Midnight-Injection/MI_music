@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserSourceScript } from '../types/userSource'
+import { clearCachedSourcesById } from '../modules/playback/sourceSuccessCache'
 
 // Dynamic import with environment detection
 let invokeFn: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined
@@ -186,6 +187,10 @@ export const useUserSourceStore = defineStore('userSource', () => {
       if (index !== -1) {
         userSources.value[index] = updated
       }
+
+      if (!enabled) {
+        clearCachedSourcesById(id)
+      }
     } catch (error) {
       console.error('Failed to toggle user source:', error)
       throw error
@@ -228,6 +233,8 @@ export const useUserSourceStore = defineStore('userSource', () => {
       if (index !== -1) {
         userSources.value.splice(index, 1)
       }
+
+      clearCachedSourcesById(id)
     } catch (error) {
       console.error('Failed to delete user source:', error)
       throw error

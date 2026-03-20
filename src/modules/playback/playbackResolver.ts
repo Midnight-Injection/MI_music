@@ -3,8 +3,6 @@ import { useSettingsStore } from '../../store/settings'
 import { useUserSourceStore } from '../../stores/userSource'
 import type { MusicInfo } from '../../types/music'
 import { resolveMusicChannel, type PlaybackResolution, type PlaybackResolver } from './types'
-import { resolveWithBuiltinSource } from './resolvers/builtinResolver'
-import { resolveWithCrossSourceFallback } from './resolvers/crossSourceFallbackResolver'
 import { resolveWithCustomSources } from './resolvers/customSourceResolver'
 import { getChannelFailureSummary } from '../source-health/store'
 
@@ -13,32 +11,17 @@ export function usePlaybackResolver(): PlaybackResolver {
   const settingsStore = useSettingsStore()
   const scriptRuntime = useScriptRuntime()
 
-  async function resolveInternal(track: MusicInfo): Promise<PlaybackResolution | null> {
-    const customResolution = await resolveWithCustomSources(track, {
+  async function resolveCustomOnly(track: MusicInfo): Promise<PlaybackResolution | null> {
+    return resolveWithCustomSources(track, {
       userSourceStore,
       settingsStore,
       scriptRuntime,
     })
-    if (customResolution) return customResolution
-
-    const preferredAudioQuality = settingsStore.settings.audioQuality
-    const builtInResolution = await resolveWithBuiltinSource(track, preferredAudioQuality)
-    if (builtInResolution) return builtInResolution
-
-    return resolveWithCrossSourceFallback(track, resolveInternal)
   }
 
   async function resolve(track: MusicInfo): Promise<PlaybackResolution> {
-    const resolution = await resolveInternal(track)
-    if (resolution) return resolution
-
-    if (track.url) {
-      return {
-        url: track.url,
-        channel: resolveMusicChannel(track),
-        resolver: 'direct-url',
-      }
-    }
+    const customResolution = await resolveCustomOnly(track)
+    if (customResolution) return customResolution
 
     const channel = resolveMusicChannel(track)
     const failureSummary = getChannelFailureSummary(

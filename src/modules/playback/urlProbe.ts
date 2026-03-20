@@ -15,7 +15,7 @@ function isSafeLocalUrl(url: string): boolean {
 }
 
 function isSupportedRemoteUrl(url: string): boolean {
-  return url.startsWith('https://')
+  return url.startsWith('https://') || url.startsWith('http://')
 }
 
 export async function canUsePlaybackUrl(url?: string | null): Promise<boolean> {

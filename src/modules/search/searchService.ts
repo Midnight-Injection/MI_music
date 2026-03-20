@@ -1,36 +1,44 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useScriptRuntime, type MusicSource } from '../../composables/useScriptRuntime'
-import { useUserSourceStore } from '../../stores/userSource'
 import type {
+  BuiltInSearchChannel,
   MusicInfo,
   SearchChannel,
   SearchResult,
 } from '../../types/music'
-import { searchBuiltInTracks } from './providers'
+import { useSettingsStore } from '../../store/settings'
+import { searchBuiltInTracks as searchBuiltInTracksByChannel } from './providers'
 import {
-  buildMusicIdentity,
+  compareSearchTracks,
   decorateTrackForPlayback,
-  getScriptItemChannel,
-  normalizeScriptSearchResult,
 } from './normalize'
-import type {
-  ScriptSearchResultItem,
-  SearchRequest,
-  SearchRuntimeSnapshot,
-  UserSourceOption,
-} from './types'
+import type { SearchRuntimeSnapshot, UserSourceOption } from './types'
+import type { SearchRequest } from './types'
+
+const AGGREGATE_CHANNELS: BuiltInSearchChannel[] = ['tx', 'wy', 'kg', 'kw', 'mg']
+const DEFAULT_SEARCH_TIMEOUT_MS = 12000
+const AGGREGATE_SEARCH_TIMEOUT_MS = 5000
 
 function isTauriContext(): boolean {
   return typeof window !== 'undefined' && '__TAURI__' in window
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs = DEFAULT_SEARCH_TIMEOUT_MS): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => {
       window.setTimeout(() => reject(new Error('搜索超时，请稍后重试')), timeoutMs)
     }),
   ])
+}
+
+function resolveBuiltInSearchChannel(
+  track: MusicInfo,
+  fallbackChannel: BuiltInSearchChannel,
+): BuiltInSearchChannel {
+  const source = track.source
+  return AGGREGATE_CHANNELS.includes(source as BuiltInSearchChannel)
+    ? source as BuiltInSearchChannel
+    : fallbackChannel
 }
 
 export function buildSearchResultPayload(
@@ -49,11 +57,32 @@ export function buildSearchResultPayload(
 }
 
 export function useSearchService() {
-  const userSourceStore = useUserSourceStore()
-  const scriptRuntime = useScriptRuntime()
+  const settingsStore = useSettingsStore()
+  void settingsStore
+
+  async function searchBuiltInChannel(
+    channel: BuiltInSearchChannel,
+    keyword: string,
+    page: number,
+    limit: number,
+    timeoutMs = DEFAULT_SEARCH_TIMEOUT_MS,
+  ): Promise<MusicInfo[]> {
+    const results = await withTimeout(
+      searchBuiltInTracksByChannel(channel, keyword, page, limit),
+      timeoutMs,
+    )
+
+    return results.map((track) =>
+      decorateTrackForPlayback(
+        track,
+        resolveBuiltInSearchChannel(track, channel),
+        'built-in-search',
+      ),
+    )
+  }
 
   async function refreshAvailability(): Promise<SearchRuntimeSnapshot> {
-    let builtInChannelIds: SearchChannel[] = ['kw']
+    let builtInChannelIds: BuiltInSearchChannel[] = ['kw']
     let scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'] = {}
 
     if (!isTauriContext()) {
@@ -61,19 +90,10 @@ export function useSearchService() {
     }
 
     try {
-      builtInChannelIds = await invoke<SearchChannel[]>('get_available_sources')
+      builtInChannelIds = (await invoke<BuiltInSearchChannel[]>('get_available_sources'))
+        .filter((channel) => AGGREGATE_CHANNELS.includes(channel))
     } catch (error) {
       console.error('Failed to load built-in channels:', error)
-    }
-
-    try {
-      await userSourceStore.loadUserSources()
-      if (userSourceStore.enabledSources.length > 0) {
-        await scriptRuntime.initialize()
-        scriptCapabilities = scriptRuntime.getSourceCapabilities()
-      }
-    } catch (error) {
-      console.error('Failed to load custom search channels:', error)
     }
 
     return {
@@ -85,15 +105,8 @@ export function useSearchService() {
   function getUserSourceOptions(
     scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'],
   ): UserSourceOption[] {
-    return userSourceStore.enabledSources.map((source) => {
-      const capability = scriptCapabilities[source.id]
-      return {
-        id: source.id,
-        name: source.name,
-        canSearch: capability?.canSearch ?? false,
-        channels: capability?.channels ?? [],
-      }
-    })
+    void scriptCapabilities
+    return []
   }
 
   function getPreferredPlaybackUserSourceId(options: {
@@ -101,39 +114,24 @@ export function useSearchService() {
     activeUserSourceId?: string
     scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities']
   }): string | undefined {
-    const preferredSourceId = options.selectedUserSourceId || options.activeUserSourceId
-    if (preferredSourceId) {
-      const capability = options.scriptCapabilities[preferredSourceId]
-      if (capability?.canGetMusicUrl) return preferredSourceId
-    }
-
-    const fallbackSource = getUserSourceOptions(options.scriptCapabilities).find((source) => {
-      const capability = options.scriptCapabilities[source.id]
-      return source.canSearch || capability?.canGetMusicUrl
-    })
-
-    return fallbackSource?.id
+    void options
+    return undefined
   }
 
   function getCustomSearchChannelIds(
     scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'],
     selectedUserSourceId?: string,
   ): SearchChannel[] {
-    if (selectedUserSourceId) {
-      const capability = scriptCapabilities[selectedUserSourceId]
-      return (capability?.canSearch ? capability.channels : []) as SearchChannel[]
-    }
-
-    return getUserSourceOptions(scriptCapabilities)
-      .filter((source) => source.canSearch)
-      .flatMap((source) => source.channels) as SearchChannel[]
+    void scriptCapabilities
+    void selectedUserSourceId
+    return []
   }
 
   function getAvailableChannelSet(
     snapshot: SearchRuntimeSnapshot,
     selectedUserSourceId?: string,
   ): Set<SearchChannel> {
-    return new Set([
+    return new Set<SearchChannel>([
       ...snapshot.builtInChannelIds,
       ...getCustomSearchChannelIds(snapshot.scriptCapabilities, selectedUserSourceId),
     ])
@@ -141,81 +139,104 @@ export function useSearchService() {
 
   async function searchBuiltinTracks(request: SearchRequest): Promise<MusicInfo[]> {
     if (!isTauriContext()) return []
-
-    const results = await withTimeout(
-      searchBuiltInTracks(request.channel, request.keyword, request.page, request.limit),
-    )
-
-    return results.map((track) =>
-      decorateTrackForPlayback(
-        track,
-        request.channel,
-        'built-in-search',
-        request.preferredPlaybackUserSourceId,
-      ),
+    if (request.channel === 'all') return []
+    return searchBuiltInChannel(
+      request.channel as BuiltInSearchChannel,
+      request.keyword,
+      request.page,
+      request.limit,
     )
   }
 
-  async function searchCustomTracks(request: SearchRequest): Promise<MusicInfo[] | null> {
-    if (!request.selectedUserSourceId) return null
-
-    await userSourceStore.loadUserSources()
-    await scriptRuntime.initialize()
-
-    const capabilities = scriptRuntime.getSourceCapabilities()
-    const capability = capabilities[request.selectedUserSourceId]
-    if (!capability?.canSearch || !capability.channels.includes(request.channel)) {
-      return null
+  async function searchAggregateTracks(request: SearchRequest): Promise<SearchResult> {
+    if (!isTauriContext()) {
+      return {
+        data: [],
+        total: 0,
+        channel: 'all',
+        page: request.page,
+        hasMore: false,
+      }
     }
 
-    try {
-      const result = await withTimeout(
-        scriptRuntime.search(
-          request.selectedUserSourceId,
+    const availability = await refreshAvailability()
+    const channels = availability.builtInChannelIds
+
+    if (!channels.length) {
+      return {
+        data: [],
+        total: 0,
+        channel: 'all',
+        page: request.page,
+        hasMore: false,
+      }
+    }
+
+    const channelResults = await Promise.allSettled(
+      channels.map(async (channel) => ({
+        channel,
+        data: await searchBuiltInChannel(
+          channel,
           request.keyword,
           request.page,
           request.limit,
-          request.channel as MusicSource,
+          AGGREGATE_SEARCH_TIMEOUT_MS,
         ),
+      })),
+    )
+
+    const successfulResults = channelResults.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    )
+    const failedResults = channelResults.flatMap((result, index) =>
+      result.status === 'rejected'
+        ? [{
+          channel: channels[index],
+          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        }]
+        : [],
+    )
+
+    if (failedResults.length > 0) {
+      console.warn('[Search] Aggregate search skipped failed channels:', failedResults)
+    }
+
+    if (successfulResults.length === 0) {
+      const reasonSummary = failedResults
+        .map(({ channel, reason }) => `${channel}: ${reason}`)
+        .join('；')
+      throw new Error(
+        reasonSummary
+          ? `综合搜索失败，所有渠道均不可用（${reasonSummary}）`
+          : '综合搜索失败，请稍后重试',
       )
+    }
 
-      if (!result.length) return null
+    const merged = successfulResults
+      .flatMap((item) => item.data)
+      .sort((left, right) => compareSearchTracks(left, right, request.keyword))
 
-      return result
-        .map((item) => item as ScriptSearchResultItem)
-        .filter((item) => getScriptItemChannel(item, request.channel) === request.channel)
-        .map((item) =>
-          decorateTrackForPlayback(
-            normalizeScriptSearchResult(item, request.channel),
-            request.channel,
-            'custom-search',
-            request.preferredPlaybackUserSourceId,
-          ),
-        )
-    } catch (error) {
-      console.error('[Search] Source search failed:', request.selectedUserSourceId, error)
-      return null
+    return {
+      data: merged,
+      total: merged.length,
+      channel: 'all',
+      page: request.page,
+      hasMore: successfulResults.some((item) => item.data.length >= request.limit),
     }
   }
 
-  async function searchTracks(request: SearchRequest): Promise<MusicInfo[]> {
-    const builtInResults = await searchBuiltinTracks(request)
-    const customResults = await searchCustomTracks(request)
-
-    if (!customResults?.length) return builtInResults
-    if (!builtInResults.length) return customResults
-
-    const mergedResults = [...builtInResults]
-    const seen = new Set(builtInResults.map(buildMusicIdentity))
-
-    for (const track of customResults) {
-      const identity = buildMusicIdentity(track)
-      if (seen.has(identity)) continue
-      seen.add(identity)
-      mergedResults.push(track)
+  async function searchTracks(request: SearchRequest): Promise<SearchResult> {
+    if (request.channel === 'all') {
+      return searchAggregateTracks(request)
     }
 
-    return mergedResults
+    const builtInResults = await searchBuiltinTracks(request)
+    return buildSearchResultPayload(
+      builtInResults,
+      request.channel,
+      request.page,
+      request.limit,
+    )
   }
 
   return {
@@ -225,7 +246,7 @@ export function useSearchService() {
     getCustomSearchChannelIds,
     getAvailableChannelSet,
     searchBuiltinTracks,
-    searchCustomTracks,
+    searchAggregateTracks,
     searchTracks,
   }
 }

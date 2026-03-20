@@ -1,10 +1,13 @@
 import type {
+  BuiltInSearchChannel,
   ChannelSearchResultItem,
   MusicInfo,
   QualityInfo,
   SearchChannel,
 } from '../../types/music'
 import type { ScriptSearchResultItem } from './types'
+
+const SEARCH_CHANNEL_TIEBREAK_ORDER: BuiltInSearchChannel[] = ['tx', 'wy', 'kg', 'kw', 'mg']
 
 export function parseDuration(interval?: string | number): number {
   if (typeof interval === 'number') return interval
@@ -107,4 +110,76 @@ export function buildMusicIdentity(music: MusicInfo): string {
   const channel = music.searchChannel || music.source || 'unknown'
   const songKey = music.hash || music.songmid || music.id
   return `${channel}:${songKey}:${music.name}:${music.artist}`
+}
+
+export function normalizeSearchText(value?: string | number | null): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)|（[^）]*）/g, '')
+    .replace(/[\s\-_/\\|.,!?:;'""`~@#$%^&*+=<>{}\[\]()]+/g, '')
+    .trim()
+}
+
+export function getSearchMatchScore(track: MusicInfo, keyword: string): number {
+  const query = normalizeSearchText(keyword)
+  const name = normalizeSearchText(track.name)
+  const artist = normalizeSearchText(track.artist)
+  const album = normalizeSearchText(track.album)
+  const nameArtist = `${name}${artist}`
+  const artistName = `${artist}${name}`
+
+  if (!query) return 0
+
+  let score = 0
+  if (nameArtist === query || artistName === query) score += 1400
+  if (name === query) score += 1100
+  if (artist === query) score += 700
+  if (album === query) score += 200
+
+  if (name.startsWith(query)) score += 500
+  else if (name.includes(query)) score += 360
+
+  if (artist.startsWith(query)) score += 220
+  else if (artist.includes(query)) score += 160
+
+  if (album.includes(query)) score += 80
+  if (nameArtist.includes(query) || artistName.includes(query)) score += 120
+
+  const queryTerms = String(keyword)
+    .toLowerCase()
+    .split(/\s+/)
+    .map(term => normalizeSearchText(term))
+    .filter(Boolean)
+
+  for (const term of queryTerms) {
+    if (name === term) score += 160
+    else if (name.includes(term)) score += 90
+
+    if (artist === term) score += 100
+    else if (artist.includes(term)) score += 55
+
+    if (album.includes(term)) score += 20
+  }
+
+  return score
+}
+
+export function compareSearchTracks(
+  left: MusicInfo,
+  right: MusicInfo,
+  keyword: string,
+): number {
+  const scoreDelta = getSearchMatchScore(right, keyword) - getSearchMatchScore(left, keyword)
+  if (scoreDelta !== 0) return scoreDelta
+
+  const leftChannel = String(left.source || left.searchChannel || '')
+  const rightChannel = String(right.source || right.searchChannel || '')
+  const leftIndex = SEARCH_CHANNEL_TIEBREAK_ORDER.indexOf(leftChannel as BuiltInSearchChannel)
+  const rightIndex = SEARCH_CHANNEL_TIEBREAK_ORDER.indexOf(rightChannel as BuiltInSearchChannel)
+  if (leftIndex !== rightIndex) {
+    return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
+      (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex)
+  }
+
+  return String(left.id).localeCompare(String(right.id))
 }

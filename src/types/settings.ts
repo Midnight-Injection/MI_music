@@ -23,6 +23,7 @@ export const DEFAULT_CHANNEL_CONFIGS: ChannelConfig[] = [
 
 // Source name mapping for display
 export const CHANNEL_NAMES: Record<string, string> = {
+  all: '综合搜索',
   kw: '酷我音乐',
   kg: '酷狗音乐',
   wy: '网易云音乐',

@@ -9,7 +9,6 @@ import {
   orderSourcesForAction,
 } from '../../source-health/store'
 import {
-  MAX_CUSTOM_SOURCE_ATTEMPTS,
   resolveMusicChannel,
   getCustomSourceQualityCandidates,
   toScriptMusicInfo,
@@ -17,6 +16,7 @@ import {
 } from '../types'
 import type { MusicInfo } from '../../../types/music'
 import { canUsePlaybackUrl } from '../urlProbe'
+import { getCachedPreferredSourceId } from '../sourceSuccessCache'
 
 interface CustomSourceResolverDeps {
   userSourceStore: ReturnType<typeof useUserSourceStore>
@@ -33,15 +33,18 @@ export async function resolveWithCustomSources(
   }
 
   const channel = resolveMusicChannel(track)
-  const activeUserSourceId = deps.settingsStore.settings.activeUserSourceId
-  const boundUserSourceId = track.playbackUserSourceId
   const enabledSources = deps.userSourceStore.enabledSources
+  const preferredSourceId = getCachedPreferredSourceId(
+    track,
+    deps.settingsStore.settings.audioQuality,
+    enabledSources.map((source) => source.id),
+  ) || track.playbackUserSourceId || deps.settingsStore.settings.activeUserSourceId
   const sourcesToTry = orderSourcesForAction(
     channel,
     'musicUrl',
     enabledSources,
-    boundUserSourceId || activeUserSourceId || undefined,
-  ).slice(0, MAX_CUSTOM_SOURCE_ATTEMPTS)
+    preferredSourceId,
+  )
 
   if (!sourcesToTry.length) return null
 

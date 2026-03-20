@@ -1,5 +1,6 @@
-export type SearchChannel = 'kw' | 'kg' | 'tx' | 'wy' | 'mg'
-export type TrackSource = SearchChannel | 'local'
+export type BuiltInSearchChannel = 'kw' | 'kg' | 'tx' | 'wy' | 'mg'
+export type SearchChannel = BuiltInSearchChannel | 'all'
+export type TrackSource = BuiltInSearchChannel | 'local'
 
 export interface QualityInfo {
   type: string
@@ -24,7 +25,6 @@ export interface UnifiedTrack {
   playbackUserSourceId?: string
   searchChannel?: SearchChannel | string
   resolvedBy?: 'built-in-search' | 'custom-search'
-  crossSourceFallbackAttempted?: boolean
 }
 
 export type MusicInfo = UnifiedTrack
@@ -33,7 +33,7 @@ export interface ChannelSearchResultItem {
   id: string
   name: string
   singer: string
-  source: SearchChannel
+  source: BuiltInSearchChannel
   songmid: string
   album_id: string
   hash?: string

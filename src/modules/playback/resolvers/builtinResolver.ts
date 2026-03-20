@@ -3,7 +3,6 @@ import type { MusicInfo } from '../../../types/music'
 import type { AudioQuality } from '../../../types/settings'
 import { canUsePlaybackUrl } from '../urlProbe'
 import {
-  MAX_QUALITY_ATTEMPTS_PER_SOURCE,
   resolveMusicChannel,
   resolvePlaybackQualities,
   type PlaybackResolution,
@@ -16,7 +15,6 @@ export async function resolveWithBuiltinSource(
   const channel = resolveMusicChannel(track)
   const songId = channel === 'kg' ? (track.hash || track.songmid) : track.songmid
   const qualities = resolvePlaybackQualities(track, preferredAudioQuality)
-    .slice(0, MAX_QUALITY_ATTEMPTS_PER_SOURCE)
 
   if (!songId) return null
 

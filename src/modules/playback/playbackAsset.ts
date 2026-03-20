@@ -21,7 +21,7 @@ function isLocalPlaybackUrl(url: string): boolean {
 }
 
 function isRemoteMediaUrl(url: string): boolean {
-  return url.startsWith('https://')
+  return url.startsWith('https://') || url.startsWith('http://')
 }
 
 export async function localizePlaybackUrl(url?: string | null): Promise<string> {

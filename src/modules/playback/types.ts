@@ -6,7 +6,7 @@ export interface PlaybackResolution {
   url: string
   channel: MusicSource
   quality?: string
-  resolver: 'custom-source' | 'built-in' | 'cross-source-fallback' | 'direct-url'
+  resolver: 'custom-source' | 'built-in' | 'direct-url'
   userSourceId?: string
 }
 
@@ -14,9 +14,6 @@ export interface PlaybackResolver {
   resolve(track: MusicInfo): Promise<PlaybackResolution>
 }
 
-export const MAX_CUSTOM_SOURCE_ATTEMPTS = 3
-export const MAX_QUALITY_ATTEMPTS_PER_SOURCE = 2
-export const CROSS_SOURCE_FALLBACK_CHANNELS: MusicSource[] = ['tx', 'mg', 'wy', 'kw']
 const AUDIO_QUALITY_PREFERENCES: Record<AudioQuality, string[]> = {
   standard: ['128k', '320k', 'flac', 'flac24bit'],
   high: ['320k', '128k', 'flac', 'flac24bit'],
@@ -86,13 +83,15 @@ export function getCustomSourceQualityCandidates(
   const declaredQualities = source.sources?.[channel]?.qualitys?.filter(Boolean) || []
 
   if (!declaredQualities.length) {
-    return candidates.slice(0, MAX_QUALITY_ATTEMPTS_PER_SOURCE)
+    return candidates
   }
 
-  const orderedDeclared = declaredQualities.filter(quality => candidates.includes(quality))
-  const remaining = candidates.filter(quality => !orderedDeclared.includes(quality))
+  const declaredSet = new Set(declaredQualities)
+  const preferredDeclared = candidates.filter(quality => declaredSet.has(quality))
+  const fallbackDeclared = declaredQualities.filter(quality => !preferredDeclared.includes(quality))
+  const undeclaredCandidates = candidates.filter(quality => !declaredSet.has(quality))
 
-  return [...orderedDeclared, ...remaining].slice(0, MAX_QUALITY_ATTEMPTS_PER_SOURCE)
+  return [...preferredDeclared, ...fallbackDeclared, ...undeclaredCandidates]
 }
 
 export function toScriptMusicInfo(music: MusicInfo, sourceId: MusicSource): ScriptMusicInfo {
