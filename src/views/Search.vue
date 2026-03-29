@@ -1,57 +1,35 @@
 <template>
   <div class="search-page page-shell">
-    <section class="search-stage">
-      <div class="search-stage__hero glass-panel">
-        <div class="search-stage__copy">
-          <div class="search-stage__input-shell">
-            <svg class="search-stage__icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            </svg>
-            <input
-              ref="searchInputRef"
-              v-model="searchKeyword"
-              type="text"
-              placeholder="搜索歌曲、歌手、专辑..."
-              class="search-stage__input"
-              @input="handleSearchInput"
-              @keyup.enter="handleSearchSubmit"
-            />
-            <button v-if="searchKeyword" class="search-stage__clear" @click="handleClear">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="page-meta-row">
-            <button
-              v-for="item in quickHistory"
-              :key="`${item.keyword}-${item.timestamp}`"
-              class="page-meta-pill search-stage__history-pill"
-              @click="handleHistoryClick(item)"
-            >
-              {{ item.keyword }}
-            </button>
-          </div>
-
-          <div v-if="showHistory && searchHistory.length > 0" class="history-dropdown glass-panel">
-            <div class="history-header">
-              <span class="history-title">最近搜索</span>
-              <button class="clear-history-btn" @click="handleClearHistory">清空</button>
-            </div>
-            <div class="history-list">
-              <div
-                v-for="item in searchHistory"
-                :key="`${item.keyword}-${item.timestamp}`"
-                class="history-item"
-                @click="handleHistoryClick(item)"
-              >
-                <span class="history-keyword">{{ item.keyword }}</span>
-                <span class="history-source">{{ getChannelName(item.channel) }}</span>
-              </div>
-            </div>
-          </div>
+    <section class="search-home glass-panel">
+      <div class="search-home__hero">
+        <div class="search-home__copy">
+          <span class="search-home__eyebrow">Search Home</span>
+          <h1>搜索歌曲</h1>
+          <p>输入关键词后直接搜索、试听，并加入当前播放队列或歌单。</p>
         </div>
+      </div>
+
+      <div class="search-home__toolbar">
+        <div class="search-home__search-shell">
+          <svg class="search-home__icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+          <input
+            ref="searchInputRef"
+            v-model="searchKeyword"
+            type="text"
+            placeholder="搜索歌曲、歌手、专辑..."
+            class="search-home__input"
+            @keyup.enter="handleSearchSubmit"
+          />
+          <button v-if="searchKeyword" type="button" class="search-home__clear" @click="handleClear">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+
+        <button type="button" class="search-home__submit" @click="handleSearchSubmit">开始搜索</button>
       </div>
 
       <section class="channel-tabs">
@@ -71,86 +49,145 @@
 
     <section class="search-results">
       <div v-if="searchError" class="search-error">{{ searchError }}</div>
-
-      <div v-if="isSearching" class="loading-state glass-panel section-card">
-        <div class="spinner"></div>
-        <p>搜索中...</p>
+      <div
+        v-if="playlistNotice.message"
+        class="playlist-notice"
+        :class="`is-${playlistNotice.type}`"
+      >
+        {{ playlistNotice.message }}
       </div>
 
-      <div v-else-if="!hasResults && searchKeyword" class="empty-state glass-panel section-card">
-        <svg class="empty-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        </svg>
-        <p>未找到相关歌曲</p>
-      </div>
-
-      <div v-else-if="hasResults" class="results-container glass-panel section-card">
+      <div class="results-container glass-panel section-card">
         <div class="results-header">
-            <div>
-              <span class="results-count">第 {{ currentPage }} 页 · 本页 {{ totalCount }} 条</span>
-              <p class="results-subtitle">{{ resultsSubtitle }}</p>
-            </div>
+          <div>
+            <span class="results-count">搜索结果</span>
+            <p class="results-subtitle">{{ resultsSubtitle }}</p>
+          </div>
+          <span class="results-badge">{{ resultsBadge }}</span>
+        </div>
+
+        <div v-if="hasResults" class="results-columns">
+          <span>#</span>
+          <span>Title</span>
+          <span>Artist</span>
+          <span>Album</span>
+          <span>Time</span>
+        </div>
+
+        <div v-if="isSearching" class="loading-state">
+          <div class="spinner"></div>
+          <p>搜索中...</p>
+        </div>
+
+        <template v-else-if="hasResults">
+          <div class="song-list" v-auto-animate>
+            <motion.div
+              v-for="(music, index) in searchResults"
+              :key="music.id"
+              class="song-motion-item"
+              :initial="staggeredEnter(index).initial"
+              :animate="staggeredEnter(index).animate"
+            >
+              <SongItem
+                :music="music"
+                @play="handlePlay"
+                @add-to-list="handleAddToList"
+                @add-to-playlist="handleAddToPlaylist"
+                @context-menu="showSongMenu"
+              />
+            </motion.div>
           </div>
 
-        <div class="song-list" v-auto-animate>
-          <motion.div
-            v-for="(music, index) in searchResults"
-            :key="music.id"
-            class="song-motion-item"
-            :initial="staggeredEnter(index).initial"
-            :animate="staggeredEnter(index).animate"
-          >
-            <SongItem
-              :music="music"
-              @play="handlePlay"
-              @add-to-list="handleAddToList"
-              @add-to-playlist="handleAddToPlaylist"
-            />
-          </motion.div>
-        </div>
-
-        <div class="pagination-bar">
-          <button
-            class="pagination-btn"
-            :disabled="isLoadingMore || !canGoPrev"
-            @click="handlePageChange(currentPage - 1)"
-          >
-            上一页
-          </button>
-          <span class="pagination-status" :class="{ 'is-loading': isLoadingMore }">
-            {{ isLoadingMore ? '切换中...' : `第 ${currentPage} 页` }}
-          </span>
-          <button
-            class="pagination-btn"
-            :disabled="isLoadingMore || !canGoNext"
-            @click="handlePageChange(currentPage + 1)"
-          >
-            下一页
-          </button>
-        </div>
-      </div>
-
-      <div v-else class="initial-state glass-panel section-card">
-        <span class="page-kicker">Ready</span>
-        <p>从上方输入关键词开始搜索。</p>
+          <div class="pagination-bar">
+            <button
+              class="pagination-btn"
+              :disabled="isLoadingMore || !canGoPrev"
+              @click="handlePageChange(currentPage - 1)"
+            >
+              上一页
+            </button>
+            <span class="pagination-status" :class="{ 'is-loading': isLoadingMore }">
+              {{ isLoadingMore ? '切换中...' : `第 ${currentPage} 页` }}
+            </span>
+            <button
+              class="pagination-btn"
+              :disabled="isLoadingMore || !canGoNext"
+              @click="handlePageChange(currentPage + 1)"
+            >
+              下一页
+            </button>
+          </div>
+        </template>
       </div>
     </section>
+
+    <div
+      v-if="addToPlaylistDialog.show"
+      class="playlist-dialog-overlay"
+      @click.self="closeAddToPlaylistDialog"
+    >
+      <div class="playlist-dialog glass-panel">
+        <div class="playlist-dialog__header">
+          <div>
+            <h3>添加到歌单</h3>
+            <p v-if="addToPlaylistDialog.music">
+              {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
+            </p>
+          </div>
+          <button class="playlist-dialog__close" @click="closeAddToPlaylistDialog">×</button>
+        </div>
+        <div class="playlist-dialog__list">
+          <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
+            正在加载歌单...
+          </div>
+          <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
+            <span>{{ playlistStore.initError }}</span>
+            <button type="button" class="playlist-dialog__retry" @click="retryPlaylistInit">重试</button>
+          </div>
+          <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
+            暂无可用歌单，请先去“我的歌单”创建一个歌单。
+          </div>
+          <button
+            v-else
+            v-for="playlist in playlistStore.playlists"
+            :key="playlist.id"
+            type="button"
+            class="playlist-dialog__item"
+            @click="confirmAddToPlaylist(playlist.id)"
+          >
+            <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
+            <span>{{ playlist.name }} · {{ playlist.musics.length }} 首</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <FloatingMenu
+      :show="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :items="songMenuItems"
+      @select="handleSongMenuSelect"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { motion } from 'motion-v'
 import { useRoute } from 'vue-router'
+import FloatingMenu from '../components/context/FloatingMenu.vue'
 import SongItem from '../components/SongItem.vue'
+import { useTrackDownload } from '../composables/useTrackDownload'
 import { staggeredEnter } from '../lib/motion'
 import { useSearchService, buildSearchResultPayload } from '../modules/search/searchService'
 import type { SearchRuntimeSnapshot } from '../modules/search/types'
 import { usePlayerStore } from '../store/player'
 import { usePlaylistStore } from '../store/playlist'
 import { useSearchStore } from '../store/search'
-import type { SearchHistoryItem } from '../store/search'
-import type { MusicInfo, SearchChannel } from '../types/music'
+import type { ContextMenuItem } from '../types/context-menu'
+import type { Playlist } from '../types/playlist'
+import type { MusicInfo } from '../types/music'
 
 const PLATFORM_SOURCE_OPTIONS = [
   { value: 'kw', label: '酷我' },
@@ -167,18 +204,51 @@ const searchStore = useSearchStore()
 const playerStore = usePlayerStore()
 const playlistStore = usePlaylistStore()
 const searchService = useSearchService()
+const { downloadTrack } = useTrackDownload()
 
 const searchInputRef = ref<HTMLInputElement>()
-const searchKeyword = ref('')
-const selectedChannel = ref<ChannelId>('kw')
-const showHistory = ref(false)
 const isLoadingMore = ref(false)
 const isSearchingLocal = ref(false)
 const debounceTimer = ref<number>()
-const searchError = ref('')
 const searchRequestId = ref(0)
 const builtInChannelIds = ref<SearchRuntimeSnapshot['builtInChannelIds']>(['kw'])
 const scriptCapabilities = ref<SearchRuntimeSnapshot['scriptCapabilities']>({})
+const addToPlaylistDialog = ref<{
+  show: boolean
+  music: MusicInfo | null
+}>({
+  show: false,
+  music: null,
+})
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  music: null as MusicInfo | null,
+})
+const playlistNotice = ref<{
+  type: 'success' | 'info' | 'error'
+  message: string
+}>({
+  type: 'info',
+  message: '',
+})
+let playlistNoticeTimer: number | null = null
+const songMenuItems: ContextMenuItem[] = [
+  { key: 'play', label: '▶ 立即播放' },
+  { key: 'play-next', label: '↳ 下一首播放' },
+  { key: 'add-to-playlist', label: '+ 添加到歌单' },
+  { key: 'download', label: '↓ 下载歌曲' },
+]
+
+const searchKeyword = computed({
+  get: () => searchStore.currentKeyword,
+  set: (value: string) => searchStore.setKeyword(value),
+})
+const selectedChannel = computed<ChannelId>({
+  get: () => searchStore.currentChannel as ChannelId,
+  set: (value) => searchStore.setChannel(value),
+})
 
 const searchResults = computed(() => searchStore.searchResults)
 const isSearching = computed(() => isSearchingLocal.value)
@@ -187,8 +257,7 @@ const canGoNext = computed(() => searchStore.canLoadMore)
 const canGoPrev = computed(() => searchStore.canGoPrev)
 const currentPage = computed(() => searchStore.currentPage)
 const totalCount = computed(() => searchStore.totalCount)
-const searchHistory = computed(() => searchStore.searchHistory)
-const quickHistory = computed(() => searchHistory.value.slice(0, 4))
+const searchError = computed(() => searchStore.currentError)
 const availableChannelSet = computed(() =>
   searchService.getAvailableChannelSet(
     {
@@ -198,6 +267,7 @@ const availableChannelSet = computed(() =>
   ),
 )
 const resultsSubtitle = computed(() => `当前渠道：${getChannelName(selectedChannel.value)} · 每页 ${searchStore.pageSize} 条`)
+const resultsBadge = computed(() => `第 ${currentPage.value} 页 · ${totalCount.value || searchResults.value.length} 条`)
 
 async function refreshAvailableChannels() {
   const availability = await searchService.refreshAvailability()
@@ -221,22 +291,20 @@ function clearPendingSearchState() {
   searchStore.isSearching = false
 }
 
-function handleSearchInput() {
-  showHistory.value = searchKeyword.value.length > 0
-}
-
 function handleSearchSubmit() {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   return handleSearch()
 }
 
-async function handleSearch(page = 1, trackHistory = true) {
+async function handleSearch(page = 1) {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
 
   const requestId = createSearchRequestId()
-  showHistory.value = false
-  searchError.value = ''
+  searchStore.clearError()
+  if (page === 1) {
+    searchStore.addRecentKeyword(keyword)
+  }
 
   try {
     if (page === 1) {
@@ -265,39 +333,35 @@ async function handleSearch(page = 1, trackHistory = true) {
 
     searchStore.setSearchParams(keyword, channel, page)
     searchStore.setResults(result)
-
-    if (trackHistory && page === 1) {
-      searchStore.addToHistory(keyword, channel)
-    }
+    searchStore.clearError()
   } catch (error) {
     if (!isActiveSearchRequest(requestId)) return
     console.error('Search failed:', error)
     if (page === 1) {
       searchStore.clearResults()
     }
-    searchError.value = error instanceof Error ? error.message : String(error)
+    searchStore.setError(error instanceof Error ? error.message : String(error))
   } finally {
-    if (!isActiveSearchRequest(requestId)) return
-    if (page === 1) {
-      isSearchingLocal.value = false
-    } else {
-      isLoadingMore.value = false
+    if (isActiveSearchRequest(requestId)) {
+      if (page === 1) {
+        isSearchingLocal.value = false
+      } else {
+        isLoadingMore.value = false
+      }
+      searchStore.isSearching = false
     }
-    searchStore.isSearching = false
   }
 }
 
 async function handlePageChange(page: number) {
   if (isLoadingMore.value || page < 1 || page === currentPage.value) return
-  await handleSearch(page, false)
+  await handleSearch(page)
 }
 
 function handleClear() {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   clearPendingSearchState()
   searchKeyword.value = ''
-  showHistory.value = false
-  searchError.value = ''
   searchStore.clearResults()
   nextTick(() => {
     searchInputRef.value?.focus()
@@ -309,26 +373,11 @@ function handleChannelChange(channel: ChannelId) {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   clearPendingSearchState()
   selectedChannel.value = channel
-  showHistory.value = false
-  searchError.value = ''
+  searchStore.clearError()
 
   if (searchKeyword.value.trim()) {
     void handleSearch()
   }
-}
-
-function handleClearHistory() {
-  searchStore.clearHistory()
-}
-
-function handleHistoryClick(item: SearchHistoryItem) {
-  if (debounceTimer.value) clearTimeout(debounceTimer.value)
-  searchKeyword.value = item.keyword
-  selectedChannel.value = availableChannelSet.value.has(item.channel as SearchChannel)
-    ? item.channel as ChannelId
-    : (Array.from(availableChannelSet.value)[0] as ChannelId | undefined) || 'kw'
-  showHistory.value = false
-  handleSearch()
 }
 
 async function handlePlay(music: MusicInfo) {
@@ -336,7 +385,7 @@ async function handlePlay(music: MusicInfo) {
     await playerStore.playMusic(music)
   } catch (error) {
     console.error('[Search] Failed to play music:', error)
-    searchError.value = error instanceof Error ? error.message : '播放失败，请重试'
+    searchStore.setError(error instanceof Error ? error.message : '播放失败，请重试')
   }
 }
 
@@ -348,9 +397,150 @@ function handleAddToList(music: MusicInfo) {
   else playerStore.setPlaylist(currentList, index)
 }
 
-function handleAddToPlaylist(music: MusicInfo) {
-  const defaultPlaylist = playlistStore.playlists[0]
-  if (defaultPlaylist) playlistStore.addMusicToPlaylist(defaultPlaylist.id, music)
+function showSongMenu(event: MouseEvent, music: MusicInfo) {
+  contextMenu.value = {
+    show: true,
+    x: event.clientX,
+    y: event.clientY,
+    music,
+  }
+}
+
+function hideContextMenu() {
+  contextMenu.value.show = false
+}
+
+function setPlaylistNotice(type: 'success' | 'info' | 'error', message: string) {
+  playlistNotice.value = { type, message }
+
+  if (playlistNoticeTimer !== null) {
+    window.clearTimeout(playlistNoticeTimer)
+  }
+
+  playlistNoticeTimer = window.setTimeout(() => {
+    playlistNotice.value.message = ''
+    playlistNoticeTimer = null
+  }, 2600)
+}
+
+async function handleAddToPlaylist(music: MusicInfo) {
+  addToPlaylistDialog.value = {
+    show: true,
+    music,
+  }
+
+  if (!playlistStore.isReady && !playlistStore.isSyncing) {
+    try {
+      await playlistStore.init()
+    } catch (error) {
+      console.error('[Search] Playlist store init failed while opening dialog:', error)
+      setPlaylistNotice(
+        'error',
+        playlistStore.initError || '歌单尚未初始化完成，请稍后重试',
+      )
+    }
+  }
+}
+
+function closeAddToPlaylistDialog() {
+  addToPlaylistDialog.value = {
+    show: false,
+    music: null,
+  }
+}
+
+function queueMusicNext(music: MusicInfo) {
+  const playlist = [...playerStore.playlist]
+  const currentIndex = playerStore.currentIndex
+  playlist.splice(currentIndex + 1, 0, music)
+  playerStore.setPlaylist(playlist, currentIndex)
+}
+
+async function downloadMusicFromContext() {
+  const music = contextMenu.value.music
+  if (!music) return
+
+  hideContextMenu()
+  setPlaylistNotice('info', `正在准备下载：${music.name}`)
+
+  try {
+    const result = await downloadTrack(music)
+    setPlaylistNotice('success', `已开始下载：${result.filename}`)
+  } catch (error) {
+    console.error('[Search] Failed to download music:', error)
+    setPlaylistNotice('error', error instanceof Error ? error.message : '下载失败，请重试')
+  }
+}
+
+function handleSongMenuSelect(key: string) {
+  const music = contextMenu.value.music
+  if (!music) {
+    hideContextMenu()
+    return
+  }
+
+  switch (key) {
+    case 'play':
+      void handlePlay(music)
+      hideContextMenu()
+      return
+    case 'play-next':
+      queueMusicNext(music)
+      hideContextMenu()
+      return
+    case 'add-to-playlist':
+      void handleAddToPlaylist(music)
+      hideContextMenu()
+      return
+    case 'download':
+      void downloadMusicFromContext()
+      return
+    default:
+      hideContextMenu()
+  }
+}
+
+async function confirmAddToPlaylist(playlistId: number) {
+  if (!addToPlaylistDialog.value.music) return
+
+  try {
+    await playlistStore.ensureReady()
+    const playlist = playlistStore.playlists.find((item) => item.id === playlistId)
+    const result = await playlistStore.addMusicToPlaylist(playlistId, addToPlaylistDialog.value.music)
+    closeAddToPlaylistDialog()
+    setPlaylistNotice(
+      result.status === 'added' ? 'success' : 'info',
+      result.status === 'added'
+        ? `已添加到${playlist?.name || '歌单'}`
+        : `${playlist?.name || '该歌单'}中已存在这首歌`,
+    )
+  } catch (error) {
+    console.error('[Search] Failed to add music to playlist:', error)
+    setPlaylistNotice('error', error instanceof Error ? error.message : '添加到歌单失败，请重试')
+  }
+}
+
+async function retryPlaylistInit() {
+  try {
+    await playlistStore.init()
+  } catch (error) {
+    console.error('[Search] Retry playlist init failed:', error)
+    setPlaylistNotice(
+      'error',
+      playlistStore.initError || '歌单初始化失败，请稍后重试',
+    )
+  }
+}
+
+function getPlaylistLabel(systemKey?: Playlist['systemKey']) {
+  switch (systemKey) {
+    case 'default':
+      return '🎵'
+    case 'love':
+      return '❤️'
+    default:
+      return '📋'
+  }
 }
 
 function getChannelName(channel: string): string {
@@ -368,14 +558,33 @@ watch(
   { immediate: true },
 )
 
-onMounted(async () => {
-  searchStore.loadHistory()
-  await refreshAvailableChannels()
+watch(
+  () => [route.query.q, route.query.stamp],
+  async ([query]) => {
+    if (route.name !== 'Search') return
 
-  const query = route.query.q
-  if (typeof query === 'string' && query.trim()) {
-    searchKeyword.value = query.trim()
+    const normalizedQuery = typeof query === 'string' ? query.trim() : ''
+    if (!normalizedQuery) return
+
+    if (normalizedQuery !== searchKeyword.value.trim()) {
+      searchKeyword.value = normalizedQuery
+    }
+
     await handleSearch()
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  document.addEventListener('click', hideContextMenu)
+  await refreshAvailableChannels()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', hideContextMenu)
+  if (debounceTimer.value) clearTimeout(debounceTimer.value)
+  if (playlistNoticeTimer !== null) {
+    window.clearTimeout(playlistNoticeTimer)
   }
 })
 </script>
@@ -386,65 +595,101 @@ onMounted(async () => {
   overflow-y: auto;
 
   &.page-shell {
-    padding-top: 12px;
+    width: 100%;
+    max-width: none;
+    padding: 0 0 0 0;
   }
 }
 
-.search-stage {
+.search-home {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 24%),
+    radial-gradient(circle at bottom left, rgba(231, 215, 255, 0.18), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
 }
 
-.search-stage__hero {
-  position: relative;
+.search-home__hero {
   display: block;
-  padding: 24px;
-  border-radius: var(--radius-lg);
 }
 
-.search-stage__copy {
+.search-home__eyebrow {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.search-home__copy {
+  h1 {
+    margin-top: 6px;
+    font-size: clamp(1.52rem, 2.4vw, 2.08rem);
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+
+  p {
+    max-width: 520px;
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+}
+
+.search-home__toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-home__search-shell {
   position: relative;
 }
 
-.search-stage__input-shell {
-  position: relative;
-}
-
-.search-stage__icon {
+.search-home__icon {
   position: absolute;
   top: 50%;
-  left: 18px;
-  width: 20px;
-  height: 20px;
+  left: 16px;
+  width: 18px;
+  height: 18px;
   transform: translateY(-50%);
   color: var(--text-secondary);
   pointer-events: none;
 }
 
-.search-stage__input {
+.search-home__input {
   width: 100%;
-  min-height: 56px;
-  padding: 0 56px 0 50px;
-  border-radius: 22px;
-  border: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  min-height: 48px;
+  padding: 0 44px 0 44px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(101, 76, 157, 0.32);
   color: var(--text-primary);
-  font-size: 1.02rem;
+  font-size: 0.86rem;
   outline: none;
 
   &:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 14%, transparent);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
   }
 }
 
-.search-stage__clear {
+.search-home__clear {
   position: absolute;
   top: 50%;
-  right: 16px;
-  width: 28px;
-  height: 28px;
+  right: 14px;
+  width: 24px;
+  height: 24px;
   transform: translateY(-50%);
   border-radius: 50%;
   display: grid;
@@ -452,38 +697,46 @@ onMounted(async () => {
   color: var(--text-secondary);
 
   &:hover {
-    background: var(--bg-hover);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 }
 
-.search-stage__history-pill {
-  cursor: pointer;
+.search-home__submit {
+  min-width: 112px;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f2dcff, #d7c1ff);
+  color: #5b4198;
+  font-weight: 700;
+  box-shadow: 0 18px 36px rgba(83, 58, 141, 0.2);
 }
 
 .channel-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 8px;
 }
 
 .channel-tabs__item {
-  min-height: 40px;
-  padding: 0 18px;
+  min-height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-secondary);
   font-weight: 600;
+  font-size: 0.76rem;
 
   &.is-active {
-    background: color-mix(in srgb, var(--primary-light) 92%, transparent);
-    color: var(--primary-color);
-    border-color: color-mix(in srgb, var(--primary-color) 22%, transparent);
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 
   &.is-disabled {
@@ -491,168 +744,271 @@ onMounted(async () => {
   }
 }
 
-.history-dropdown {
-  position: absolute;
-  top: calc(100% + 22px);
-  left: 12px;
-  width: min(calc(100% - 24px), 596px);
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  z-index: 20;
-}
-
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.history-title {
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.clear-history-btn {
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-}
-
-.history-list {
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 14px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--bg-hover);
-  }
-}
-
-.history-keyword {
-  color: var(--text-primary);
-  font-size: 0.76rem;
-}
-
-.history-source {
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-}
-
 .search-results {
-  padding-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.search-error,
+.playlist-notice {
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .search-error {
-  margin-bottom: 14px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--error-color);
-  font-size: 0.84rem;
+  background: color-mix(in srgb, #ff6b81 14%, rgba(255, 255, 255, 0.04));
+  color: #ffc5cf;
 }
 
-.loading-state,
-.empty-state,
-.initial-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 220px;
-  text-align: center;
-  color: var(--text-secondary);
-}
+.playlist-notice {
+  &.is-success {
+    background: color-mix(in srgb, #22c55e 14%, rgba(255, 255, 255, 0.04));
+    color: #baf7cd;
+  }
 
-.empty-icon {
-  width: 72px;
-  height: 72px;
-  opacity: 0.5;
+  &.is-info {
+    background: color-mix(in srgb, #38bdf8 16%, rgba(255, 255, 255, 0.04));
+    color: #b8eaff;
+  }
+
+  &.is-error {
+    background: color-mix(in srgb, #ef4444 14%, rgba(255, 255, 255, 0.04));
+    color: #ffc5cf;
+  }
 }
 
 .results-container {
-  border-radius: var(--radius-lg);
+  padding: 16px 18px 14px;
+  border-radius: var(--radius-md);
 }
 
 .results-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .results-count {
   display: block;
-  font-size: 0.92rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
 .results-subtitle {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
+}
+
+.results-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.results-columns {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1.5fr) minmax(0, 1fr) minmax(120px, 0.9fr) 56px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px 8px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .song-list {
-  padding-top: 10px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .song-motion-item + .song-motion-item {
-  margin-top: 8px;
+  margin-top: 0;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 320px;
+  text-align: center;
+  color: var(--text-secondary);
 }
 
 .pagination-bar {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  padding-top: 18px;
+  gap: 10px;
+  padding-top: 14px;
 }
 
 .pagination-btn {
-  min-height: 40px;
-  min-width: 96px;
-  padding: 0 20px;
+  min-width: 92px;
+  min-height: 38px;
+  padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
-
-  &:hover:not(:disabled) {
-    border-color: var(--primary-color);
-    background: var(--bg-hover);
-  }
+  font-weight: 600;
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.46;
     cursor: not-allowed;
   }
 }
 
 .pagination-status {
-  min-width: 92px;
-  text-align: center;
-  font-size: 0.83rem;
   color: var(--text-secondary);
+  font-size: 0.76rem;
 
   &.is-loading {
     color: var(--text-primary);
   }
 }
 
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.78);
+  animation: spin 0.9s linear infinite;
+}
+
+.playlist-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(25, 15, 46, 0.34);
+  backdrop-filter: blur(10px);
+  z-index: 30;
+}
+
+.playlist-dialog {
+  width: min(420px, 100%);
+  padding: 18px;
+  border-radius: 26px;
+}
+
+.playlist-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  p {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+  }
+}
+
+.playlist-dialog__close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.playlist-dialog__list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.playlist-dialog__state {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+
+  &.is-error {
+    color: #ffd1da;
+  }
+}
+
+.playlist-dialog__retry,
+.playlist-dialog__item {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.playlist-dialog__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 980px) {
-  .channel-tabs {
-    gap: 10px;
+  .search-home__toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .search-home,
+  .results-container {
+    padding: 16px;
+  }
+
+  .search-home__stats,
+  .results-columns,
+  .search-preview-row {
+    grid-template-columns: 1fr;
+  }
+
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .song-list {
+    max-height: none;
+  }
+
+  .search-preview-list {
+    max-height: none;
   }
 }
 </style>

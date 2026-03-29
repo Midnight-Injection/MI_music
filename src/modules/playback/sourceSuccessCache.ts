@@ -8,6 +8,11 @@ interface PlaybackSourceCacheRecord {
   updatedAt: number
 }
 
+export interface CachedPreferredSourceRecord {
+  sourceId: string
+  actualQuality?: string
+}
+
 const STORAGE_KEY = 'playbackSourceSuccessCache'
 const MAX_CACHE_RECORDS = 200
 
@@ -34,14 +39,15 @@ function loadCacheRecords(): PlaybackSourceCacheRecord[] {
     const parsed = JSON.parse(raw)
     cacheRecords = Array.isArray(parsed)
       ? parsed
-        .filter((item): item is PlaybackSourceCacheRecord =>
-          Boolean(item) &&
-          typeof item === 'object' &&
-          typeof item.key === 'string' &&
-          typeof item.sourceId === 'string' &&
-          typeof item.updatedAt === 'number',
-        )
-        .slice(0, MAX_CACHE_RECORDS)
+          .filter(
+            (item): item is PlaybackSourceCacheRecord =>
+              Boolean(item) &&
+              typeof item === 'object' &&
+              typeof item.key === 'string' &&
+              typeof item.sourceId === 'string' &&
+              typeof item.updatedAt === 'number'
+          )
+          .slice(0, MAX_CACHE_RECORDS)
       : []
   } catch (error) {
     console.warn('[PlaybackSourceCache] Failed to load cache:', error)
@@ -61,22 +67,34 @@ function persistCacheRecords() {
   }
 }
 
+export function getCachedPreferredSourceRecord(
+  track: MusicInfo,
+  targetQuality: string,
+  enabledSourceIds: string[]
+): CachedPreferredSourceRecord | undefined {
+  const key = buildTrackSourceCacheKey(track, targetQuality)
+  const record = loadCacheRecords().find((item) => item.key === key)
+  if (!record || !enabledSourceIds.includes(record.sourceId)) return undefined
+
+  return {
+    sourceId: record.sourceId,
+    actualQuality: record.actualQuality,
+  }
+}
+
 export function getCachedPreferredSourceId(
   track: MusicInfo,
   targetQuality: string,
-  enabledSourceIds: string[],
+  enabledSourceIds: string[]
 ): string | undefined {
-  const key = buildTrackSourceCacheKey(track, targetQuality)
-  const record = loadCacheRecords().find((item) => item.key === key)
-  if (!record) return undefined
-  return enabledSourceIds.includes(record.sourceId) ? record.sourceId : undefined
+  return getCachedPreferredSourceRecord(track, targetQuality, enabledSourceIds)?.sourceId
 }
 
 export function rememberSuccessfulSource(
   track: MusicInfo,
   targetQuality: string,
   sourceId: string,
-  actualQuality?: string,
+  actualQuality?: string
 ) {
   const key = buildTrackSourceCacheKey(track, targetQuality)
   const records = loadCacheRecords().filter((item) => item.key !== key)

@@ -1,8 +1,5 @@
-use std::fs::File;
-use std::io::{BufReader, Cursor};
-use std::time::Duration;
-use thiserror::Error;
 use reqwest::Client;
+use thiserror::Error;
 
 /// Audio player errors
 #[derive(Error, Debug)]
@@ -21,19 +18,6 @@ pub enum AudioError {
 
     #[error("No audio source loaded")]
     NoSource,
-}
-
-/// Audio playback commands
-#[derive(Debug)]
-pub enum AudioCommand {
-    LoadUrl(String),
-    LoadFile(String),
-    Play,
-    Pause,
-    Stop,
-    Seek(f64),
-    SetVolume(f64),
-    SetSpeed(f64),
 }
 
 /// Audio player state
@@ -153,16 +137,18 @@ impl AudioPlayer {
     /// Load from URL (download data for processing)
     pub async fn load_from_url(&mut self, url: &str) -> Result<(), AudioError> {
         // Verify URL is accessible
-        let response = self.http_client
+        let response = self
+            .http_client
             .head(url)
             .send()
             .await
             .map_err(|e| AudioError::UrlLoadError(format!("Failed to fetch: {}", e)))?;
 
         if !response.status().is_success() {
-            return Err(AudioError::UrlLoadError(
-                format!("HTTP error: {}", response.status())
-            ));
+            return Err(AudioError::UrlLoadError(format!(
+                "HTTP error: {}",
+                response.status()
+            )));
         }
 
         self.state.current_url = Some(url.to_string());
@@ -173,7 +159,10 @@ impl AudioPlayer {
     /// Load from file path
     pub fn load_from_file(&mut self, path: &str) -> Result<(), AudioError> {
         if !std::path::Path::new(path).exists() {
-            return Err(AudioError::FileLoadError(format!("File not found: {}", path)));
+            return Err(AudioError::FileLoadError(format!(
+                "File not found: {}",
+                path
+            )));
         }
 
         self.state.current_url = Some(path.to_string());

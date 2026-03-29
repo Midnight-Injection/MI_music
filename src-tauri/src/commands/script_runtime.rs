@@ -1,7 +1,11 @@
-use std::collections::HashMap;
-use reqwest::{Client, Method, header::{HeaderMap, HeaderName, HeaderValue}};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client, Method,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +53,7 @@ fn build_headers(headers: Option<HashMap<String, String>>) -> Result<HeaderMap, 
 fn build_body(body: Option<ScriptHttpRequestBody>) -> Option<Vec<u8>> {
     let body = body?;
     match body.kind.as_str() {
-        "base64" => base64::decode(body.data).ok(),
+        "base64" => STANDARD.decode(body.data).ok(),
         _ => Some(body.data.into_bytes()),
     }
 }
@@ -81,7 +85,10 @@ fn collect_response_headers(headers: &HeaderMap) -> HashMap<String, Value> {
         if values.len() == 1 {
             result.insert(key, Value::String(values[0].clone()));
         } else {
-            result.insert(key, Value::Array(values.into_iter().map(Value::String).collect()));
+            result.insert(
+                key,
+                Value::Array(values.into_iter().map(Value::String).collect()),
+            );
         }
     }
 
@@ -90,13 +97,20 @@ fn collect_response_headers(headers: &HeaderMap) -> HashMap<String, Value> {
 
 #[tauri::command]
 pub async fn script_http_request(request: ScriptHttpRequest) -> Result<ScriptHttpResponse, String> {
-    let method = Method::from_bytes(request.method.unwrap_or_else(|| "GET".to_string()).as_bytes())
-        .map_err(|e| format!("Invalid method: {}", e))?;
+    let method = Method::from_bytes(
+        request
+            .method
+            .unwrap_or_else(|| "GET".to_string())
+            .as_bytes(),
+    )
+    .map_err(|e| format!("Invalid method: {}", e))?;
 
     let client = Client::builder()
         .danger_accept_invalid_certs(true)
         .redirect(reqwest::redirect::Policy::limited(10))
-        .timeout(std::time::Duration::from_millis(request.timeout_ms.unwrap_or(20_000)))
+        .timeout(std::time::Duration::from_millis(
+            request.timeout_ms.unwrap_or(20_000),
+        ))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 

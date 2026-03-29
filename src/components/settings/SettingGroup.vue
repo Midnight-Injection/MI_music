@@ -42,10 +42,10 @@ const isVisible = computed(() => {
 <style scoped lang="scss">
 .setting-group {
   margin-bottom: 32px;
-  padding: 20px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 
   &__title {
     font-size: 16px;
@@ -53,7 +53,7 @@ const isVisible = computed(() => {
     color: var(--text-primary);
     margin: 0 0 8px 0;
     padding-bottom: 12px;
-    border-bottom: 2px solid var(--primary-color);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   &__description {

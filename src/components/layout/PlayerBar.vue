@@ -24,39 +24,41 @@
       </div>
     </div>
 
-    <div class="player-bar__controls">
-      <button class="player-bar__btn" :title="playModeTitle" @click="togglePlayMode">
-        {{ playModeIcon }}
-      </button>
-      <button class="player-bar__btn" title="上一首" @click="player.playPrevious">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
-      </button>
-      <button class="player-bar__play" :title="player.isPlaying ? '暂停' : '播放'" @click="togglePlay">
-        <svg v-if="player.isPlaying" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-        <svg v-else viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-      </button>
-      <button class="player-bar__btn" title="下一首" @click="player.playNext">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
-      </button>
-    </div>
-
-    <div class="player-bar__timeline">
-      <span>{{ formatTime(player.currentTime) }}</span>
-      <div
-        ref="progressBarRef"
-        class="player-bar__progress"
-        @click="handleSeek"
-        @mousedown="startDrag"
-        @mouseup="stopDrag"
-        @mouseleave="stopDrag"
-        @mousemove="handleDragSeek"
-      >
-        <div class="player-bar__progress-track">
-          <div class="player-bar__progress-fill" :style="{ width: `${progressPercent}%` }"></div>
-          <div class="player-bar__progress-thumb" :style="{ left: `${progressPercent}%` }"></div>
-        </div>
+    <div class="player-bar__center">
+      <div class="player-bar__controls">
+        <button class="player-bar__btn" :title="playModeTitle" @click="togglePlayMode">
+          {{ playModeIcon }}
+        </button>
+        <button class="player-bar__btn" title="上一首" @click="player.playPrevious">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
+        </button>
+        <button class="player-bar__play" :title="player.isPlaying ? '暂停' : '播放'" @click="togglePlay">
+          <svg v-if="player.isPlaying" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+          <svg v-else viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        </button>
+        <button class="player-bar__btn" title="下一首" @click="player.playNext">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
+        </button>
       </div>
-      <span>{{ formatTime(player.duration) }}</span>
+
+      <div class="player-bar__timeline">
+        <span>{{ formatTime(player.currentTime) }}</span>
+        <div
+          ref="progressBarRef"
+          class="player-bar__progress"
+          @click="handleSeek"
+          @mousedown="startDrag"
+          @mouseup="stopDrag"
+          @mouseleave="stopDrag"
+          @mousemove="handleDragSeek"
+        >
+          <div class="player-bar__progress-track">
+            <div class="player-bar__progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+            <div class="player-bar__progress-thumb" :style="{ left: `${progressPercent}%` }"></div>
+          </div>
+        </div>
+        <span>{{ formatTime(player.duration) }}</span>
+      </div>
     </div>
 
     <div class="player-bar__side">
@@ -81,7 +83,7 @@ const router = useRouter()
 const player = usePlayerStore()
 const userSourceStore = useUserSourceStore()
 
-const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23111827" width="120" height="120"/%3E%3Ccircle cx="60" cy="60" r="30" fill="%23f97316" fill-opacity="0.28"/%3E%3C/svg%3E'
+const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%236a53ad" width="120" height="120"/%3E%3Ccircle cx="60" cy="60" r="30" fill="%23ffffff" fill-opacity="0.22"/%3E%3C/svg%3E'
 const isDragging = ref(false)
 const volumeValue = ref(player.volume)
 const isMuted = ref(false)
@@ -260,34 +262,43 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .player-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) auto minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) auto;
   align-items: center;
   gap: 14px;
-  min-height: 78px;
-  padding: 12px 16px;
-  border-radius: 22px;
-  box-shadow: var(--shadow-sm);
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 6px 14px rgba(9, 5, 22, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .player-bar__main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   cursor: pointer;
 }
 
 .player-bar__cover {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: 10px;
   object-fit: cover;
-  background: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 10px rgba(9, 5, 22, 0.08);
 }
 
 .player-bar__cover--placeholder {
-  background: linear-gradient(135deg, var(--primary-light), rgba(59, 130, 246, 0.12));
+  background: linear-gradient(135deg, rgba(247, 232, 255, 0.34), rgba(196, 171, 245, 0.26));
 }
 
 .player-bar__track {
@@ -296,7 +307,7 @@ onUnmounted(() => {
   .player-bar__title-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
   }
 
@@ -309,69 +320,84 @@ onUnmounted(() => {
   }
 
   strong {
-    font-size: 0.92rem;
+    font-size: 0.86rem;
   }
 
   > span {
-    margin-top: 4px;
+    margin-top: 2px;
     color: var(--text-secondary);
-    font-size: 0.78rem;
+    font-size: 0.68rem;
   }
 }
 
 .player-bar__source {
   color: var(--text-tertiary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 .player-bar__quality {
   flex-shrink: 0;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--primary-light) 88%, transparent);
-  color: var(--primary-color);
-  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.05em;
+}
+
+.player-bar__center {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .player-bar__controls,
 .player-bar__side {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .player-bar__btn,
-.player-bar__text-btn {
+.player-bar__text-btn,
+.player-bar__play {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 36px;
-  padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
+.player-bar__btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.08);
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
   }
 }
 
 .player-bar__play {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #f3d7ff, #d8bfff);
   color: white;
+  color: #5a4096;
+  box-shadow: 0 8px 18px rgba(96, 69, 167, 0.14);
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
   }
 }
 
@@ -379,10 +405,10 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: 0.66rem;
 }
 
 .player-bar__progress {
@@ -392,45 +418,50 @@ onUnmounted(() => {
 
 .player-bar__progress-track {
   position: relative;
-  height: 6px;
+  height: 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .player-bar__progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--primary-color), #facc15);
+  background: linear-gradient(90deg, #f4d8ff, #c0efff);
 }
 
 .player-bar__progress-thumb {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: white;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
   transform: translate(-50%, -50%);
 }
 
 .player-bar__side {
   min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 
   input {
-    width: 88px;
+    width: 80px;
     accent-color: var(--primary-color);
   }
 }
 
-@media (max-width: 1120px) {
-  .player-bar {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.player-bar__text-btn {
+  min-width: 48px;
+  height: 30px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.68rem;
+  font-weight: 700;
 
-  .player-bar__controls,
-  .player-bar__side {
-    justify-content: flex-start;
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
   }
 }
+
 </style>

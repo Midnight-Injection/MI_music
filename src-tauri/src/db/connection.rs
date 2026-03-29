@@ -1,4 +1,4 @@
-use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
+use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -15,8 +15,7 @@ impl Database {
     /// Create a new database connection pool
     /// This will create the database file if it doesn't exist
     pub async fn new(database_path: &str) -> Result<Self, sqlx::Error> {
-        let options = SqliteConnectOptions::from_str(database_path)?
-            .create_if_missing(true);
+        let options = SqliteConnectOptions::from_str(database_path)?.create_if_missing(true);
 
         let pool = SqlitePool::connect_with(options).await?;
 
@@ -32,9 +31,7 @@ impl Database {
     pub fn set_global_pool(&self) -> Result<(), sqlx::Error> {
         GLOBAL_POOL
             .set(Arc::new(self.pool.clone()))
-            .map_err(|_| sqlx::Error::Configuration(
-                "Global pool already set".into()
-            ))?;
+            .map_err(|_| sqlx::Error::Configuration("Global pool already set".into()))?;
         Ok(())
     }
 

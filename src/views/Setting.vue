@@ -1,49 +1,33 @@
 <template>
-  <div class="setting-page">
-    <div class="setting-page__header">
-      <h1>设置</h1>
-      <div class="setting-page__actions">
-        <div class="search-box">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索设置..."
-            class="search-input"
-          />
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.35-4.35"/>
+  <div class="setting-page page-shell">
+    <div class="setting-toolbar glass-panel">
+      <div class="tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          :class="['tab-button', { active: activeTab === tab.key }]"
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <div class="setting-toolbar__actions">
+        <button class="action-button" @click="exportSettings" title="导出设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-        </div>
-        <div class="action-buttons">
-          <button class="action-button" @click="exportSettings" title="导出设置">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-            </svg>
-          </button>
-          <button class="action-button" @click="importSettings" title="导入设置">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
-            </svg>
-          </button>
-        </div>
+        </button>
+        <button class="action-button" @click="importSettings" title="导入设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        :class="['tab-button', { active: activeTab === tab.key }]"
-        @click="activeTab = tab.key"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
-
     <!-- Tab Content -->
-    <div class="tab-content">
+    <div class="tab-content glass-panel">
       <!-- Sources Tab -->
       <div v-if="activeTab === 'sources'" class="sources-section">
         <!-- 平台渠道 -->
@@ -79,12 +63,6 @@
               <span class="section-badge">扩展</span>
             </div>
             <div class="header-buttons">
-              <button class="import-default-btn" @click="importDefaultSources" :disabled="isImportingDefaults">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                </svg>
-                {{ isImportingDefaults ? '导入中...' : '导入默认音源' }}
-              </button>
               <button class="import-btn" @click="importUserSource">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 5v14M5 12h14"/>
@@ -497,8 +475,6 @@ const settingsStore = useSettingsStore()
 const userSourceStore = useUserSourceStore()
 
 const activeTab = ref('general')
-const searchQuery = ref('')
-const isImportingDefaults = ref(false)
 const toast = ref({
   show: false,
   message: '',
@@ -603,46 +579,6 @@ async function importUserSource() {
     console.error('Failed to import user source:', error)
     const message = error instanceof Error ? error.message : String(error)
     showToast(`导入自定义音源失败: ${message}`, 'error')
-  }
-}
-
-// Import default sources
-async function importDefaultSources() {
-  if (isImportingDefaults.value) return
-  isImportingDefaults.value = true
-
-  // Check if running in Tauri context
-  const isTauriEnv = typeof window !== 'undefined' && '__TAURI__' in window
-
-  if (!isTauriEnv) {
-    showToast('请在 Tauri 桌面应用中使用此功能', 'error')
-    isImportingDefaults.value = false
-    return
-  }
-
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    const imported = await invoke<{ id: string; name: string }[]>('import_default_sources')
-
-    if (imported && imported.length > 0) {
-      // Reload user sources
-      await userSourceStore.loadUserSources(true)
-
-      // Set first imported source as active if no active source
-      if (!settingsStore.settings.activeUserSourceId && imported.length > 0) {
-        settingsStore.updateSetting('activeUserSourceId', imported[0].id)
-      }
-
-      showToast(`成功导入 ${imported.length} 个默认音源`)
-    } else {
-      showToast('没有找到新的默认音源可导入', 'info')
-    }
-  } catch (error) {
-    console.error('Failed to import default sources:', error)
-    const message = error instanceof Error ? error.message : String(error)
-    showToast(`导入默认音源失败: ${message}`, 'error')
-  } finally {
-    isImportingDefaults.value = false
   }
 }
 
@@ -797,15 +733,13 @@ function applyTheme() {
   const { themeMode, themeColor, customColor } = settingsStore.settings
   const root = document.documentElement
 
-  // Set theme mode
   if (themeMode === 'auto' || themeMode === undefined) {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+    root.setAttribute('data-theme-mode', prefersDark ? 'dark' : 'light')
   } else {
-    root.setAttribute('data-theme', themeMode as string)
+    root.setAttribute('data-theme-mode', themeMode as string)
   }
 
-  // Set primary color
   let primaryColor = '#1db954'
   if (themeColor === 'custom' && customColor) {
     primaryColor = customColor
@@ -816,6 +750,7 @@ function applyTheme() {
     }
   }
 
+  root.setAttribute('data-theme-color', (themeColor || 'pink') as string)
   root.style.setProperty('--primary-color', primaryColor)
   root.style.setProperty('--primary-hover', adjustColor(primaryColor, 20))
 }
@@ -855,85 +790,44 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .setting-page {
-  padding: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
+  padding-top: 0;
+  padding-bottom: 20px;
 
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 16px;
-
-    h1 {
-      font-size: 25px;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
-    h2 {
-      font-size: 18px;
-      color: var(--text-primary);
-      margin: 0;
-    }
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
+  &.page-shell {
+    width: 100%;
+    max-width: none;
+    padding: 0;
     gap: 12px;
   }
 }
 
-.search-box {
-  position: relative;
-  width: 280px;
+.setting-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 79, 139, 0.1), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
 }
 
-.search-input {
-  width: 100%;
-  padding: 10px 16px 10px 40px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 14px;
-  transition: all 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 1px 3px rgba(29, 185, 84, 0.1);
-  }
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  color: var(--text-secondary);
-  pointer-events: none;
-}
-
-.action-buttons {
+.setting-toolbar__actions {
   display: flex;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .action-button {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
@@ -944,48 +838,56 @@ onMounted(async () => {
   }
 
   &:hover {
-    background: var(--bg-hover);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
   }
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   overflow-x: auto;
-  padding-bottom: 0;
 }
 
 .tab-button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: none;
+  padding: 12px 18px;
+  background: transparent;
   border: none;
   color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 16px;
   transition: all 0.2s;
   white-space: nowrap;
 
   &:hover {
     color: var(--text-primary);
-    background: var(--bg-hover);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   &.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(255, 79, 139, 0.18), rgba(124, 82, 255, 0.14));
   }
 }
 
 .tab-content {
   min-height: 400px;
+  padding: 18px 18px 8px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
 }
 
 .sources-section {
@@ -1012,13 +914,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   padding: 16px;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.2s;
 
   &:hover {
-    background: var(--bg-hover);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .source-info {
@@ -1040,7 +942,7 @@ onMounted(async () => {
   .toggle-btn {
     padding: 8px 16px;
     border: none;
-    border-radius: 16px;
+    border-radius: 999px;
     background: var(--primary-color);
     color: white;
     cursor: pointer;
@@ -1052,7 +954,7 @@ onMounted(async () => {
     }
 
     &.disabled {
-      background: var(--bg-secondary);
+      background: rgba(255, 255, 255, 0.08);
       color: var(--text-secondary);
     }
   }
@@ -1091,8 +993,8 @@ onMounted(async () => {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 600;
-  background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(29, 185, 84, 0.25) 100%);
-  color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.18));
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1118,14 +1020,14 @@ onMounted(async () => {
   gap: 8px;
   padding: 12px 24px;
   border: none;
-  border-radius: 24px;
-  background: white;
-  color: var(--primary-color);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary-color), #ff7aac);
+  color: white;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--primary-color) 24%, transparent);
 
   svg {
     width: 18px;
@@ -1181,7 +1083,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 50%;
   margin-bottom: 20px;
 
@@ -1212,15 +1114,15 @@ onMounted(async () => {
 }
 
 .user-source-card {
-  background: var(--bg-primary);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   transition: all 0.3s ease;
 
   &:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 8px 24px rgba(29, 185, 84, 0.12);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: var(--shadow-md);
     transform: translateY(-4px);
   }
 
@@ -1247,7 +1149,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(29, 185, 84, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.18));
   border-radius: 12px;
   flex-shrink: 0;
 
@@ -1367,7 +1269,7 @@ onMounted(async () => {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .action-btn {
@@ -1395,8 +1297,8 @@ onMounted(async () => {
 
   &.delete {
     background: transparent;
-    color: #e74c3c;
-    border: 1px solid #e74c3c;
+    color: #ffc5cf;
+    border: 1px solid rgba(255, 107, 129, 0.28);
 
     &:hover {
       background: #e74c3c;
@@ -1430,9 +1332,9 @@ onMounted(async () => {
   flex-direction: column;
   gap: 4px;
   padding: 16px;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .about-label {
@@ -1459,9 +1361,9 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   color: var(--text-primary);
   text-decoration: none;
   font-size: 14px;
@@ -1473,9 +1375,9 @@ onMounted(async () => {
   }
 
   &:hover {
-    background: var(--bg-hover);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
   }
 }
 
@@ -1486,10 +1388,10 @@ onMounted(async () => {
 
 .reset-btn {
   padding: 10px 24px;
-  background: #e74c3c;
+  background: rgba(255, 107, 129, 0.14);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 16px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1504,7 +1406,7 @@ onMounted(async () => {
   bottom: 24px;
   right: 24px;
   padding: 16px 24px;
-  border-radius: 8px;
+  border-radius: 18px;
   font-size: 14px;
   font-weight: 500;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -1512,17 +1414,17 @@ onMounted(async () => {
   animation: slideIn 0.3s ease-out;
 
   &--success {
-    background: #1db954;
+    background: linear-gradient(135deg, #22c55e, #4ade80);
     color: white;
   }
 
   &--error {
-    background: #e74c3c;
+    background: linear-gradient(135deg, #ff5c77, #ff7c92);
     color: white;
   }
 
   &--info {
-    background: #3498db;
+    background: linear-gradient(135deg, #4da5ff, #60a5fa);
     color: white;
   }
 }
@@ -1551,30 +1453,27 @@ onMounted(async () => {
 
 @media (max-width: 768px) {
   .setting-page {
-    padding: 16px;
-
-    &__header {
-      flex-direction: column;
-      align-items: stretch;
-
-      h1 {
-        text-align: center;
-      }
-    }
+    padding-bottom: 16px;
   }
 
-  .search-box {
-    width: 100%;
+  .setting-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .setting-toolbar__actions {
+    justify-content: flex-end;
   }
 
   .tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
+  }
 
-    .tab-button {
-      padding: 10px 16px;
-      font-size: 13px;
-    }
+  .tab-button {
+    padding: 10px 16px;
+    font-size: 13px;
   }
 }
 </style>

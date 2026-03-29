@@ -16,11 +16,13 @@ export interface UnifiedTrack {
   url: string
   cover?: string
   source?: TrackSource | string
+  sourceId?: string
   songmid?: string
   hash?: string
   strMediaMid?: string
   copyrightId?: string
   albumId?: string
+  storageSongId?: number
   qualities?: QualityInfo[]
   playbackUserSourceId?: string
   searchChannel?: SearchChannel | string

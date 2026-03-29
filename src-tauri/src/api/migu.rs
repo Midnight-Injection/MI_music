@@ -1,5 +1,7 @@
 use super::helpers::{build_client, format_duration_seconds, format_size};
-use super::source::{LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result};
+use super::source::{
+    LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
@@ -69,14 +71,16 @@ impl MiguSource {
             .singers
             .as_ref()
             .map(|items| {
-                items.iter()
+                items
+                    .iter()
                     .map(|item| item.name.clone())
                     .collect::<Vec<_>>()
                     .join(" / ")
             })
             .or_else(|| {
                 song.singer_list.as_ref().map(|items| {
-                    items.iter()
+                    items
+                        .iter()
                         .map(|item| item.name.clone())
                         .collect::<Vec<_>>()
                         .join(" / ")
@@ -229,13 +233,16 @@ struct MiguResourceInfoItem {
 
 #[derive(Debug, Deserialize)]
 struct MiguPlaylistInfoResponse {
-    code: String,
-    data: MiguPlaylistInfo,
+    #[serde(rename = "code")]
+    _code: String,
+    #[serde(rename = "data")]
+    _data: MiguPlaylistInfo,
 }
 
 #[derive(Debug, Deserialize)]
 struct MiguPlaylistInfo {
-    title: String,
+    #[serde(rename = "title")]
+    _title: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -382,8 +389,10 @@ impl MusicSource for MiguSource {
             "https://app.c.nf.migu.cn/MIGUM3.0/resource/playlist/song/v2.0?pageNo={}&pageSize={}&playlistId={}",
             page, page_size, playlist_id
         );
-        let _info: MiguPlaylistInfoResponse = self.client.get(info_url).send().await?.json().await?;
-        let payload: MiguPlaylistSongsResponse = self.client.get(songs_url).send().await?.json().await?;
+        let _info: MiguPlaylistInfoResponse =
+            self.client.get(info_url).send().await?.json().await?;
+        let payload: MiguPlaylistSongsResponse =
+            self.client.get(songs_url).send().await?.json().await?;
         if payload.code != "000000" {
             return Err(MusicSourceError::PlaylistNotFound(playlist_id.to_string()));
         }

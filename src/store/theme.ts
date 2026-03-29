@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import type { ThemeColorType, ThemeMode } from '../themes'
-import { themes, getTheme, createCustomTheme } from '../themes'
+import { getTheme, createCustomTheme } from '../themes'
 
 export interface ThemeSettings {
   themeColor: ThemeColorType

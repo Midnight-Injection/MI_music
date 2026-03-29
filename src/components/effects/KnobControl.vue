@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 
 interface Props {
   modelValue: number
@@ -85,7 +85,6 @@ function onDrag(event: MouseEvent | TouchEvent) {
 
   const currentY = 'touches' in event ? event.touches[0].clientY : event.clientY
   const deltaY = startY.value - currentY
-  const range = props.max - props.min
   const sensitivity = 0.5 // pixels per unit
 
   let newValue = startValue.value + (deltaY / sensitivity) * props.step

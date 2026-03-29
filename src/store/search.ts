@@ -2,14 +2,36 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { MusicInfo, SearchChannel, SearchResult } from '../types/music'
 
+const RECENT_KEYWORDS_STORAGE_KEY = 'searchRecentKeywords'
+const MAX_RECENT_KEYWORDS = 8
+
 function isSearchChannel(value: string): value is SearchChannel {
   return ['all', 'kw', 'kg', 'tx', 'wy', 'mg'].includes(value)
 }
 
-export interface SearchHistoryItem {
-  keyword: string
-  channel: SearchChannel | string
-  timestamp: number
+function canUseStorage() {
+  return typeof window !== 'undefined' && 'localStorage' in window
+}
+
+function loadRecentKeywords() {
+  if (!canUseStorage()) return []
+
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEYWORDS_STORAGE_KEY)
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, MAX_RECENT_KEYWORDS)
+  } catch (error) {
+    console.error('Failed to load recent search keywords:', error)
+    return []
+  }
 }
 
 export const useSearchStore = defineStore('search', () => {
@@ -20,71 +42,22 @@ export const useSearchStore = defineStore('search', () => {
   const currentPage = ref(1)
   const totalCount = ref(0)
   const hasNextPage = ref(false)
-  const pageSize = 30
-
-  const searchHistory = ref<SearchHistoryItem[]>([])
-  const maxHistoryItems = 20
+  const currentError = ref('')
+  const recentKeywords = ref<string[]>(loadRecentKeywords())
+  const pageSize = 15
 
   const hasResults = computed(() => searchResults.value.length > 0)
   const canLoadMore = computed(() => hasNextPage.value)
   const canGoPrev = computed(() => currentPage.value > 1)
 
-  // Load search history from localStorage
-  function loadHistory() {
+  function persistRecentKeywords() {
+    if (!canUseStorage()) return
+
     try {
-      const saved = localStorage.getItem('searchHistory')
-      if (saved) {
-        searchHistory.value = JSON.parse(saved).map((item: any) => ({
-          keyword: item.keyword,
-          channel: item.channel ?? item.source ?? 'kw',
-          timestamp: item.timestamp ?? Date.now(),
-        }))
-      }
-    } catch (e) {
-      console.error('Failed to load search history:', e)
+      window.localStorage.setItem(RECENT_KEYWORDS_STORAGE_KEY, JSON.stringify(recentKeywords.value))
+    } catch (error) {
+      console.error('Failed to save recent search keywords:', error)
     }
-  }
-
-  // Save search history to localStorage
-  function saveHistory() {
-    try {
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
-    } catch (e) {
-      console.error('Failed to save search history:', e)
-    }
-  }
-
-  // Add item to search history
-  function addToHistory(keyword: string, channel: SearchChannel | string) {
-    if (!keyword.trim()) return
-
-    // Remove existing entry if present
-    const index = searchHistory.value.findIndex(
-      (item) => item.keyword === keyword && item.channel === channel
-    )
-    if (index !== -1) {
-      searchHistory.value.splice(index, 1)
-    }
-
-    // Add new entry at the beginning
-    searchHistory.value.unshift({
-      keyword,
-      channel,
-      timestamp: Date.now()
-    })
-
-    // Limit history size
-    if (searchHistory.value.length > maxHistoryItems) {
-      searchHistory.value = searchHistory.value.slice(0, maxHistoryItems)
-    }
-
-    saveHistory()
-  }
-
-  // Clear search history
-  function clearHistory() {
-    searchHistory.value = []
-    saveHistory()
   }
 
   // Clear search results
@@ -94,6 +67,7 @@ export const useSearchStore = defineStore('search', () => {
     currentPage.value = 1
     totalCount.value = 0
     hasNextPage.value = false
+    currentError.value = ''
   }
 
   // Set search results
@@ -112,6 +86,44 @@ export const useSearchStore = defineStore('search', () => {
     currentPage.value = page
   }
 
+  function setKeyword(keyword: string) {
+    currentKeyword.value = keyword
+  }
+
+  function setChannel(channel: SearchChannel) {
+    currentChannel.value = channel
+  }
+
+  function setError(message: string) {
+    currentError.value = message
+  }
+
+  function clearError() {
+    currentError.value = ''
+  }
+
+  function addRecentKeyword(keyword: string) {
+    const normalized = keyword.trim()
+    if (!normalized) return
+
+    recentKeywords.value = [
+      normalized,
+      ...recentKeywords.value.filter((item) => item !== normalized),
+    ].slice(0, MAX_RECENT_KEYWORDS)
+
+    persistRecentKeywords()
+  }
+
+  function removeRecentKeyword(keyword: string) {
+    recentKeywords.value = recentKeywords.value.filter((item) => item !== keyword)
+    persistRecentKeywords()
+  }
+
+  function clearRecentKeywords() {
+    recentKeywords.value = []
+    persistRecentKeywords()
+  }
+
   return {
     searchResults,
     isSearching,
@@ -120,16 +132,21 @@ export const useSearchStore = defineStore('search', () => {
     currentPage,
     totalCount,
     hasNextPage,
+    currentError,
+    recentKeywords,
     pageSize,
-    searchHistory,
     hasResults,
     canLoadMore,
     canGoPrev,
-    loadHistory,
-    addToHistory,
-    clearHistory,
     clearResults,
     setResults,
     setSearchParams,
+    setKeyword,
+    setChannel,
+    setError,
+    clearError,
+    addRecentKeyword,
+    removeRecentKeyword,
+    clearRecentKeywords,
   }
 })

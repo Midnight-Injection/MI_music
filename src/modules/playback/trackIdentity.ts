@@ -8,7 +8,7 @@ export function normalizeTrackText(value?: string | number | null): string {
     .toLowerCase()
     .replace(/\([^)]*\)|（[^）]*）|\[[^\]]*]/g, '')
     .replace(TITLE_SUFFIX_PATTERN, '')
-    .replace(/[\s\-_/\\|.,!?:;'""`~@#$%^&*+=<>{}\[\]()]+/g, '')
+    .replace(/[\s\-_/\\|.,!?:;'""`~@#$%^&*+=<>{}[\]()]+/g, '')
     .trim()
 }
 

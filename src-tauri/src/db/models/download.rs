@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, FromRow};
+use sqlx::{FromRow, SqlitePool};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DownloadTask {
@@ -8,7 +8,7 @@ pub struct DownloadTask {
     pub url: String,
     pub filename: String,
     pub status: String, // "pending", "downloading", "completed", "failed"
-    pub progress: f64, // 0.0 to 100.0
+    pub progress: f64,  // 0.0 to 100.0
     pub error: Option<String>,
     pub file_path: Option<String>,
     pub created_at: String,
@@ -32,10 +32,7 @@ pub struct UpdateDownloadTask {
 
 impl DownloadTask {
     /// Create a new download task
-    pub async fn create(
-        pool: &SqlitePool,
-        input: CreateDownloadTask,
-    ) -> Result<Self, sqlx::Error> {
+    pub async fn create(pool: &SqlitePool, input: CreateDownloadTask) -> Result<Self, sqlx::Error> {
         let now = chrono::Utc::now().to_rfc3339();
 
         let result = sqlx::query_as::<_, DownloadTask>(
@@ -57,26 +54,19 @@ impl DownloadTask {
     }
 
     /// Get a download task by ID
-    pub async fn get_by_id(
-        pool: &SqlitePool,
-        id: i64,
-    ) -> Result<Option<Self>, sqlx::Error> {
-        let result = sqlx::query_as::<_, DownloadTask>(
-            "SELECT * FROM download_tasks WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn get_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Self>, sqlx::Error> {
+        let result = sqlx::query_as::<_, DownloadTask>("SELECT * FROM download_tasks WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(result)
     }
 
     /// Get all download tasks
-    pub async fn get_all(
-        pool: &SqlitePool,
-    ) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn get_all(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         let results = sqlx::query_as::<_, DownloadTask>(
-            "SELECT * FROM download_tasks ORDER BY created_at DESC"
+            "SELECT * FROM download_tasks ORDER BY created_at DESC",
         )
         .fetch_all(pool)
         .await?;
@@ -85,12 +75,9 @@ impl DownloadTask {
     }
 
     /// Get download tasks by status
-    pub async fn get_by_status(
-        pool: &SqlitePool,
-        status: &str,
-    ) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn get_by_status(pool: &SqlitePool, status: &str) -> Result<Vec<Self>, sqlx::Error> {
         let results = sqlx::query_as::<_, DownloadTask>(
-            "SELECT * FROM download_tasks WHERE status = ? ORDER BY created_at DESC"
+            "SELECT * FROM download_tasks WHERE status = ? ORDER BY created_at DESC",
         )
         .bind(status)
         .fetch_all(pool)
@@ -100,9 +87,7 @@ impl DownloadTask {
     }
 
     /// Get pending download tasks
-    pub async fn get_pending(
-        pool: &SqlitePool,
-    ) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn get_pending(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         Self::get_by_status(pool, "pending").await
     }
 
@@ -124,7 +109,7 @@ impl DownloadTask {
                 updated_at = ?
             WHERE id = ?
             RETURNING *
-            "#
+            "#,
         )
         .bind(&input.status)
         .bind(&input.progress)
@@ -139,10 +124,7 @@ impl DownloadTask {
     }
 
     /// Delete a download task
-    pub async fn delete(
-        pool: &SqlitePool,
-        id: i64,
-    ) -> Result<bool, sqlx::Error> {
+    pub async fn delete(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("DELETE FROM download_tasks WHERE id = ?")
             .bind(id)
             .execute(pool)

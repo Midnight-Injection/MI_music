@@ -1,8 +1,8 @@
+use serde::Deserialize;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use serde::Deserialize;
 
-use crate::types::{UserSourceInfo, UserSourceScript, ScriptMetadata};
+use crate::types::{ScriptMetadata, UserSourceInfo, UserSourceScript};
 
 const USER_SOURCES_FILE: &str = "user_sources.json";
 
@@ -34,7 +34,9 @@ fn normalize_source_priorities(sources: &mut [UserSourceScript], raw_priorities:
 
 /// 获取用户音源存储路径
 fn get_user_sources_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     Ok(app_data_dir.join(USER_SOURCES_FILE))
 }
@@ -109,7 +111,8 @@ mod tests {
         console.log('ok')
         "#;
 
-        let metadata = parse_script(script).expect("should parse metadata from jsdoc block comment");
+        let metadata =
+            parse_script(script).expect("should parse metadata from jsdoc block comment");
         assert_eq!(metadata.name, "测试音源");
         assert_eq!(metadata.description.as_deref(), Some("一个测试脚本"));
         assert_eq!(metadata.version.as_deref(), Some("1.2.3"));
@@ -143,7 +146,10 @@ pub async fn read_user_sources(app: &AppHandle) -> Result<Vec<UserSourceScript>,
 
     let stored_sources: Vec<StoredUserSourceScript> = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse user sources: {}", e))?;
-    let raw_priorities: Vec<Option<i32>> = stored_sources.iter().map(|source| source.priority).collect();
+    let raw_priorities: Vec<Option<i32>> = stored_sources
+        .iter()
+        .map(|source| source.priority)
+        .collect();
     let mut sources: Vec<UserSourceScript> = stored_sources
         .into_iter()
         .map(|source| UserSourceScript {
@@ -168,7 +174,10 @@ pub async fn read_user_sources(app: &AppHandle) -> Result<Vec<UserSourceScript>,
 }
 
 /// 保存所有用户音源
-pub async fn save_user_sources(app: &AppHandle, sources: &[UserSourceScript]) -> Result<(), String> {
+pub async fn save_user_sources(
+    app: &AppHandle,
+    sources: &[UserSourceScript],
+) -> Result<(), String> {
     let path = get_user_sources_path(app)?;
 
     // 确保目录存在
@@ -190,7 +199,10 @@ pub async fn save_user_sources(app: &AppHandle, sources: &[UserSourceScript]) ->
 
 /// 导入用户音源（通过文件路径）
 #[tauri::command]
-pub async fn import_user_source_from_file(app: AppHandle, file_path: String) -> Result<UserSourceScript, String> {
+pub async fn import_user_source_from_file(
+    app: AppHandle,
+    file_path: String,
+) -> Result<UserSourceScript, String> {
     let path = std::path::PathBuf::from(&file_path);
 
     // 读取文件内容
@@ -205,7 +217,12 @@ pub async fn import_user_source_from_file(app: AppHandle, file_path: String) -> 
     let now = chrono::Utc::now().timestamp();
     let id = format!("user_{}", now);
     let mut sources = read_user_sources(&app).await?;
-    let next_priority = sources.iter().map(|source| source.priority).max().unwrap_or(0) + 1;
+    let next_priority = sources
+        .iter()
+        .map(|source| source.priority)
+        .max()
+        .unwrap_or(0)
+        + 1;
 
     // 创建用户音源对象
     let user_source = UserSourceScript {
@@ -244,7 +261,8 @@ pub async fn get_user_sources(app: AppHandle) -> Result<Vec<UserSourceScript>, S
 pub async fn get_user_source(app: AppHandle, id: String) -> Result<UserSourceScript, String> {
     let sources = read_user_sources(&app).await?;
 
-    sources.into_iter()
+    sources
+        .into_iter()
         .find(|s| s.id == id)
         .ok_or_else(|| format!("User source not found: {}", id))
 }
@@ -259,7 +277,8 @@ pub async fn update_user_source(
 ) -> Result<UserSourceScript, String> {
     let mut sources = read_user_sources(&app).await?;
 
-    let source = sources.iter_mut()
+    let source = sources
+        .iter_mut()
         .find(|s| s.id == id)
         .ok_or_else(|| format!("User source not found: {}", id))?;
 

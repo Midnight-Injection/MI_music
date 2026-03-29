@@ -230,10 +230,10 @@ watch(internalValue, (newValue) => {
   &__select,
   &__input {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-secondary);
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-primary);
     font-size: 14px;
     transition: border-color 0.2s;
@@ -316,8 +316,8 @@ watch(internalValue, (newValue) => {
       width: 40px;
       height: 36px;
       padding: 2px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
       cursor: pointer;
       flex-shrink: 0;
     }
@@ -359,10 +359,10 @@ watch(internalValue, (newValue) => {
 
   &__button {
     padding: 8px 16px;
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;

@@ -1,26 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type {
-  DownloadSettings,
   DownloadItem,
-  DownloadQueue,
-  NamingFormat
+  DownloadQueue
 } from '../types/download'
 
-const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
-  enabled: true,
-  savePath: '',
-  namingFormat: 'title-artist',
-  maxConcurrent: 3,
-  downloadLyrics: true,
-  embedCover: true,
-  embedLyrics: false,
-  downloadTranslation: false,
-  downloadRomanization: false
-}
-
 export const useDownloadStore = defineStore('download', () => {
-  const settings = ref<DownloadSettings>({ ...DEFAULT_DOWNLOAD_SETTINGS })
   const queue = ref<DownloadItem[]>([])
   const activeDownloads = ref<Map<number, number>>(new Map())
 
@@ -32,18 +17,6 @@ export const useDownloadStore = defineStore('download', () => {
       failed: queue.value.filter((d) => d.status === 'failed')
     }
   })
-
-  function updateSettings(updates: Partial<DownloadSettings>) {
-    settings.value = { ...settings.value, ...updates }
-  }
-
-  function setNamingFormat(format: NamingFormat) {
-    settings.value.namingFormat = format
-  }
-
-  function setSavePath(path: string) {
-    settings.value.savePath = path
-  }
 
   function updateDownloadItem(id: number, updates: Partial<DownloadItem>) {
     const index = queue.value.findIndex((d) => d.id === id)
@@ -135,13 +108,9 @@ export const useDownloadStore = defineStore('download', () => {
   }
 
   return {
-    settings,
     queue,
     activeDownloads,
     downloadQueue,
-    updateSettings,
-    setNamingFormat,
-    setSavePath,
     updateDownloadItem,
     addDownloadItem,
     removeDownloadItem,

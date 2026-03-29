@@ -65,25 +65,25 @@ export function useSearchService() {
     keyword: string,
     page: number,
     limit: number,
-    timeoutMs = DEFAULT_SEARCH_TIMEOUT_MS,
+    timeoutMs = DEFAULT_SEARCH_TIMEOUT_MS
   ): Promise<MusicInfo[]> {
     const results = await withTimeout(
       searchBuiltInTracksByChannel(channel, keyword, page, limit),
-      timeoutMs,
+      timeoutMs
     )
 
     return results.map((track) =>
       decorateTrackForPlayback(
         track,
         resolveBuiltInSearchChannel(track, channel),
-        'built-in-search',
-      ),
+        'built-in-search'
+      )
     )
   }
 
   async function refreshAvailability(): Promise<SearchRuntimeSnapshot> {
     let builtInChannelIds: BuiltInSearchChannel[] = ['kw']
-    let scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'] = {}
+    const scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'] = {}
 
     if (!isTauriContext()) {
       return { builtInChannelIds, scriptCapabilities }
@@ -103,7 +103,7 @@ export function useSearchService() {
   }
 
   function getUserSourceOptions(
-    scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'],
+    scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities']
   ): UserSourceOption[] {
     void scriptCapabilities
     return []
@@ -120,7 +120,7 @@ export function useSearchService() {
 
   function getCustomSearchChannelIds(
     scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'],
-    selectedUserSourceId?: string,
+    selectedUserSourceId?: string
   ): SearchChannel[] {
     void scriptCapabilities
     void selectedUserSourceId
@@ -129,7 +129,7 @@ export function useSearchService() {
 
   function getAvailableChannelSet(
     snapshot: SearchRuntimeSnapshot,
-    selectedUserSourceId?: string,
+    selectedUserSourceId?: string
   ): Set<SearchChannel> {
     return new Set<SearchChannel>([
       ...snapshot.builtInChannelIds,
@@ -186,7 +186,7 @@ export function useSearchService() {
     )
 
     const successfulResults = channelResults.flatMap((result) =>
-      result.status === 'fulfilled' ? [result.value] : [],
+      result.status === 'fulfilled' ? [result.value] : []
     )
     const failedResults = channelResults.flatMap((result, index) =>
       result.status === 'rejected'
@@ -194,7 +194,7 @@ export function useSearchService() {
           channel: channels[index],
           reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
         }]
-        : [],
+        : []
     )
 
     if (failedResults.length > 0) {
@@ -208,7 +208,7 @@ export function useSearchService() {
       throw new Error(
         reasonSummary
           ? `综合搜索失败，所有渠道均不可用（${reasonSummary}）`
-          : '综合搜索失败，请稍后重试',
+          : '综合搜索失败，请稍后重试'
       )
     }
 

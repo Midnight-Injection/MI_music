@@ -1,7 +1,7 @@
-use crate::api::{LyricInfo, MusicInfo, Quality};
-use crate::api::kugou::KugouSource;
 use crate::api::helpers::{apply_media_request_headers, build_client, build_media_client};
+use crate::api::kugou::KugouSource;
 use crate::api::SourceRegistry;
+use crate::api::{LyricInfo, MusicInfo, Quality, SourcePlaylistDetail, SourcePlaylistSummary};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -18,6 +18,19 @@ static SOURCE_REGISTRY: OnceLock<SourceRegistry> = OnceLock::new();
 /// Get or initialize the source registry
 fn get_registry() -> &'static SourceRegistry {
     SOURCE_REGISTRY.get_or_init(|| SourceRegistry::new())
+}
+
+fn require_source<'a>(
+    registry: &'a SourceRegistry,
+    source: &str,
+) -> Result<&'a dyn crate::api::MusicSource, String> {
+    if !registry.has_source(source) {
+        return Err(format!("Unknown music source: {}", source));
+    }
+
+    registry
+        .get_source(source)
+        .ok_or_else(|| format!("Unknown music source: {}", source))
 }
 
 /// Search result wrapper for frontend
@@ -76,19 +89,16 @@ pub async fn search_music_sources(
     let registry = get_registry();
 
     // Get the requested source
-    let music_source = registry.get_source(&source)
-        .ok_or_else(|| format!("Unknown music source: {}", source))?;
+    let music_source = require_source(registry, &source)?;
 
     // Perform search
-    let results = music_source.search(&keyword, page, limit)
+    let results = music_source
+        .search(&keyword, page, limit)
         .await
         .map_err(|e| e.to_string())?;
 
     // Convert to wrapper format
-    let wrapped: Vec<MusicInfoWrapper> = results
-        .into_iter()
-        .map(MusicInfoWrapper::from)
-        .collect();
+    let wrapped: Vec<MusicInfoWrapper> = results.into_iter().map(MusicInfoWrapper::from).collect();
 
     Ok(wrapped)
 }
@@ -113,9 +123,7 @@ pub async fn search_all_music_sources(
         let keyword = keyword.clone();
         tasks.spawn(async move {
             let registry = get_registry();
-            let music_source = registry
-                .get_source(&source)
-                .ok_or_else(|| format!("Unknown music source: {}", source))?;
+            let music_source = require_source(registry, &source)?;
 
             let result = tokio::time::timeout(
                 Duration::from_secs(5),
@@ -172,8 +180,8 @@ pub async fn get_song_url(
 ) -> Result<String, String> {
     let registry = get_registry();
 
-    let quality_enum = Quality::from_str(&quality)
-        .ok_or_else(|| format!("Invalid quality: {}", quality))?;
+    let quality_enum =
+        Quality::from_str(&quality).ok_or_else(|| format!("Invalid quality: {}", quality))?;
 
     if source == "kg" {
         if let Some(album_id) = album_id.filter(|value| !value.is_empty()) {
@@ -184,26 +192,23 @@ pub async fn get_song_url(
         }
     }
 
-    let music_source = registry.get_source(&source)
-        .ok_or_else(|| format!("Unknown music source: {}", source))?;
+    let music_source = require_source(registry, &source)?;
 
-    music_source.get_song_url(&song_id, quality_enum)
+    music_source
+        .get_song_url(&song_id, quality_enum)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// Get lyrics for a song
 #[tauri::command]
-pub async fn get_lyric(
-    song_id: String,
-    source: String,
-) -> Result<LyricInfo, String> {
+pub async fn get_lyric(song_id: String, source: String) -> Result<LyricInfo, String> {
     let registry = get_registry();
 
-    let music_source = registry.get_source(&source)
-        .ok_or_else(|| format!("Unknown music source: {}", source))?;
+    let music_source = require_source(registry, &source)?;
 
-    music_source.get_lyric(&song_id)
+    music_source
+        .get_lyric(&song_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -218,19 +223,50 @@ pub async fn get_source_playlist(
 ) -> Result<Vec<MusicInfoWrapper>, String> {
     let registry = get_registry();
 
-    let music_source = registry.get_source(&source)
-        .ok_or_else(|| format!("Unknown music source: {}", source))?;
+    let music_source = require_source(registry, &source)?;
 
-    let results = music_source.get_playlist(&playlist_id, page, page_size)
+    let results = music_source
+        .get_playlist(&playlist_id, page, page_size)
         .await
         .map_err(|e| e.to_string())?;
 
-    let wrapped: Vec<MusicInfoWrapper> = results
-        .into_iter()
-        .map(MusicInfoWrapper::from)
-        .collect();
+    let wrapped: Vec<MusicInfoWrapper> = results.into_iter().map(MusicInfoWrapper::from).collect();
 
     Ok(wrapped)
+}
+
+/// Search playlists from a music source
+#[tauri::command]
+pub async fn search_source_playlists(
+    keyword: String,
+    source: String,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<SourcePlaylistSummary>, String> {
+    let registry = get_registry();
+
+    let music_source = require_source(registry, &source)?;
+
+    music_source
+        .search_playlists(&keyword, page, limit)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get playlist metadata from a music source
+#[tauri::command]
+pub async fn get_source_playlist_detail(
+    playlist_id: String,
+    source: String,
+) -> Result<SourcePlaylistDetail, String> {
+    let registry = get_registry();
+
+    let music_source = require_source(registry, &source)?;
+
+    music_source
+        .get_playlist_detail(&playlist_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get list of available music sources
@@ -265,7 +301,10 @@ pub async fn probe_media_url(url: String) -> Result<bool, String> {
 
 fn infer_media_extension(url: &str, content_type: Option<&str>) -> &'static str {
     if let Ok(parsed) = Url::parse(url) {
-        if let Some(ext) = Path::new(parsed.path()).extension().and_then(|value| value.to_str()) {
+        if let Some(ext) = Path::new(parsed.path())
+            .extension()
+            .and_then(|value| value.to_str())
+        {
             let normalized = ext.trim().to_ascii_lowercase();
             match normalized.as_str() {
                 "mp3" => return "mp3",
@@ -279,7 +318,11 @@ fn infer_media_extension(url: &str, content_type: Option<&str>) -> &'static str 
         }
     }
 
-    match content_type.unwrap_or_default().to_ascii_lowercase().as_str() {
+    match content_type
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         value if value.contains("audio/flac") || value.contains("audio/x-flac") => "flac",
         value if value.contains("audio/aac") => "aac",
         value if value.contains("audio/mp4") || value.contains("audio/x-m4a") => "m4a",
@@ -339,7 +382,10 @@ pub async fn cache_media_url(app: AppHandle, url: String) -> Result<String, Stri
         .map_err(|e: reqwest::Error| format!("Failed to fetch media: {}", e))?;
 
     if !response.status().is_success() && response.status().as_u16() != 206 {
-        return Err(format!("Media request failed with status {}", response.status()));
+        return Err(format!(
+            "Media request failed with status {}",
+            response.status()
+        ));
     }
 
     let content_type = response
@@ -381,7 +427,10 @@ pub async fn cache_media_url(app: AppHandle, url: String) -> Result<String, Stri
 }
 
 #[tauri::command]
-pub async fn load_cached_media_blob(app: AppHandle, url: String) -> Result<CachedMediaBlob, String> {
+pub async fn load_cached_media_blob(
+    app: AppHandle,
+    url: String,
+) -> Result<CachedMediaBlob, String> {
     let file_path = cache_media_url(app, url).await?;
     let path = PathBuf::from(&file_path);
     let bytes = fs::read(&path)

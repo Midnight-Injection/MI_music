@@ -1,5 +1,8 @@
 use super::helpers::{build_client, format_duration_seconds, format_size};
-use super::source::{LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result};
+use super::source::{
+    LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result,
+    SourcePlaylistDetail, SourcePlaylistSummary,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
@@ -66,8 +69,38 @@ impl QqSource {
     }
 
     fn map_song(song: QqSongItem) -> MusicInfo {
-        let album_name = song.album.as_ref().map(|album| album.name.clone()).unwrap_or_default();
-        let album_mid = song.album.as_ref().map(|album| album.mid.clone()).unwrap_or_default();
+        let album_name = song
+            .album
+            .as_ref()
+            .map(|album| album.name.clone())
+            .filter(|name| !name.is_empty())
+            .or(song.album_name.clone())
+            .unwrap_or_default();
+        let album_mid = song
+            .album
+            .as_ref()
+            .map(|album| album.mid.clone())
+            .filter(|mid| !mid.is_empty())
+            .or(song.album_mid.clone())
+            .unwrap_or_default();
+        let file = if song.file.media_mid.is_some()
+            || song.file.str_media_mid.is_some()
+            || song.file.size_128mp3 > 0
+            || song.file.size_320mp3 > 0
+            || song.file.size_flac > 0
+            || song.file.size_hires > 0
+        {
+            song.file.clone()
+        } else {
+            QqFile {
+                media_mid: None,
+                str_media_mid: song.str_media_mid.clone(),
+                size_128mp3: song.size_128mp3,
+                size_320mp3: song.size_320mp3,
+                size_flac: song.size_flac,
+                size_hires: song.size_hires,
+            }
+        };
         MusicInfo {
             name: format!("{}{}", song.name, song.title_extra.unwrap_or_default()),
             singer: Self::join_singers(&song.singer),
@@ -75,11 +108,11 @@ impl QqSource {
             songmid: song.mid,
             album_id: album_mid.clone(),
             hash: None,
-            str_media_mid: song.file.media_mid.clone().or(song.file.str_media_mid.clone()),
+            str_media_mid: file.media_mid.clone().or(file.str_media_mid.clone()),
             copyright_id: None,
             interval: format_duration_seconds(song.interval),
             album_name,
-            types: Self::map_types(&song.file),
+            types: Self::map_types(&file),
             img: Self::build_cover(&album_mid, &song.singer),
         }
     }
@@ -159,14 +192,37 @@ struct QqWebSongItem {
 
 #[derive(Debug, Deserialize, Clone)]
 struct QqSongItem {
+    #[serde(default)]
     album: Option<QqAlbum>,
+    #[serde(default)]
     file: QqFile,
+    #[serde(default)]
+    #[serde(rename = "interval")]
     interval: i64,
+    #[serde(default)]
+    #[serde(alias = "songmid")]
     mid: String,
+    #[serde(default)]
+    #[serde(alias = "songname")]
     name: String,
+    #[serde(default)]
     singer: Vec<QqSinger>,
     #[serde(default)]
     title_extra: Option<String>,
+    #[serde(default, rename = "albummid")]
+    album_mid: Option<String>,
+    #[serde(default, rename = "albumname")]
+    album_name: Option<String>,
+    #[serde(default, rename = "strMediaMid")]
+    str_media_mid: Option<String>,
+    #[serde(default, rename = "size128")]
+    size_128mp3: i64,
+    #[serde(default, rename = "size320")]
+    size_320mp3: i64,
+    #[serde(default, rename = "sizeflac")]
+    size_flac: i64,
+    #[serde(default, rename = "sizehires")]
+    size_hires: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -177,11 +233,12 @@ struct QqAlbum {
 
 #[derive(Debug, Deserialize, Clone)]
 struct QqSinger {
-    mid: String,
+    #[serde(rename = "mid")]
+    _mid: String,
     name: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 struct QqFile {
     #[serde(default)]
     media_mid: Option<String>,
@@ -280,7 +337,90 @@ struct QqPlaylistResponse {
 
 #[derive(Debug, Deserialize)]
 struct QqPlaylist {
+    #[serde(default)]
+    dissid: Option<serde_json::Value>,
+    #[serde(default)]
+    dissname: Option<String>,
+    #[serde(default)]
+    logo: Option<String>,
+    #[serde(default)]
+    desc: Option<String>,
+    #[serde(default)]
+    songnum: Option<u32>,
+    #[serde(default)]
+    visitnum: Option<u64>,
+    #[serde(default)]
+    nickname: Option<String>,
+    #[serde(default)]
+    createtime: Option<String>,
+    #[serde(default)]
+    modifytime: Option<String>,
     songlist: Vec<QqSongItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchResponse {
+    code: i32,
+    req: QqPlaylistSearchReq,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchReq {
+    code: i32,
+    data: QqPlaylistSearchData,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchData {
+    body: QqPlaylistSearchBody,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchBody {
+    songlist: QqPlaylistSearchList,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchList {
+    #[serde(default)]
+    list: Vec<QqPlaylistSearchItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchItem {
+    dissid: String,
+    dissname: String,
+    #[serde(default)]
+    imgurl: Option<String>,
+    #[serde(default)]
+    introduction: Option<String>,
+    #[serde(default)]
+    song_count: Option<u32>,
+    #[serde(default)]
+    listennum: Option<u64>,
+    #[serde(default)]
+    createtime: Option<String>,
+    #[serde(default)]
+    modifytime: Option<String>,
+    #[serde(default)]
+    creator: Option<QqPlaylistSearchCreator>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QqPlaylistSearchCreator {
+    name: String,
+}
+
+fn parse_qq_datetime(value: Option<&str>) -> Option<i64> {
+    let raw = value?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+
+    chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|datetime| datetime.and_utc().timestamp_millis())
 }
 
 #[async_trait]
@@ -524,6 +664,110 @@ impl MusicSource for QqSource {
             .cloned()
             .map(Self::map_song)
             .collect())
+    }
+
+    async fn search_playlists(
+        &self,
+        keyword: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<SourcePlaylistSummary>> {
+        let payload = serde_json::json!({
+            "comm": { "ct": "19", "cv": "1859", "uin": "0" },
+            "req": {
+                "method": "DoSearchForQQMusicDesktop",
+                "module": "music.search.SearchCgiService",
+                "param": {
+                    "grp": 1,
+                    "num_per_page": page_size,
+                    "page_num": page,
+                    "query": keyword,
+                    "search_type": 3
+                }
+            }
+        });
+        let response = self
+            .client
+            .post("https://u.y.qq.com/cgi-bin/musicu.fcg")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+            )
+            .header("Accept", "application/json, text/plain, */*")
+            .header("Content-Type", "application/json;charset=utf-8")
+            .header("Referer", "https://y.qq.com/")
+            .json(&payload)
+            .send()
+            .await?;
+        let payload: QqPlaylistSearchResponse = response.json().await?;
+        if payload.code != 0 || payload.req.code != 0 {
+            return Err(MusicSourceError::Unknown("QQ playlist search failed".to_string()));
+        }
+
+        Ok(payload
+            .req
+            .data
+            .body
+            .songlist
+            .list
+            .into_iter()
+            .map(|playlist| SourcePlaylistSummary {
+                id: playlist.dissid,
+                source: QQ_SOURCE.to_string(),
+                name: playlist.dissname,
+                cover: playlist.imgurl,
+                creator: playlist.creator.map(|creator| creator.name),
+                description: playlist.introduction,
+                track_count: playlist.song_count,
+                play_count: playlist.listennum,
+                created_at: parse_qq_datetime(playlist.createtime.as_deref()),
+                updated_at: parse_qq_datetime(playlist.modifytime.as_deref()),
+            })
+            .collect())
+    }
+
+    async fn get_playlist_detail(&self, playlist_id: &str) -> Result<SourcePlaylistDetail> {
+        let url = format!(
+            "https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&utf8=1&onlysong=0&disstid={}&format=json",
+            playlist_id
+        );
+        let response = self
+            .client
+            .get(url)
+            .header("Referer", "https://y.qq.com/")
+            .send()
+            .await?;
+        let payload: QqPlaylistResponse = response.json().await?;
+        if payload.code != 0 || payload.cdlist.is_empty() {
+            return Err(MusicSourceError::PlaylistNotFound(playlist_id.to_string()));
+        }
+
+        let playlist = &payload.cdlist[0];
+        let id = playlist
+            .dissid
+            .as_ref()
+            .map(|value| match value {
+                serde_json::Value::String(value) => value.clone(),
+                serde_json::Value::Number(value) => value.to_string(),
+                _ => playlist_id.to_string(),
+            })
+            .unwrap_or_else(|| playlist_id.to_string());
+
+        Ok(SourcePlaylistDetail {
+            id,
+            source: QQ_SOURCE.to_string(),
+            name: playlist
+                .dissname
+                .clone()
+                .unwrap_or_else(|| "QQ 音乐歌单".to_string()),
+            cover: playlist.logo.clone(),
+            creator: playlist.nickname.clone(),
+            description: playlist.desc.clone(),
+            track_count: playlist.songnum,
+            play_count: playlist.visitnum,
+            created_at: parse_qq_datetime(playlist.createtime.as_deref()),
+            updated_at: parse_qq_datetime(playlist.modifytime.as_deref()),
+        })
     }
 
     fn source_name(&self) -> &'static str {

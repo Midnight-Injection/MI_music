@@ -36,3 +36,30 @@ src-tauri/*.db
 
 # Reference repositories
 lx-music-desktop
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/
+!/tmp/

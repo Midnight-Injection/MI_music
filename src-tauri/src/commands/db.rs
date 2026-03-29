@@ -1,18 +1,23 @@
-use tauri::State;
+use crate::db::models::playlist::{
+    AddTrackResult, CreatePlaylist, Playlist, PlaylistSummary, UpdatePlaylist,
+};
+use crate::db::models::settings::{Setting, UpsertSetting};
+use crate::db::models::song::{CreateSong, PlaylistTrackInput, Song, StoredTrack, UpdateSong};
+use crate::db::Database;
+use std::path::Path;
 use std::sync::Arc;
+use tauri::State;
 use tokio::sync::Mutex;
-use crate::db::{Database, get_pool};
-use crate::db::models::*;
 
 /// Database state shared across Tauri commands
 pub type DbState = Arc<Mutex<Option<Database>>>;
 
 /// Initialize the database
 #[tauri::command]
-pub async fn init_database(
-    db_state: State<'_, DbState>,
-    app_path: String,
-) -> Result<(), String> {
+pub async fn init_database(db_state: State<'_, DbState>, app_path: String) -> Result<(), String> {
+    std::fs::create_dir_all(Path::new(&app_path))
+        .map_err(|e| format!("Failed to create app data directory: {}", e))?;
+
     let db_path = format!("{}/jiyu_music.db", app_path);
 
     match Database::new(&db_path).await {
@@ -30,9 +35,15 @@ pub async fn init_database(
             let mut guard = db_state.lock().await;
             *guard = Some(db);
 
+            if let Some(db) = guard.as_ref() {
+                Playlist::ensure_defaults(db.pool())
+                    .await
+                    .map_err(|e| format!("Failed to initialize default playlists: {}", e))?;
+            }
+
             Ok(())
         }
-        Err(e) => Err(format!("Failed to initialize database: {}", e))
+        Err(e) => Err(format!("Failed to initialize database: {}", e)),
     }
 }
 
@@ -53,6 +64,7 @@ pub async fn create_playlist(
         name,
         description,
         cover_url,
+        system_key: None,
     };
 
     Playlist::create(db.pool(), input)
@@ -62,9 +74,7 @@ pub async fn create_playlist(
 
 /// Get all playlists
 #[tauri::command]
-pub async fn get_playlists(
-    db_state: State<'_, DbState>,
-) -> Result<Vec<Playlist>, String> {
+pub async fn get_playlists(db_state: State<'_, DbState>) -> Result<Vec<Playlist>, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -112,10 +122,7 @@ pub async fn update_playlist(
 
 /// Delete a playlist
 #[tauri::command]
-pub async fn delete_playlist(
-    db_state: State<'_, DbState>,
-    id: i64,
-) -> Result<bool, String> {
+pub async fn delete_playlist(db_state: State<'_, DbState>, id: i64) -> Result<bool, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
@@ -136,6 +143,7 @@ pub async fn add_song_to_playlist(
 
     Playlist::add_song(db.pool(), playlist_id, song_id)
         .await
+        .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
@@ -159,11 +167,65 @@ pub async fn remove_song_from_playlist(
 pub async fn get_playlist_songs(
     db_state: State<'_, DbState>,
     playlist_id: i64,
-) -> Result<Vec<Song>, String> {
+) -> Result<Vec<StoredTrack>, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
-    Playlist::get_songs(db.pool(), playlist_id)
+    Playlist::get_tracks(db.pool(), playlist_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_playlist_overviews(
+    db_state: State<'_, DbState>,
+) -> Result<Vec<PlaylistSummary>, String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+
+    Playlist::get_overviews(db.pool())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_track_to_playlist(
+    db_state: State<'_, DbState>,
+    playlist_id: i64,
+    track: PlaylistTrackInput,
+) -> Result<AddTrackResult, String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+
+    Playlist::add_track(db.pool(), playlist_id, track)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_tracks_from_playlist(
+    db_state: State<'_, DbState>,
+    playlist_id: i64,
+    song_ids: Vec<i64>,
+) -> Result<(), String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+
+    Playlist::remove_songs(db.pool(), playlist_id, &song_ids)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn reorder_playlist_songs(
+    db_state: State<'_, DbState>,
+    playlist_id: i64,
+    song_ids: Vec<i64>,
+) -> Result<(), String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+
+    Playlist::reorder_songs(db.pool(), playlist_id, &song_ids)
         .await
         .map_err(|e| e.to_string())
 }
@@ -195,6 +257,11 @@ pub async fn create_song(
         audio_url,
         source,
         source_id,
+        songmid: None,
+        hash: None,
+        str_media_mid: None,
+        copyright_id: None,
+        album_id: None,
     };
 
     Song::create(db.pool(), input)
@@ -204,15 +271,11 @@ pub async fn create_song(
 
 /// Get all songs
 #[tauri::command]
-pub async fn get_all_songs(
-    db_state: State<'_, DbState>,
-) -> Result<Vec<Song>, String> {
+pub async fn get_all_songs(db_state: State<'_, DbState>) -> Result<Vec<Song>, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
-    Song::get_all(db.pool())
-        .await
-        .map_err(|e| e.to_string())
+    Song::get_all(db.pool()).await.map_err(|e| e.to_string())
 }
 
 /// Search songs in local database
@@ -251,6 +314,11 @@ pub async fn update_song(
         duration,
         cover_url,
         audio_url,
+        songmid: None,
+        hash: None,
+        str_media_mid: None,
+        copyright_id: None,
+        album_id: None,
     };
 
     Song::update(db.pool(), id, input)
@@ -260,16 +328,11 @@ pub async fn update_song(
 
 /// Delete a song
 #[tauri::command]
-pub async fn delete_song(
-    db_state: State<'_, DbState>,
-    id: i64,
-) -> Result<bool, String> {
+pub async fn delete_song(db_state: State<'_, DbState>, id: i64) -> Result<bool, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
-    Song::delete(db.pool(), id)
-        .await
-        .map_err(|e| e.to_string())
+    Song::delete(db.pool(), id).await.map_err(|e| e.to_string())
 }
 
 // Settings commands
@@ -298,10 +361,7 @@ pub async fn set_setting(
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
-    let input = UpsertSetting {
-        key,
-        value,
-    };
+    let input = UpsertSetting { key, value };
 
     Setting::set(db.pool(), input)
         .await
@@ -310,15 +370,11 @@ pub async fn set_setting(
 
 /// Get all settings
 #[tauri::command]
-pub async fn get_all_settings(
-    db_state: State<'_, DbState>,
-) -> Result<Vec<Setting>, String> {
+pub async fn get_all_settings(db_state: State<'_, DbState>) -> Result<Vec<Setting>, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
 
-    Setting::get_all(db.pool())
-        .await
-        .map_err(|e| e.to_string())
+    Setting::get_all(db.pool()).await.map_err(|e| e.to_string())
 }
 
 // Download task database commands (conflicting with download.rs removed)

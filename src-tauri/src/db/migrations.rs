@@ -28,9 +28,7 @@ pub async fn run(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     for migration in migrations {
         if migration.version > current_version {
             // Execute migration
-            sqlx::query(migration.sql)
-                .execute(pool)
-                .await?;
+            sqlx::query(migration.sql).execute(pool).await?;
 
             // Record migration
             sqlx::query("INSERT INTO _migrations (version) VALUES (?)")
@@ -63,6 +61,11 @@ fn get_migrations() -> &'static [Migration] {
             name: "002_add_download_file_path",
             sql: include_str!("migrations/002_add_download_file_path.sql"),
         },
+        Migration {
+            version: 3,
+            name: "003_playlist_library_metadata",
+            sql: include_str!("migrations/003_playlist_library_metadata.sql"),
+        },
     ]
 }
 
@@ -81,6 +84,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.0, 2);
+        assert_eq!(result.0, 3);
     }
 }

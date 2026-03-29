@@ -36,7 +36,7 @@ export function getChannelDisplayName(channel?: string | null): string | null {
 }
 
 export function getResolverDisplayName(
-  resolver?: PlaybackResolution['resolver'] | null,
+  resolver?: PlaybackResolution['resolver'] | null
 ): string | null {
   if (!resolver) return null
   return RESOLVER_NAMES[resolver]
@@ -44,14 +44,14 @@ export function getResolverDisplayName(
 
 export function getUserSourceDisplayName(
   userSourceId?: string | null,
-  userSources: SourceOption[] = [],
+  userSources: SourceOption[] = []
 ): string | null {
   if (!userSourceId) return null
   return userSources.find((source) => source.id === userSourceId)?.name || '自定义音源'
 }
 
 export function getPlaybackSourceDisplayInfo(
-  input: PlaybackSourceDisplayInput,
+  input: PlaybackSourceDisplayInput
 ): PlaybackSourceDisplayInfo {
   const {
     currentMusic,
@@ -84,7 +84,6 @@ export function getPlaybackSourceDisplayInfo(
 
   let compactLabel: string | null = null
   let primaryLabel: string | null = null
-  let resolvedModeLabel = resolverLabel
   switch (resolvedResolver) {
     case 'custom-source':
       primaryLabel = userSourceLabel || '自定义音源'
@@ -104,7 +103,7 @@ export function getPlaybackSourceDisplayInfo(
     compactLabel,
     primaryLabel,
     channelLabel,
-    resolverLabel: resolvedModeLabel,
+    resolverLabel,
     userSourceLabel,
   }
 }

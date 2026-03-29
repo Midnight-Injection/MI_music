@@ -31,6 +31,9 @@ pub enum MusicSourceError {
 
     #[error("Unknown error: {0}")]
     Unknown(String),
+
+    #[error("Unsupported feature: {0}")]
+    UnsupportedFeature(String),
 }
 
 pub type Result<T> = std::result::Result<T, MusicSourceError>;
@@ -50,6 +53,7 @@ pub enum Quality {
 }
 
 impl Quality {
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Quality::Standard => "128k",
@@ -123,6 +127,52 @@ pub struct LyricInfo {
     pub tlyric: Option<String>,
 }
 
+/// Playlist summary information returned by playlist search operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePlaylistSummary {
+    pub id: String,
+    pub source: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub play_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<i64>,
+}
+
+/// Detailed playlist information used by the playlist detail view
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePlaylistDetail {
+    pub id: String,
+    pub source: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub play_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<i64>,
+}
+
 /// Trait defining the interface for music source implementations
 #[async_trait]
 pub trait MusicSource: Send + Sync {
@@ -132,12 +182,7 @@ pub trait MusicSource: Send + Sync {
     /// * `keyword` - Search query (song name, artist, or both)
     /// * `page` - Page number (1-based)
     /// * `page_size` - Number of results per page
-    async fn search(
-        &self,
-        keyword: &str,
-        page: u32,
-        page_size: u32,
-    ) -> Result<Vec<MusicInfo>>;
+    async fn search(&self, keyword: &str, page: u32, page_size: u32) -> Result<Vec<MusicInfo>>;
 
     /// Get the streamable URL for a song
     ///
@@ -164,6 +209,29 @@ pub trait MusicSource: Send + Sync {
         page: u32,
         page_size: u32,
     ) -> Result<Vec<MusicInfo>>;
+
+    /// Search playlists by keyword
+    async fn search_playlists(
+        &self,
+        keyword: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<SourcePlaylistSummary>> {
+        let _ = (keyword, page, page_size);
+        Err(MusicSourceError::UnsupportedFeature(format!(
+            "{} 暂不支持歌单搜索",
+            self.source_name()
+        )))
+    }
+
+    /// Get metadata for a playlist
+    async fn get_playlist_detail(&self, playlist_id: &str) -> Result<SourcePlaylistDetail> {
+        let _ = playlist_id;
+        Err(MusicSourceError::UnsupportedFeature(format!(
+            "{} 暂不支持歌单详情",
+            self.source_name()
+        )))
+    }
 
     /// Get the source identifier for this music source
     fn source_name(&self) -> &'static str;

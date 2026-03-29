@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -19,6 +19,16 @@ export default defineConfig(async () => ({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+      },
+      sass: {
+        api: 'modern-compiler',
+      },
+    },
+  },
   build: {
     rollupOptions: {
       input: {
@@ -26,5 +36,9 @@ export default defineConfig(async () => ({
         'lyrics-window': fileURLToPath(new URL('./lyrics-window.html', import.meta.url)),
       },
     },
+  },
+  test: {
+    environment: 'jsdom',
+    include: ['tests/unit/**/*.spec.ts'],
   },
 }))

@@ -1,0 +1,228 @@
+{
+  "endpoint": "ws://127.0.0.1:9223",
+  "before": {
+    "focused": false,
+    "height": 1916,
+    "title": "Jiyu Music",
+    "visible": true,
+    "width": 2616,
+    "x": 1252,
+    "y": 230
+  },
+  "responsiveBefore": {
+    "hash": "#/search",
+    "readyState": "complete",
+    "title": "积雨音乐 - Jiyu Music"
+  },
+  "baselineInteractions": {
+    "sidebar": {
+      "goToSongList": {
+        "clicked": true,
+        "hash": "#/search"
+      },
+      "afterSongList": {
+        "hash": "#/songList",
+        "title": "积雨音乐 - Jiyu Music"
+      },
+      "backToSearch": {
+        "clicked": true,
+        "hash": "#/songList"
+      },
+      "afterSearch": {
+        "hasSearchButton": true,
+        "hash": "#/search",
+        "title": "积雨音乐 - Jiyu Music"
+      }
+    },
+    "searchButton": {
+      "clicked": true,
+      "disabled": false,
+      "hash": "#/search"
+    }
+  },
+  "screenshots": {
+    "before": "/Users/yangjiyu/otherProjects/jiyu_music/artifacts/window-validation/before-resize.png",
+    "after": "/Users/yangjiyu/otherProjects/jiyu_music/artifacts/window-validation/after-resize.png"
+  },
+  "cycles": [
+    {
+      "index": 1,
+      "target": {
+        "width": 1240,
+        "height": 860
+      },
+      "resizeResult": {
+        "error": null,
+        "height": 860,
+        "logical": true,
+        "success": true,
+        "width": 1240,
+        "windowLabel": "main"
+      },
+      "windowInfo": {
+        "focused": false,
+        "height": 1720,
+        "title": "Jiyu Music",
+        "visible": true,
+        "width": 2480,
+        "x": 1252,
+        "y": 230
+      },
+      "responsive": {
+        "hash": "#/search",
+        "readyState": "complete",
+        "title": "积雨音乐 - Jiyu Music"
+      },
+      "interactions": {
+        "sidebar": {
+          "goToSongList": {
+            "clicked": true,
+            "hash": "#/search"
+          },
+          "afterSongList": {
+            "hash": "#/songList",
+            "title": "积雨音乐 - Jiyu Music"
+          },
+          "backToSearch": {
+            "clicked": true,
+            "hash": "#/songList"
+          },
+          "afterSearch": {
+            "hasSearchButton": true,
+            "hash": "#/search",
+            "title": "积雨音乐 - Jiyu Music"
+          }
+        },
+        "searchButton": {
+          "clicked": true,
+          "disabled": false,
+          "hash": "#/search"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "target": {
+        "width": 1360,
+        "height": 900
+      },
+      "resizeResult": {
+        "error": null,
+        "height": 900,
+        "logical": true,
+        "success": true,
+        "width": 1360,
+        "windowLabel": "main"
+      },
+      "windowInfo": {
+        "focused": false,
+        "height": 1800,
+        "title": "Jiyu Music",
+        "visible": true,
+        "width": 2720,
+        "x": 1252,
+        "y": 230
+      },
+      "responsive": {
+        "hash": "#/search",
+        "readyState": "complete",
+        "title": "积雨音乐 - Jiyu Music"
+      },
+      "interactions": {
+        "sidebar": {
+          "goToSongList": {
+            "clicked": true,
+            "hash": "#/search"
+          },
+          "afterSongList": {
+            "hash": "#/songList",
+            "title": "积雨音乐 - Jiyu Music"
+          },
+          "backToSearch": {
+            "clicked": true,
+            "hash": "#/songList"
+          },
+          "afterSearch": {
+            "hasSearchButton": true,
+            "hash": "#/search",
+            "title": "积雨音乐 - Jiyu Music"
+          }
+        },
+        "searchButton": {
+          "clicked": true,
+          "disabled": false,
+          "hash": "#/search"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "target": {
+        "width": 1280,
+        "height": 880
+      },
+      "resizeResult": {
+        "error": null,
+        "height": 880,
+        "logical": true,
+        "success": true,
+        "width": 1280,
+        "windowLabel": "main"
+      },
+      "windowInfo": {
+        "focused": false,
+        "height": 1760,
+        "title": "Jiyu Music",
+        "visible": true,
+        "width": 2560,
+        "x": 1252,
+        "y": 230
+      },
+      "responsive": {
+        "hash": "#/search",
+        "readyState": "complete",
+        "title": "积雨音乐 - Jiyu Music"
+      },
+      "interactions": {
+        "sidebar": {
+          "goToSongList": {
+            "clicked": true,
+            "hash": "#/search"
+          },
+          "afterSongList": {
+            "hash": "#/songList",
+            "title": "积雨音乐 - Jiyu Music"
+          },
+          "backToSearch": {
+            "clicked": true,
+            "hash": "#/songList"
+          },
+          "afterSearch": {
+            "hasSearchButton": true,
+            "hash": "#/search",
+            "title": "积雨音乐 - Jiyu Music"
+          }
+        },
+        "searchButton": {
+          "clicked": true,
+          "disabled": false,
+          "hash": "#/search"
+        }
+      }
+    }
+  ],
+  "after": {
+    "focused": false,
+    "height": 1760,
+    "title": "Jiyu Music",
+    "visible": true,
+    "width": 2560,
+    "x": 1252,
+    "y": 230
+  },
+  "responsiveAfter": {
+    "hash": "#/search",
+    "readyState": "complete",
+    "title": "积雨音乐 - Jiyu Music"
+  }
+}

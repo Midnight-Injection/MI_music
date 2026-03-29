@@ -1,13 +1,12 @@
-use crate::db::models::download::{CreateDownloadTask, DownloadTask, UpdateDownloadTask};
 use crate::db::get_pool;
-use std::path::PathBuf;
-use std::fs;
-use tauri::AppHandle;
-use tokio::sync::Mutex;
-use std::collections::HashMap;
+use crate::db::models::download::{CreateDownloadTask, DownloadTask, UpdateDownloadTask};
 use reqwest::Client;
-use tokio::io::AsyncWriteExt;
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
 
 lazy_static::lazy_static! {
     static ref DOWNLOAD_MANAGER: Mutex<DownloadManager> = Mutex::new(DownloadManager::new());
@@ -26,7 +25,12 @@ impl DownloadManager {
         }
     }
 
-    async fn start_download(&mut self, task_id: i64, url: String, path: PathBuf) -> Result<(), String> {
+    async fn start_download(
+        &mut self,
+        task_id: i64,
+        url: String,
+        path: PathBuf,
+    ) -> Result<(), String> {
         let client = self.client.clone();
 
         let handle = tokio::spawn(async move {
@@ -193,8 +197,7 @@ pub async fn start_download(id: i64, save_path: String) -> Result<(), String> {
         .ok_or("Task not found")?;
 
     let path = PathBuf::from(&save_path);
-    fs::create_dir_all(&path)
-        .map_err(|e| format!("Failed to create directory: {}", e))?;
+    fs::create_dir_all(&path).map_err(|e| format!("Failed to create directory: {}", e))?;
 
     let file_path = path.join(&task.filename);
 
@@ -214,7 +217,7 @@ pub async fn pause_download(id: i64) -> Result<(), String> {
             &pool,
             id,
             UpdateDownloadTask {
-                    file_path: None,
+                file_path: None,
                 status: Some("paused".to_string()),
                 progress: None,
                 error: None,
@@ -272,9 +275,7 @@ pub async fn open_download_folder(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn select_download_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
-
+pub async fn select_download_folder(_app: tauri::AppHandle) -> Result<Option<String>, String> {
     // For now, return None until we figure out the correct API
     // TODO: Implement folder picker correctly
     Ok(None)

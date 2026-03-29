@@ -11,15 +11,19 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
         "title": "Jiyu Music",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "width": 1440,
+        "height": 1055,
+        "minWidth": 654,
+        "minHeight": 479,
         "resizable": true,
+        "acceptFirstMouse": true,
+        "decorations": false,
+        "shadow": false,
         "fullscreen": false,
         "devtools": true
       },

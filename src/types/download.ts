@@ -1,21 +1,3 @@
-export interface DownloadSettings {
-  enabled: boolean
-  savePath: string
-  namingFormat: NamingFormat
-  maxConcurrent: number
-  downloadLyrics: boolean
-  embedCover: boolean
-  embedLyrics: boolean
-  downloadTranslation: boolean
-  downloadRomanization: boolean
-}
-
-export type NamingFormat =
-  | 'title-artist'
-  | 'artist-title'
-  | 'title-album-artist'
-  | 'artist-album-title'
-
 export interface DownloadItem {
   id: number
   songId?: number

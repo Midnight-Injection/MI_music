@@ -13,7 +13,7 @@ export function parseDuration(interval?: string | number): number {
   if (typeof interval === 'number') return interval
   if (!interval) return 0
 
-  const parts = String(interval).split(':').map(value => Number(value) || 0)
+  const parts = String(interval).split(':').map((value) => Number(value) || 0)
   if (parts.length === 2) return parts[0] * 60 + parts[1]
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
   return 0
@@ -40,7 +40,7 @@ export function normalizeQualities(qualities?: unknown): QualityInfo[] | undefin
 
 export function getScriptItemChannel(
   item: ScriptSearchResultItem,
-  fallbackChannel: SearchChannel,
+  fallbackChannel: SearchChannel
 ): SearchChannel {
   return String(item.source || item.type || item.__sourceChannel || fallbackChannel) as SearchChannel
 }
@@ -49,7 +49,7 @@ export function decorateTrackForPlayback(
   track: MusicInfo,
   searchChannel: SearchChannel,
   resolvedBy: MusicInfo['resolvedBy'],
-  preferredPlaybackUserSourceId?: string,
+  preferredPlaybackUserSourceId?: string
 ): MusicInfo {
   return {
     ...track,
@@ -81,7 +81,7 @@ export function normalizeChannelSearchResult(item: ChannelSearchResultItem): Mus
 
 export function normalizeScriptSearchResult(
   item: ScriptSearchResultItem,
-  fallbackChannel: SearchChannel,
+  fallbackChannel: SearchChannel
 ): MusicInfo {
   const source = getScriptItemChannel(item, fallbackChannel)
   const songmid = String(item.songmid || item.mid || item.id || item.hash || '')
@@ -116,7 +116,7 @@ export function normalizeSearchText(value?: string | number | null): string {
   return String(value || '')
     .toLowerCase()
     .replace(/\([^)]*\)|（[^）]*）/g, '')
-    .replace(/[\s\-_/\\|.,!?:;'""`~@#$%^&*+=<>{}\[\]()]+/g, '')
+    .replace(/[\s\-_/\\|.,!?:;'""`~@#$%^&*+=<>{}[\]()]+/g, '')
     .trim()
 }
 
@@ -148,7 +148,7 @@ export function getSearchMatchScore(track: MusicInfo, keyword: string): number {
   const queryTerms = String(keyword)
     .toLowerCase()
     .split(/\s+/)
-    .map(term => normalizeSearchText(term))
+    .map((term) => normalizeSearchText(term))
     .filter(Boolean)
 
   for (const term of queryTerms) {
@@ -167,7 +167,7 @@ export function getSearchMatchScore(track: MusicInfo, keyword: string): number {
 export function compareSearchTracks(
   left: MusicInfo,
   right: MusicInfo,
-  keyword: string,
+  keyword: string
 ): number {
   const scoreDelta = getSearchMatchScore(right, keyword) - getSearchMatchScore(left, keyword)
   if (scoreDelta !== 0) return scoreDelta

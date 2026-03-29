@@ -97,8 +97,9 @@ impl LyricsSync {
 
     /// Get word-level progress for current line
     pub fn word_progress(&self, time_ms: u64) -> Option<WordProgress> {
-        let (word_index, progress) =
-            self.lyrics.get_word_progress(time_ms, self.current_line_index)?;
+        let (word_index, progress) = self
+            .lyrics
+            .get_word_progress(time_ms, self.current_line_index)?;
 
         Some(WordProgress {
             word_index,

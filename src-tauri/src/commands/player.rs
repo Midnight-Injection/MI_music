@@ -1,26 +1,24 @@
-use crate::player::{Player, PlaybackStatus, SharedPlayer, CurrentTrack};
 use crate::db::models::song::Song;
-use tauri::State;
+use crate::player::{CurrentTrack, PlaybackStatus, SharedPlayer};
 use std::sync::Arc;
+use tauri::State;
 use tokio::sync::Mutex;
 
 /// Play music from URL
 #[tauri::command]
 pub async fn play_music(
     url: String,
-    song_id: i64,
+    _song_id: i64,
     player: State<'_, SharedPlayer>,
 ) -> Result<String, String> {
-    let mut player_guard = player.lock().await;
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
     // Load audio from URL
-    audio.load_from_url(&url).await
-        .map_err(|e| e.to_string())?;
+    audio.load_from_url(&url).await.map_err(|e| e.to_string())?;
 
     // Start playback
-    audio.play()
-        .map_err(|e| e.to_string())?;
+    audio.play().map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -47,16 +45,17 @@ pub async fn play_song_by_id(
         .ok_or("Song not found")?;
 
     // Play the song
-    let mut player_guard = player.lock().await;
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
     // Load audio from URL
-    audio.load_from_url(&song.audio_url).await
+    audio
+        .load_from_url(&song.audio_url)
+        .await
         .map_err(|e| e.to_string())?;
 
     // Start playback
-    audio.play()
-        .map_err(|e| e.to_string())?;
+    audio.play().map_err(|e| e.to_string())?;
 
     // Update state with current track info
     let artist = song.artist.clone();
@@ -79,14 +78,11 @@ pub async fn play_song_by_id(
 
 /// Pause music
 #[tauri::command]
-pub async fn pause_music(
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn pause_music(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.pause()
-        .map_err(|e| e.to_string())?;
+    audio.pause().map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -97,14 +93,11 @@ pub async fn pause_music(
 
 /// Resume music
 #[tauri::command]
-pub async fn resume_music(
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn resume_music(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.resume()
-        .map_err(|e| e.to_string())?;
+    audio.resume().map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -115,14 +108,11 @@ pub async fn resume_music(
 
 /// Stop music
 #[tauri::command]
-pub async fn stop_music(
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn stop_music(player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.stop()
-        .map_err(|e| e.to_string())?;
+    audio.stop().map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -135,15 +125,11 @@ pub async fn stop_music(
 
 /// Seek to position (in seconds)
 #[tauri::command]
-pub async fn seek_to(
-    position: f64,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn seek_to(position: f64, player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.seek(position)
-        .map_err(|e| e.to_string())?;
+    audio.seek(position).map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -154,15 +140,11 @@ pub async fn seek_to(
 
 /// Set volume (0.0 to 1.0)
 #[tauri::command]
-pub async fn set_volume(
-    volume: f64,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn set_volume(volume: f64, player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.set_volume(volume)
-        .map_err(|e| e.to_string())?;
+    audio.set_volume(volume).map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -173,15 +155,11 @@ pub async fn set_volume(
 
 /// Set playback rate (0.5 to 2.0)
 #[tauri::command]
-pub async fn set_playback_rate(
-    rate: f64,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
-    let mut player_guard = player.lock().await;
+pub async fn set_playback_rate(rate: f64, player: State<'_, SharedPlayer>) -> Result<(), String> {
+    let player_guard = player.lock().await;
     let mut audio = player_guard.audio.lock().await;
 
-    audio.set_speed(rate)
-        .map_err(|e| e.to_string())?;
+    audio.set_speed(rate).map_err(|e| e.to_string())?;
 
     // Update state
     let mut state = player_guard.state.lock().await;
@@ -212,7 +190,7 @@ pub async fn play_next(
     player: State<'_, SharedPlayer>,
     db: State<'_, Arc<Mutex<Option<crate::db::Database>>>>,
 ) -> Result<Option<String>, String> {
-    let mut player_guard = player.lock().await;
+    let player_guard = player.lock().await;
 
     // Get next track from queue
     let next_track_id = {
@@ -233,11 +211,12 @@ pub async fn play_next(
 
         // Load and play
         let mut audio = player_guard.audio.lock().await;
-        audio.load_from_url(&song.audio_url).await
+        audio
+            .load_from_url(&song.audio_url)
+            .await
             .map_err(|e| e.to_string())?;
 
-        audio.play()
-            .map_err(|e| e.to_string())?;
+        audio.play().map_err(|e| e.to_string())?;
 
         // Update state
         let artist = song.artist.clone();
@@ -259,8 +238,7 @@ pub async fn play_next(
     } else {
         // No next track, stop playback
         let mut audio = player_guard.audio.lock().await;
-        audio.stop()
-            .map_err(|e| e.to_string())?;
+        audio.stop().map_err(|e| e.to_string())?;
 
         let mut state = player_guard.state.lock().await;
         state.set_status(PlaybackStatus::Stopped);
@@ -276,7 +254,7 @@ pub async fn play_previous(
     player: State<'_, SharedPlayer>,
     db: State<'_, Arc<Mutex<Option<crate::db::Database>>>>,
 ) -> Result<Option<String>, String> {
-    let mut player_guard = player.lock().await;
+    let player_guard = player.lock().await;
 
     // Get previous track from queue
     let prev_track_id = {
@@ -297,11 +275,12 @@ pub async fn play_previous(
 
         // Load and play
         let mut audio = player_guard.audio.lock().await;
-        audio.load_from_url(&song.audio_url).await
+        audio
+            .load_from_url(&song.audio_url)
+            .await
             .map_err(|e| e.to_string())?;
 
-        audio.play()
-            .map_err(|e| e.to_string())?;
+        audio.play().map_err(|e| e.to_string())?;
 
         // Update state
         let artist = song.artist.clone();
@@ -327,10 +306,7 @@ pub async fn play_previous(
 
 /// Set queue (list of song IDs)
 #[tauri::command]
-pub async fn set_queue(
-    song_ids: Vec<i64>,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
+pub async fn set_queue(song_ids: Vec<i64>, player: State<'_, SharedPlayer>) -> Result<(), String> {
     let player_guard = player.lock().await;
     let mut state = player_guard.state.lock().await;
     state.set_queue(song_ids);
@@ -339,10 +315,7 @@ pub async fn set_queue(
 
 /// Add song to queue
 #[tauri::command]
-pub async fn add_to_queue(
-    song_id: i64,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
+pub async fn add_to_queue(song_id: i64, player: State<'_, SharedPlayer>) -> Result<(), String> {
     let player_guard = player.lock().await;
     let mut state = player_guard.state.lock().await;
     state.add_to_queue(song_id);
@@ -363,9 +336,7 @@ pub async fn remove_from_queue(
 
 /// Clear queue
 #[tauri::command]
-pub async fn clear_queue(
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
+pub async fn clear_queue(player: State<'_, SharedPlayer>) -> Result<(), String> {
     let player_guard = player.lock().await;
     let mut state = player_guard.state.lock().await;
     state.clear_queue();
@@ -374,9 +345,7 @@ pub async fn clear_queue(
 
 /// Get queue
 #[tauri::command]
-pub async fn get_queue(
-    player: State<'_, SharedPlayer>,
-) -> Result<Vec<i64>, String> {
+pub async fn get_queue(player: State<'_, SharedPlayer>) -> Result<Vec<i64>, String> {
     let player_guard = player.lock().await;
     let state = player_guard.state.lock().await;
     Ok(state.queue.clone())
@@ -384,10 +353,7 @@ pub async fn get_queue(
 
 /// Set loop mode
 #[tauri::command]
-pub async fn set_loop_mode(
-    mode: String,
-    player: State<'_, SharedPlayer>,
-) -> Result<(), String> {
+pub async fn set_loop_mode(mode: String, player: State<'_, SharedPlayer>) -> Result<(), String> {
     let loop_mode = match mode.as_str() {
         "none" => crate::player::LoopMode::None,
         "all" => crate::player::LoopMode::All,
@@ -403,21 +369,19 @@ pub async fn set_loop_mode(
 
 /// Toggle mute
 #[tauri::command]
-pub async fn toggle_mute(
-    player: State<'_, SharedPlayer>,
-) -> Result<bool, String> {
-    let mut player_guard = player.lock().await;
+pub async fn toggle_mute(player: State<'_, SharedPlayer>) -> Result<bool, String> {
+    let player_guard = player.lock().await;
 
     let mut state = player_guard.state.lock().await;
     let is_muted = state.toggle_mute();
 
     if is_muted {
         let mut audio = player_guard.audio.lock().await;
-        audio.set_volume(0.0)
-            .map_err(|e| e.to_string())?;
+        audio.set_volume(0.0).map_err(|e| e.to_string())?;
     } else {
         let mut audio = player_guard.audio.lock().await;
-        audio.set_volume(state.state.volume)
+        audio
+            .set_volume(state.state.volume)
             .map_err(|e| e.to_string())?;
     }
 

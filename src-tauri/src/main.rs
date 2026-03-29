@@ -12,18 +12,19 @@ fn main() {
         Arc::new(Mutex::new(jiyu_music::LyricsState::new()));
 
     // Create player state
-    let player = jiyu_music::Player::new()
-        .expect("Failed to initialize audio player");
+    let player = jiyu_music::Player::new().expect("Failed to initialize audio player");
     let player_state = Arc::new(AsyncMutex::new(player));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_mcp_bridge::init())
         .manage(db_state)
         .manage(lyrics_state)
         .manage(player_state)
         .invoke_handler(tauri::generate_handler![
+            jiyu_music::exit_app,
             // Database commands
             jiyu_music::init_database,
             // Playlist commands
@@ -35,12 +36,16 @@ fn main() {
             jiyu_music::add_song_to_playlist,
             jiyu_music::remove_song_from_playlist,
             jiyu_music::get_playlist_songs,
+            jiyu_music::get_playlist_overviews,
             // Song commands
             jiyu_music::create_song,
             jiyu_music::get_all_songs,
             jiyu_music::search_local_songs,
             jiyu_music::update_song,
             jiyu_music::delete_song,
+            jiyu_music::add_track_to_playlist,
+            jiyu_music::remove_tracks_from_playlist,
+            jiyu_music::reorder_playlist_songs,
             // Settings commands
             jiyu_music::get_setting,
             jiyu_music::set_setting,
@@ -51,6 +56,8 @@ fn main() {
             jiyu_music::get_song_url,
             jiyu_music::get_lyric,
             jiyu_music::get_source_playlist,
+            jiyu_music::search_source_playlists,
+            jiyu_music::get_source_playlist_detail,
             jiyu_music::get_available_sources,
             jiyu_music::probe_media_url,
             jiyu_music::cache_media_url,
@@ -59,12 +66,14 @@ fn main() {
             jiyu_music::create_download_task,
             jiyu_music::get_download_tasks,
             jiyu_music::get_download_task,
+            jiyu_music::get_download_tasks_by_status,
             jiyu_music::update_download_task,
             jiyu_music::delete_download_task,
             jiyu_music::start_download,
             jiyu_music::pause_download,
             jiyu_music::resume_download,
             jiyu_music::open_download_folder,
+            jiyu_music::select_download_folder,
             // Lyrics window commands
             jiyu_music::toggle_lyrics_window,
             jiyu_music::set_lyrics_window_position,
@@ -99,6 +108,16 @@ fn main() {
             jiyu_music::get_queue,
             jiyu_music::set_loop_mode,
             jiyu_music::toggle_mute,
+            // Effects commands
+            jiyu_music::set_equalizer_band,
+            jiyu_music::reset_equalizer,
+            jiyu_music::set_reverb_mix,
+            jiyu_music::set_reverb_preset,
+            jiyu_music::set_effect_enabled,
+            jiyu_music::get_effect_settings,
+            jiyu_music::apply_equalizer_preset,
+            jiyu_music::get_equalizer_presets,
+            jiyu_music::get_reverb_presets,
             // User source commands
             jiyu_music::import_user_source_from_file,
             jiyu_music::get_user_sources,

@@ -1,8 +1,8 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-use crate::types::{UserSourceScript, UserSourceInfo};
+use crate::types::{UserSourceInfo, UserSourceScript};
 
 use super::user_source::{read_user_sources, save_user_sources};
 
@@ -15,8 +15,7 @@ fn get_default_sources_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map(PathBuf::from)
         .map_err(|e| format!("Failed to get CARGO_MANIFEST_DIR: {}", e))?;
 
-    let project_root = manifest_dir.parent()
-        .ok_or("Failed to get project root")?;
+    let project_root = manifest_dir.parent().ok_or("Failed to get project root")?;
 
     let dev_sources_dir = project_root.join("洛雪音乐-音源");
     if dev_sources_dir.exists() {
@@ -24,7 +23,9 @@ fn get_default_sources_dir(app: &AppHandle) -> Result<PathBuf, String> {
     }
 
     // Try production path (bundled resources)
-    let resource_dir = app.path().resource_dir()
+    let resource_dir = app
+        .path()
+        .resource_dir()
         .map_err(|e| format!("Failed to get resource dir: {}", e))?;
 
     let prod_sources_dir = resource_dir.join("default-sources");
@@ -146,7 +147,10 @@ pub async fn import_default_sources(app: AppHandle) -> Result<Vec<UserSourceScri
 
             // Skip if already imported (by name)
             if existing_names.contains(&metadata.name) {
-                println!("[DefaultSources] Skipping already imported: {}", metadata.name);
+                println!(
+                    "[DefaultSources] Skipping already imported: {}",
+                    metadata.name
+                );
                 continue;
             }
 
@@ -168,12 +172,20 @@ pub async fn import_default_sources(app: AppHandle) -> Result<Vec<UserSourceScri
                 sources: default_sources,
                 allow_show_update_alert: false,
                 enabled: true,
-                priority: existing_sources.iter().map(|source| source.priority).max().unwrap_or(0) + 1,
+                priority: existing_sources
+                    .iter()
+                    .map(|source| source.priority)
+                    .max()
+                    .unwrap_or(0)
+                    + 1,
                 created_at: now,
                 updated_at: now,
             };
 
-            println!("[DefaultSources] Imported: {} ({})", user_source.name, user_source.id);
+            println!(
+                "[DefaultSources] Imported: {} ({})",
+                user_source.name, user_source.id
+            );
             existing_sources.push(user_source.clone());
             imported.push(user_source);
         }
@@ -198,11 +210,7 @@ fn create_default_source_info() -> std::collections::HashMap<String, UserSourceI
         "search".to_string(),
         "pic".to_string(),
     ];
-    let qualitys = vec![
-        "128k".to_string(),
-        "320k".to_string(),
-        "flac".to_string(),
-    ];
+    let qualitys = vec!["128k".to_string(), "320k".to_string(), "flac".to_string()];
 
     for source in &["kw", "kg", "tx", "wy", "mg"] {
         sources.insert(

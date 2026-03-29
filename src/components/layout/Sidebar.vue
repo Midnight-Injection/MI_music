@@ -4,9 +4,9 @@
       <div class="sidebar__logo">
         <span></span>
       </div>
-      <div>
+      <div class="sidebar__brand-copy">
         <strong>极域音乐</strong>
-        <small>Desktop player</small>
+        <small>Desktop Player</small>
       </div>
     </div>
 
@@ -24,6 +24,22 @@
         <span>{{ item.label }}</span>
       </router-link>
     </nav>
+
+    <div class="sidebar__panel">
+      <div class="sidebar__profile">
+        <div class="sidebar__avatar">JY</div>
+        <div class="sidebar__profile-copy">
+          <strong>极域桌面端</strong>
+          <span>已同步本地歌单与搜索记录</span>
+        </div>
+      </div>
+
+      <div class="sidebar__panel-tags">
+        <span>Search</span>
+        <span>Player</span>
+        <span>Playlist</span>
+      </div>
+    </div>
   </aside>
 </template>
 
@@ -65,39 +81,28 @@ const navItems = [
 <style scoped lang="scss">
 .sidebar {
   height: 100%;
-  padding: 18px 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  border-right: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-  backdrop-filter: blur(16px);
+  gap: 14px;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+  backdrop-filter: blur(18px);
+  box-shadow: var(--panel-shadow-soft);
 }
 
 .sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 8px 14px;
-  border-bottom: 1px solid var(--border-color);
-
-  strong,
-  small {
-    display: block;
-  }
-
-  strong {
-    font-size: 1rem;
-    letter-spacing: -0.03em;
-  }
-
-  small {
-    margin-top: 2px;
-    color: var(--text-tertiary);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-  }
+  gap: 10px;
+  padding: 2px 4px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .sidebar__logo {
@@ -106,32 +111,56 @@ const navItems = [
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, var(--primary-color), #facc15);
-  box-shadow: 0 12px 24px rgba(249, 115, 22, 0.18);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.34), transparent 30%),
+    linear-gradient(145deg, #cfbbff, #8a68e0);
+  box-shadow: 0 18px 36px rgba(74, 48, 134, 0.26);
 
   span {
     width: 16px;
     height: 16px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+.sidebar__brand-copy {
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 0.92rem;
+    letter-spacing: -0.03em;
+  }
+
+  small {
+    margin-top: 3px;
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
   }
 }
 
 .sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .sidebar__nav-item {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: 16px;
   color: var(--text-secondary);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.045);
 
   svg {
     width: 18px;
@@ -143,38 +172,85 @@ const navItems = [
   }
 
   span {
-    font-size: 0.92rem;
+    font-size: 0.82rem;
     font-weight: 600;
   }
 
   &:hover,
   &.is-active {
-    background: color-mix(in srgb, var(--primary-light) 88%, transparent);
-    color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(215, 192, 255, 0.08));
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 }
 
-@media (max-width: 900px) {
-  .sidebar {
-    position: fixed;
-    inset: 14px 14px auto;
-    height: auto;
-    padding: 10px;
-    border-radius: 20px;
-    z-index: 10;
+.sidebar__panel {
+  margin-top: auto;
+  padding: 14px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar__profile {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.sidebar__avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(210, 185, 255, 0.18));
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.sidebar__profile-copy {
+  min-width: 0;
+
+  strong,
+  span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .sidebar__brand {
-    display: none;
+  strong {
+    font-size: 0.82rem;
   }
 
-  .sidebar__nav {
-    flex-direction: row;
-    overflow: auto;
-  }
-
-  .sidebar__nav-item {
-    min-width: 110px;
+  span {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    line-height: 1.4;
   }
 }
+
+.sidebar__panel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+
+  span {
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 0.66rem;
+  }
+}
+
 </style>

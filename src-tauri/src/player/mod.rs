@@ -4,8 +4,10 @@
 pub mod audio;
 pub mod state;
 
-pub use audio::{AudioPlayer, AudioError, SharedAudioPlayer};
-pub use state::{InternalPlayerState, PlayerState, SharedPlayerState, CurrentTrack, PlaybackStatus, LoopMode};
+pub use audio::{AudioError, AudioPlayer, SharedAudioPlayer};
+pub use state::{
+    CurrentTrack, InternalPlayerState, LoopMode, PlaybackStatus, PlayerState, SharedPlayerState,
+};
 
 use std::sync::Arc;
 use tokio::sync::Mutex;

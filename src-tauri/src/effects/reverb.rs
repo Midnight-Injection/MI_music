@@ -3,10 +3,10 @@
 
 /// Reverb effect with mix control
 pub struct Reverb {
-    mix: f32,           // 0.0 = dry, 1.0 = wet
-    room_size: f32,     // 0.0 to 1.0
-    decay_time: f32,    // in seconds
-    damping: f32,       // 0.0 to 1.0
+    mix: f32,        // 0.0 = dry, 1.0 = wet
+    room_size: f32,  // 0.0 to 1.0
+    decay_time: f32, // in seconds
+    damping: f32,    // 0.0 to 1.0
 }
 
 impl Reverb {

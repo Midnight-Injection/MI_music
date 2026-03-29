@@ -5,5 +5,4 @@ mod connection;
 mod migrations;
 pub mod models;
 
-pub use connection::{Database, get_pool};
-pub use models::*;
+pub use connection::{get_pool, Database};

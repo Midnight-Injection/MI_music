@@ -38,22 +38,10 @@ export function useLyricsSync(lyrics: { text: string; time: number }[]) {
   watch(
     () => playerStore.currentTime,
     (newTime) => {
-      findLyricsAtTime(newTime)
       updateDesktopLyricsWithTime(lyrics, newTime * 1000)
     },
     { immediate: true }
   )
-
-  // Auto-sync helper
-  function syncNow() {
-    const { current, next } = findLyricsAtTime(playerStore.currentTime)
-    updateDesktopLyricsWithTime(lyrics, playerStore.currentTime * 1000)
-  }
-
-  // Auto-sync is handled by the watch above
-  void function syncLyrics() {
-    // This function can be called manually if needed
-  }
 
   return {
     findLyricsAtTime

@@ -31,14 +31,6 @@ const { updateDesktopLyrics } = useDesktopLyrics()
 const currentLyric = ref('Hello World')
 const nextLyric = ref('This is the next line')
 
-const sampleLyrics = [
-  { text: 'First line of the song', time: 0 },
-  { text: 'Second line of the song', time: 3000 },
-  { text: 'Third line of the song', time: 6000 },
-  { text: 'Fourth line of the song', time: 9000 },
-  { text: 'Fifth line of the song', time: 12000 },
-]
-
 function updateLyrics() {
   updateDesktopLyrics({
     current: currentLyric.value,

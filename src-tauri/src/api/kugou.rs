@@ -1,5 +1,7 @@
 use super::helpers::{build_client, decode_html, format_duration_millis, format_size};
-use super::source::{LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result};
+use super::source::{
+    LyricInfo, MusicInfo, MusicSource, MusicSourceError, Quality, QualityInfo, Result,
+};
 use async_trait::async_trait;
 use md5;
 use regex::Regex;
@@ -311,12 +313,7 @@ impl MusicSource for KugouSource {
             )));
         }
         let _ = payload.data.total;
-        Ok(payload
-            .data
-            .lists
-            .into_iter()
-            .map(Self::map_song)
-            .collect())
+        Ok(payload.data.lists.into_iter().map(Self::map_song).collect())
     }
 
     async fn get_song_url(&self, song_id: &str, _quality: Quality) -> Result<String> {
@@ -336,7 +333,9 @@ impl MusicSource for KugouSource {
         let payload: KugouPlayResponse = response.json().await?;
         if payload.status != 1 {
             return Err(MusicSourceError::Unknown(
-                payload.err_code.unwrap_or_else(|| "Kugou play failed".to_string()),
+                payload
+                    .err_code
+                    .unwrap_or_else(|| "Kugou play failed".to_string()),
             ));
         }
         payload

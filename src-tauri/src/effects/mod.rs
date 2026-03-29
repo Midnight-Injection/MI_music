@@ -44,13 +44,28 @@ impl EffectChain {
     pub fn new() -> Self {
         Self {
             settings: Arc::new(RwLock::new(EffectSettings::default())),
-            equalizer: None,
-            reverb: None,
+            equalizer: Some(Arc::new(StdRwLock::new(Equalizer::new()))),
+            reverb: Some(Arc::new(StdRwLock::new(Reverb::new()))),
         }
     }
 
     pub async fn get_settings(&self) -> EffectSettings {
-        self.settings.read().await.clone()
+        let mut settings = self.settings.read().await.clone();
+
+        if let Some(eq) = &self.equalizer {
+            if let Ok(eq_guard) = eq.read() {
+                settings.equalizer_bands = eq_guard.get_all_bands();
+            }
+        }
+
+        if let Some(rvb) = &self.reverb {
+            if let Ok(rvb_guard) = rvb.read() {
+                let params = rvb_guard.get_parameters();
+                settings.reverb_mix = params.mix;
+            }
+        }
+
+        settings
     }
 
     pub async fn set_equalizer_band(&self, band: usize, gain: f32) -> Result<(), String> {
@@ -84,6 +99,19 @@ impl EffectChain {
         Ok(())
     }
 
+    pub async fn apply_equalizer_preset(&self, preset: &str) -> Result<(), String> {
+        let mut settings = self.settings.write().await;
+
+        if let Some(eq) = &self.equalizer {
+            if let Ok(mut eq_guard) = eq.write() {
+                eq_guard.apply_preset(preset);
+                settings.equalizer_bands = eq_guard.get_all_bands();
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn set_reverb_mix(&self, mix: f32) -> Result<(), String> {
         let clamped_mix = mix.max(0.0).min(1.0);
         let mut settings = self.settings.write().await;
@@ -92,6 +120,20 @@ impl EffectChain {
         if let Some(rvb) = &self.reverb {
             if let Ok(mut rvb_guard) = rvb.write() {
                 rvb_guard.set_mix(clamped_mix);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn set_reverb_preset(&self, preset: &str) -> Result<(), String> {
+        let mut settings = self.settings.write().await;
+        settings.reverb_preset = preset.to_string();
+
+        if let Some(rvb) = &self.reverb {
+            if let Ok(mut rvb_guard) = rvb.write() {
+                rvb_guard.apply_preset(preset);
+                settings.reverb_mix = rvb_guard.get_mix();
             }
         }
 

@@ -1,35 +1,25 @@
 <template>
   <div class="download-page page-shell">
-    <section class="page-hero glass-panel">
-      <div>
-        <span class="page-kicker">Download Control</span>
-        <h1 class="page-title">下载状态、路径和并发统一收口。</h1>
-        <p class="page-subtitle">让设置、任务队列和批量操作各归其位，不再都挤在同一层级上。</p>
-      </div>
-    </section>
-
-    <div class="download-header">
-      <h1>下载管理</h1>
-      <div class="batch-actions">
-        <button @click="pauseAll" class="btn btn-secondary" :disabled="!hasActiveDownloads">
-          暂停全部
-        </button>
-        <button @click="resumeAll" class="btn btn-secondary" :disabled="!hasPausedDownloads">
-          继续全部
-        </button>
-        <button @click="clearCompleted" class="btn btn-secondary" :disabled="!hasCompletedDownloads">
-          清除已完成
-        </button>
-        <button @click="clearAll" class="btn btn-danger" :disabled="queue.length === 0">
-          清空全部
-        </button>
-      </div>
-    </div>
-
     <div class="download-content">
-      <DownloadSettings @update="onSettingsUpdate" />
-
       <div class="queue-panel">
+        <div class="queue-panel__head">
+          <h1>下载管理</h1>
+          <div class="batch-actions">
+            <button @click="pauseAll" class="btn btn-secondary" :disabled="!hasActiveDownloads">
+              暂停全部
+            </button>
+            <button @click="resumeAll" class="btn btn-secondary" :disabled="!hasPausedDownloads">
+              继续全部
+            </button>
+            <button @click="clearCompleted" class="btn btn-secondary" :disabled="!hasCompletedDownloads">
+              清除已完成
+            </button>
+            <button @click="clearAll" class="btn btn-danger" :disabled="queue.length === 0">
+              清空全部
+            </button>
+          </div>
+        </div>
+
         <div class="queue-tabs">
           <button
             @click="activeTab = 'downloading'"
@@ -80,12 +70,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDownloadStore } from '../store/download'
+import { useSettingsStore } from '../store/settings'
 import { invoke } from '@tauri-apps/api/core'
-import DownloadSettings from '../components/download/DownloadSettings.vue'
 import DownloadItem from '../components/download/DownloadItem.vue'
-import type { DownloadItem as DownloadItemType, DownloadSettings as DownloadSettingsType } from '../types/download'
+import type { DownloadItem as DownloadItemType } from '../types/download'
 
 const downloadStore = useDownloadStore()
+const settingsStore = useSettingsStore()
 const activeTab = ref<'downloading' | 'pending' | 'completed' | 'failed'>('downloading')
 let refreshInterval: number | null = null
 let lastCompletedCount = 0
@@ -93,6 +84,7 @@ let lastFailedCount = 0
 
 const downloadQueue = computed(() => downloadStore.downloadQueue)
 const queue = computed(() => downloadStore.queue)
+const downloadPath = computed(() => settingsStore.settings.downloadPath.trim())
 
 const currentList = computed(() => {
   switch (activeTab.value) {
@@ -156,10 +148,6 @@ async function loadTasks() {
   }
 }
 
-function onSettingsUpdate(settings: DownloadSettingsType) {
-  downloadStore.updateSettings(settings)
-}
-
 function showNotification(title: string, message: string, type: 'success' | 'error' = 'success') {
   // Check if notification permission is granted
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -187,8 +175,8 @@ function pauseDownload(id: number) {
 
 function resumeDownload(id: number) {
   const item = queue.value.find((d) => d.id === id)
-  if (item && downloadStore.settings.savePath) {
-    invoke('resume_download', { id, savePath: downloadStore.settings.savePath })
+  if (item && downloadPath.value) {
+    invoke('resume_download', { id, savePath: downloadPath.value })
     downloadStore.resumeDownload(id)
   }
 }
@@ -200,16 +188,16 @@ function cancelDownload(id: number) {
 
 function retryDownload(id: number) {
   const item = queue.value.find((d) => d.id === id)
-  if (item && downloadStore.settings.savePath) {
+  if (item && downloadPath.value) {
     downloadStore.retryDownload(id)
-    invoke('resume_download', { id, savePath: downloadStore.settings.savePath })
+    invoke('resume_download', { id, savePath: downloadPath.value })
   }
 }
 
 async function openFolder(item: DownloadItemType) {
   try {
-    if (item.filePath || downloadStore.settings.savePath) {
-      const path = item.filePath || downloadStore.settings.savePath
+    if (item.filePath || downloadPath.value) {
+      const path = item.filePath || downloadPath.value
       await invoke('open_download_folder', { path })
     }
   } catch (error) {
@@ -225,13 +213,13 @@ function pauseAll() {
 }
 
 function resumeAll() {
-  if (!downloadStore.settings.savePath) return
+  if (!downloadPath.value) return
   downloadStore.resumeAll()
   queue.value.forEach((item) => {
     if (item.status === 'paused') {
       invoke('resume_download', {
         id: item.id,
-        savePath: downloadStore.settings.savePath
+        savePath: downloadPath.value
       })
     }
   })
@@ -284,45 +272,48 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-
-  .download-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-
-    h1 {
-      font-size: 24px;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
-    .batch-actions {
-      display: flex;
-      gap: 10px;
-    }
-  }
+  padding-top: 0;
 
   .download-content {
-    display: flex;
-    gap: 20px;
     flex: 1;
     overflow: hidden;
   }
 
   .queue-panel {
-    flex: 1;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
+    height: 100%;
+    background: var(--panel-gradient);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-md);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: var(--shadow-md);
+
+    .queue-panel__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 24px 16px;
+      border-bottom: 1px solid var(--border-color);
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        color: var(--text-primary);
+      }
+    }
+
+    .batch-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
 
     .queue-tabs {
       display: flex;
-      border-bottom: 1px solid var(--border-color);
 
       .tab {
         padding: 12px 20px;
@@ -339,7 +330,7 @@ onUnmounted(() => {
         }
 
         &.active {
-          color: var(--primary-color);
+          color: var(--text-primary);
           font-weight: 500;
 
           &::after {
@@ -349,7 +340,7 @@ onUnmounted(() => {
             left: 0;
             right: 0;
             height: 2px;
-            background: var(--primary-color);
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
           }
         }
       }
@@ -397,18 +388,18 @@ onUnmounted(() => {
     }
 
     &.btn-secondary {
-      background: var(--bg-secondary);
+      background: rgba(255, 255, 255, 0.06);
       color: var(--text-primary);
-      border: 1px solid var(--border-color);
+      border: 1px solid rgba(255, 255, 255, 0.08);
 
       &:hover:not(:disabled) {
-        background: var(--bg-tertiary);
-        border-color: var(--primary-color);
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.12);
       }
     }
 
     &.btn-danger {
-      background: var(--error-color);
+      background: rgba(255, 107, 129, 0.14);
       color: white;
 
       &:hover:not(:disabled) {
@@ -419,6 +410,25 @@ onUnmounted(() => {
 
       &:active:not(:disabled) {
         transform: translateY(0);
+      }
+    }
+  }
+
+  @media (max-width: 960px) {
+    .queue-panel {
+      .queue-panel__head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .batch-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .queue-tabs {
+        overflow-x: auto;
+        scrollbar-width: none;
       }
     }
   }

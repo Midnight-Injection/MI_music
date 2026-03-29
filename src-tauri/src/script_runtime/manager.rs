@@ -3,11 +3,11 @@
 //! Manages WebView instances for executing user music source scripts.
 //! Uses lazy-loading to minimize memory footprint.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, WebviewWindowBuilder, WebviewUrl, Emitter};
+use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
-use serde::{Deserialize, Serialize};
 
 /// Source action types that can be executed
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +58,10 @@ impl ScriptRuntimeManager {
 
         // Store reference with script
         let mut instances = self.instances.lock().await;
-        instances.insert(source_id.to_string(), (window_label.clone(), script.to_string()));
+        instances.insert(
+            source_id.to_string(),
+            (window_label.clone(), script.to_string()),
+        );
 
         println!("[ScriptRuntime] Initialized for source: {}", source_id);
         Ok(())
@@ -74,10 +77,14 @@ impl ScriptRuntimeManager {
     ) -> Result<Vec<serde_json::Value>, String> {
         let instances = self.instances.lock().await;
 
-        let (window_label, script) = instances.get(source_id)
+        let (window_label, script) = instances
+            .get(source_id)
             .ok_or_else(|| format!("Source {} not initialized", source_id))?;
 
-        println!("[ScriptRuntime] Executing search for source: {}, keyword: {}", source_id, keyword);
+        println!(
+            "[ScriptRuntime] Executing search for source: {}, keyword: {}",
+            source_id, keyword
+        );
 
         // Emit event to frontend to execute in hidden webview
         let payload = serde_json::json!({
@@ -91,7 +98,8 @@ impl ScriptRuntimeManager {
         });
 
         // Emit event for frontend to handle
-        self.app.emit("script:execute-search", &payload)
+        self.app
+            .emit("script:execute-search", &payload)
             .map_err(|e| format!("Failed to emit event: {}", e))?;
 
         // Return empty for now - frontend will handle actual execution
@@ -107,10 +115,14 @@ impl ScriptRuntimeManager {
     ) -> Result<String, String> {
         let instances = self.instances.lock().await;
 
-        let (window_label, script) = instances.get(source_id)
+        let (window_label, script) = instances
+            .get(source_id)
             .ok_or_else(|| format!("Source {} not initialized", source_id))?;
 
-        println!("[ScriptRuntime] Getting music URL for source: {}", source_id);
+        println!(
+            "[ScriptRuntime] Getting music URL for source: {}",
+            source_id
+        );
 
         // Emit event to frontend
         let payload = serde_json::json!({
@@ -122,7 +134,8 @@ impl ScriptRuntimeManager {
             "quality": quality,
         });
 
-        self.app.emit("script:execute-music-url", &payload)
+        self.app
+            .emit("script:execute-music-url", &payload)
             .map_err(|e| format!("Failed to emit event: {}", e))?;
 
         Err("Music URL retrieval requires frontend handler".to_string())

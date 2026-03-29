@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, FromRow};
+use sqlx::{FromRow, SqlitePool};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Setting {
@@ -17,38 +17,26 @@ pub struct UpsertSetting {
 
 impl Setting {
     /// Get a setting by key
-    pub async fn get(
-        pool: &SqlitePool,
-        key: &str,
-    ) -> Result<Option<Self>, sqlx::Error> {
-        let result = sqlx::query_as::<_, Setting>(
-            "SELECT * FROM settings WHERE key = ?"
-        )
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn get(pool: &SqlitePool, key: &str) -> Result<Option<Self>, sqlx::Error> {
+        let result = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = ?")
+            .bind(key)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(result)
     }
 
     /// Get all settings
-    pub async fn get_all(
-        pool: &SqlitePool,
-    ) -> Result<Vec<Self>, sqlx::Error> {
-        let results = sqlx::query_as::<_, Setting>(
-            "SELECT * FROM settings ORDER BY key"
-        )
-        .fetch_all(pool)
-        .await?;
+    pub async fn get_all(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
+        let results = sqlx::query_as::<_, Setting>("SELECT * FROM settings ORDER BY key")
+            .fetch_all(pool)
+            .await?;
 
         Ok(results)
     }
 
     /// Set a setting value (create or update)
-    pub async fn set(
-        pool: &SqlitePool,
-        input: UpsertSetting,
-    ) -> Result<Self, sqlx::Error> {
+    pub async fn set(pool: &SqlitePool, input: UpsertSetting) -> Result<Self, sqlx::Error> {
         let now = chrono::Utc::now().to_rfc3339();
 
         let result = sqlx::query_as::<_, Setting>(
@@ -59,7 +47,7 @@ impl Setting {
                 value = excluded.value,
                 updated_at = excluded.updated_at
             RETURNING *
-            "#
+            "#,
         )
         .bind(&input.key)
         .bind(&input.value)
@@ -71,10 +59,7 @@ impl Setting {
     }
 
     /// Delete a setting
-    pub async fn delete(
-        pool: &SqlitePool,
-        key: &str,
-    ) -> Result<bool, sqlx::Error> {
+    pub async fn delete(pool: &SqlitePool, key: &str) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("DELETE FROM settings WHERE key = ?")
             .bind(key)
             .execute(pool)
@@ -84,10 +69,7 @@ impl Setting {
     }
 
     /// Get a setting value as a specific type
-    pub async fn get_as<T>(
-        pool: &SqlitePool,
-        key: &str,
-    ) -> Result<Option<T>, sqlx::Error>
+    pub async fn get_as<T>(pool: &SqlitePool, key: &str) -> Result<Option<T>, sqlx::Error>
     where
         T: for<'de> Deserialize<'de>,
     {
@@ -111,10 +93,15 @@ impl Setting {
     {
         let value_json = serde_json::to_string(value)?;
 
-        Self::set(pool, UpsertSetting {
-            key: key.to_string(),
-            value: value_json,
-        }).await.map_err(|e| e.into())
+        Self::set(
+            pool,
+            UpsertSetting {
+                key: key.to_string(),
+                value: value_json,
+            },
+        )
+        .await
+        .map_err(|e| e.into())
     }
 }
 

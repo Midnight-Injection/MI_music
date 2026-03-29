@@ -10,9 +10,7 @@ lazy_static::lazy_static! {
 /// Set gain for a specific equalizer band
 #[tauri::command]
 pub async fn set_equalizer_band(band: usize, gain: f32) -> Result<(), String> {
-    EFFECT_CHAIN
-        .set_equalizer_band(band, gain)
-        .await
+    EFFECT_CHAIN.set_equalizer_band(band, gain).await
 }
 
 /// Reset equalizer to flat response
@@ -30,16 +28,13 @@ pub async fn set_reverb_mix(mix: f32) -> Result<(), String> {
 /// Set reverb preset
 #[tauri::command]
 pub async fn set_reverb_preset(preset: String) -> Result<(), String> {
-    // This will be implemented when Reverb is integrated into EffectChain
-    Ok(())
+    EFFECT_CHAIN.set_reverb_preset(&preset).await
 }
 
 /// Enable or disable an effect
 #[tauri::command]
 pub async fn set_effect_enabled(effect: String, enabled: bool) -> Result<(), String> {
-    EFFECT_CHAIN
-        .set_effect_enabled(&effect, enabled)
-        .await
+    EFFECT_CHAIN.set_effect_enabled(&effect, enabled).await
 }
 
 /// Get all effect settings
@@ -51,29 +46,7 @@ pub async fn get_effect_settings() -> Result<EffectSettings, String> {
 /// Apply equalizer preset
 #[tauri::command]
 pub async fn apply_equalizer_preset(preset: String) -> Result<(), String> {
-    let presets: std::collections::HashMap<&str, [f32; 10]> = [
-        ("flat", [0.0; 10]),
-        ("bass_boost", [6.0, 5.0, 4.0, 2.0, 0.0, -1.0, -1.0, -1.0, -1.0, -2.0]),
-        ("treble_boost", [-2.0, -2.0, -1.0, -1.0, 0.0, 1.0, 2.0, 4.0, 5.0, 6.0]),
-        ("vocal", [-2.0, -1.0, 0.0, 2.0, 4.0, 5.0, 4.0, 2.0, 0.0, -1.0]),
-        ("rock", [5.0, 4.0, 3.0, 1.0, -1.0, -1.0, 0.0, 2.0, 3.0, 4.0]),
-        ("electronic", [4.0, 3.0, 2.0, 0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 3.0]),
-        ("classical", [4.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0]),
-        ("jazz", [3.0, 2.0, 1.0, 2.0, 2.0, 0.0, -1.0, -1.0, 1.0, 2.0]),
-    ]
-    .iter()
-    .cloned()
-    .collect();
-
-    let gains = presets
-        .get(preset.as_str())
-        .ok_or_else(|| format!("Unknown preset: {}", preset))?;
-
-    for (i, &gain) in gains.iter().enumerate() {
-        EFFECT_CHAIN.set_equalizer_band(i, gain).await?;
-    }
-
-    Ok(())
+    EFFECT_CHAIN.apply_equalizer_preset(&preset).await
 }
 
 /// Get available equalizer presets
@@ -94,13 +67,8 @@ pub async fn get_equalizer_presets() -> Result<Vec<String>, String> {
 /// Get available reverb presets
 #[tauri::command]
 pub async fn get_reverb_presets() -> Result<Vec<(String, String)>, String> {
-    Ok(vec![
-        ("small_room".to_string(), "Small Room".to_string()),
-        ("medium_room".to_string(), "Medium Room".to_string()),
-        ("large_room".to_string(), "Large Room".to_string()),
-        ("large_hall".to_string(), "Large Hall".to_string()),
-        ("cathedral".to_string(), "Cathedral".to_string()),
-        ("plate".to_string(), "Plate".to_string()),
-        ("spring".to_string(), "Spring".to_string()),
-    ])
+    Ok(crate::effects::Reverb::get_preset_names()
+        .into_iter()
+        .map(|(value, label)| (value.to_string(), label.to_string()))
+        .collect())
 }

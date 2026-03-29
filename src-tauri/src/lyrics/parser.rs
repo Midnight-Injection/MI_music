@@ -12,21 +12,16 @@ pub fn parse_lrc(content: &str) -> Result<Lyrics, LyricsError> {
     let mut lines: Vec<LyricLine> = Vec::new();
 
     // Regex for metadata tags: [ti:title], [ar:artist], etc.
-    let metadata_regex =
-        Regex::new(r"^\[(ti|ar|al|by|length|offset):(.*)\]$").map_err(|e| {
-            LyricsError::ParseError(format!("Failed to compile metadata regex: {}", e))
-        })?;
+    let metadata_regex = Regex::new(r"^\[(ti|ar|al|by|length|offset):(.*)\]$")
+        .map_err(|e| LyricsError::ParseError(format!("Failed to compile metadata regex: {}", e)))?;
 
     // Regex for time tags: [mm:ss.xx] or [mm:ss]
-    let time_regex = Regex::new(r"\[(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?\]").map_err(|e| {
-        LyricsError::ParseError(format!("Failed to compile time regex: {}", e))
-    })?;
+    let time_regex = Regex::new(r"\[(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?\]")
+        .map_err(|e| LyricsError::ParseError(format!("Failed to compile time regex: {}", e)))?;
 
     // Regex for enhanced LRC with word timestamps: <mm:ss.xx>word
-    let word_regex =
-        Regex::new(r"<(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?>([^<]+)").map_err(|e| {
-            LyricsError::ParseError(format!("Failed to compile word regex: {}", e))
-        })?;
+    let word_regex = Regex::new(r"<(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?>([^<]+)")
+        .map_err(|e| LyricsError::ParseError(format!("Failed to compile word regex: {}", e)))?;
 
     for line in content.lines() {
         let line = line.trim();
@@ -54,7 +49,7 @@ pub fn parse_lrc(content: &str) -> Result<Lyrics, LyricsError> {
                 }
                 "offset" => {
                     // Offset in milliseconds (can be negative)
-                    if let Ok(offset) = value.parse::<i64>() {
+                    if let Ok(_offset) = value.parse::<i64>() {
                         // Store offset, will be applied when creating Lyrics
                     }
                 }
@@ -149,24 +144,30 @@ pub fn parse_lrc(content: &str) -> Result<Lyrics, LyricsError> {
 }
 
 /// Parse word-level timestamps from enhanced LRC
-fn parse_word_timestamps(
-    text: &str,
-    regex: &Regex,
-) -> Result<Vec<WordTimestamp>, LyricsError> {
+fn parse_word_timestamps(text: &str, regex: &Regex) -> Result<Vec<WordTimestamp>, LyricsError> {
     let mut words = Vec::new();
     let captures: Vec<_> = regex.captures_iter(text).collect();
 
-    for (idx, cap) in captures.iter().enumerate() {
-        let mins: u64 = cap.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-        let secs: u64 = cap.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-        let millis: u64 = cap.get(3).and_then(|m| {
-            let ms_str = m.as_str();
-            if ms_str.len() == 2 {
-                format!("{}0", ms_str).parse().ok()
-            } else {
-                ms_str.parse().ok()
-            }
-        }).unwrap_or(0);
+    for cap in &captures {
+        let mins: u64 = cap
+            .get(1)
+            .and_then(|m| m.as_str().parse().ok())
+            .unwrap_or(0);
+        let secs: u64 = cap
+            .get(2)
+            .and_then(|m| m.as_str().parse().ok())
+            .unwrap_or(0);
+        let millis: u64 = cap
+            .get(3)
+            .and_then(|m| {
+                let ms_str = m.as_str();
+                if ms_str.len() == 2 {
+                    format!("{}0", ms_str).parse().ok()
+                } else {
+                    ms_str.parse().ok()
+                }
+            })
+            .unwrap_or(0);
 
         let time_ms = mins * 60 * 1000 + secs * 1000 + millis;
         let word_text = cap.get(4).map(|m| m.as_str()).unwrap_or("").trim();
@@ -196,10 +197,8 @@ fn parse_word_timestamps(
 /// Parse translation lyrics (separate file or embedded)
 pub fn parse_translation(content: &str) -> Result<Vec<Option<String>>, LyricsError> {
     let mut translations = Vec::new();
-    let time_regex =
-        Regex::new(r"\[(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?\]").map_err(|e| {
-            LyricsError::ParseError(format!("Failed to compile time regex: {}", e))
-        })?;
+    let time_regex = Regex::new(r"\[(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?\]")
+        .map_err(|e| LyricsError::ParseError(format!("Failed to compile time regex: {}", e)))?;
 
     for line in content.lines() {
         let line = line.trim();
@@ -209,16 +208,25 @@ pub fn parse_translation(content: &str) -> Result<Vec<Option<String>>, LyricsErr
 
         // Extract time and translation
         if let Some(cap) = time_regex.captures(line) {
-            let mins: u64 = cap.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let secs: u64 = cap.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let _millis: u64 = cap.get(3).and_then(|m| {
-                let ms_str = m.as_str();
-                if ms_str.len() == 2 {
-                    format!("{}0", ms_str).parse().ok()
-                } else {
-                    ms_str.parse().ok()
-                }
-            }).unwrap_or(0);
+            let _mins: u64 = cap
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let _secs: u64 = cap
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let _millis: u64 = cap
+                .get(3)
+                .and_then(|m| {
+                    let ms_str = m.as_str();
+                    if ms_str.len() == 2 {
+                        format!("{}0", ms_str).parse().ok()
+                    } else {
+                        ms_str.parse().ok()
+                    }
+                })
+                .unwrap_or(0);
 
             let text = time_regex.replace_all(line, "");
             let text = text.trim().to_string();

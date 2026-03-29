@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
-use tauri::State;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use crate::db::{Database, get_pool};
 use crate::db::models::settings::{Setting, UpsertSetting};
+use crate::db::Database;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::State;
+use tokio::sync::Mutex;
 
 /// Database state shared across Tauri commands
-pub type DbState = Arc<Mutex<Option<Database>>>;
+type DbState = Arc<Mutex<Option<Database>>>;
 
 /// Theme settings structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,25 +18,32 @@ pub struct ThemeSettings {
 
 /// Get theme settings from database
 #[tauri::command]
-pub async fn get_theme(
-    db_state: State<'_, DbState>,
-) -> Result<ThemeSettings, String> {
+pub async fn get_theme(db_state: State<'_, DbState>) -> Result<ThemeSettings, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
     let pool = db.pool();
 
     // Get theme settings with defaults
-    let theme_color = match Setting::get(pool, "theme_color").await.map_err(|e| e.to_string())? {
+    let theme_color = match Setting::get(pool, "theme_color")
+        .await
+        .map_err(|e| e.to_string())?
+    {
         Some(s) => s.value,
         None => "green".to_string(),
     };
 
-    let theme_mode = match Setting::get(pool, "theme_mode").await.map_err(|e| e.to_string())? {
+    let theme_mode = match Setting::get(pool, "theme_mode")
+        .await
+        .map_err(|e| e.to_string())?
+    {
         Some(s) => s.value,
         None => "auto".to_string(),
     };
 
-    let custom_color = match Setting::get(pool, "custom_color").await.map_err(|e| e.to_string())? {
+    let custom_color = match Setting::get(pool, "custom_color")
+        .await
+        .map_err(|e| e.to_string())?
+    {
         Some(s) => s.value,
         None => "#1db954".to_string(),
     };
@@ -59,29 +66,42 @@ pub async fn set_theme(
     let pool = db.pool();
 
     // Save each theme setting
-    Setting::set(pool, UpsertSetting {
-        key: "theme_color".to_string(),
-        value: settings.theme_color.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "theme_color".to_string(),
+            value: settings.theme_color.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
-    Setting::set(pool, UpsertSetting {
-        key: "theme_mode".to_string(),
-        value: settings.theme_mode.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "theme_mode".to_string(),
+            value: settings.theme_mode.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
-    Setting::set(pool, UpsertSetting {
-        key: "custom_color".to_string(),
-        value: settings.custom_color.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "custom_color".to_string(),
+            value: settings.custom_color.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(settings)
 }
 
 /// Reset theme settings to defaults
 #[tauri::command]
-pub async fn reset_theme(
-    db_state: State<'_, DbState>,
-) -> Result<ThemeSettings, String> {
+pub async fn reset_theme(db_state: State<'_, DbState>) -> Result<ThemeSettings, String> {
     let guard = db_state.lock().await;
     let db = guard.as_ref().ok_or("Database not initialized")?;
     let pool = db.pool();
@@ -93,20 +113,35 @@ pub async fn reset_theme(
     };
 
     // Save default settings
-    Setting::set(pool, UpsertSetting {
-        key: "theme_color".to_string(),
-        value: defaults.theme_color.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "theme_color".to_string(),
+            value: defaults.theme_color.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
-    Setting::set(pool, UpsertSetting {
-        key: "theme_mode".to_string(),
-        value: defaults.theme_mode.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "theme_mode".to_string(),
+            value: defaults.theme_mode.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
-    Setting::set(pool, UpsertSetting {
-        key: "custom_color".to_string(),
-        value: defaults.custom_color.clone(),
-    }).await.map_err(|e| e.to_string())?;
+    Setting::set(
+        pool,
+        UpsertSetting {
+            key: "custom_color".to_string(),
+            value: defaults.custom_color.clone(),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(defaults)
 }

@@ -28,10 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { LyricLine as LyricLineType } from './types'
 
-const props = defineProps<{
+defineProps<{
   line: LyricLineType
   isActive?: boolean
   isPrev?: boolean

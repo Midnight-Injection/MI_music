@@ -1,5 +1,5 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// Lyrics window state
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,19 +38,15 @@ pub fn get_lyrics_window(app: &AppHandle) -> tauri::Result<tauri::WebviewWindow>
 
 /// Create a new lyrics window
 pub fn create_lyrics_window(app: &AppHandle) -> tauri::Result<tauri::WebviewWindow> {
-    WebviewWindowBuilder::new(
-        app,
-        "lyrics",
-        WebviewUrl::App("lyrics-window.html".into())
-    )
-    .title("Desktop Lyrics")
-    .decorations(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .center()
-    .inner_size(600.0, 120.0)
-    .resizable(true)
-    .build()
+    WebviewWindowBuilder::new(app, "lyrics", WebviewUrl::App("lyrics-window.html".into()))
+        .title("Desktop Lyrics")
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .center()
+        .inner_size(600.0, 120.0)
+        .resizable(true)
+        .build()
 }
 
 /// Toggle lyrics window visibility

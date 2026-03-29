@@ -1,6 +1,6 @@
 /**
  * Music URL Resolver
- * 
+ *
  * Resolves music URLs from user sources when available.
  * Falls back to built-in URLs if no user source is available.
  */
@@ -21,7 +21,7 @@ const SOURCE_ID_MAP: Record<string, MusicSource> = {
 export function useMusicUrlResolver() {
   const userSourceStore = useUserSourceStore()
   const scriptRuntime = useScriptRuntime()
-  
+
   // Convert MusicInfo to ScriptMusicInfo
   function toScriptMusicInfo(music: MusicInfo, sourceId: string): ScriptMusicInfo {
     const info: ScriptMusicInfo = {
@@ -37,7 +37,7 @@ export function useMusicUrlResolver() {
     if (music.copyrightId) info.copyrightId = music.copyrightId
     if (sourceId === 'kg') info.hash = music.hash || music.songmid
     else if (music.songmid) info.songmid = music.songmid
-    
+
     // Add source-specific fields based on the source
     // These would typically come from the search result
     // For now, we extract from the music.id or other fields
@@ -53,36 +53,36 @@ export function useMusicUrlResolver() {
         }
       }
     }
-    
+
     return info
   }
-  
+
   // Resolve music URL from user sources or fallback
-  async function resolveMusicUrl(music: MusicInfo, quality: string = '320k'): Promise<string> {
+  async function resolveMusicUrl(music: MusicInfo, quality = '320k'): Promise<string> {
     // Determine the source type
     let sourceId: MusicSource | undefined
-    
+
     // Check if music has a source field
     if (music.id) {
       // Try to extract source from ID (format: source_songid)
       const sourcePart = music.id.split('_')[0]
       sourceId = SOURCE_ID_MAP[sourcePart]
     }
-    
+
     // If no source found, use default
     if (!sourceId) {
       sourceId = 'kw' // Default to kuwo
     }
-    
+
     // Check if we have enabled user sources
     if (userSourceStore.enabledSources.length > 0) {
       try {
         // Convert to script music info
         const scriptInfo = toScriptMusicInfo(music, sourceId)
-        
+
         // Try to get URL from user sources
         const url = await scriptRuntime.getMusicUrl(sourceId, scriptInfo, quality)
-        
+
         if (url) {
           console.log('[MusicUrlResolver] Got URL from user source:', url)
           return url
@@ -96,12 +96,13 @@ export function useMusicUrlResolver() {
     console.log('[MusicUrlResolver] Using built-in URL:', music.url)
     return music.url
   }
-  
+
   // Check if user sources are available for a given source type
-  function hasUserSourceFor(source: MusicSource): boolean {
+  function hasUserSourceFor(_source: MusicSource): boolean {
+    void _source
     return userSourceStore.enabledSources.length > 0
   }
-  
+
   return {
     resolveMusicUrl,
     hasUserSourceFor,

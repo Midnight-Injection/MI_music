@@ -58,3 +58,10 @@ export async function localizePlaybackUrl(url?: string | null): Promise<string> 
   pendingLocalizations.set(normalized, task)
   return task
 }
+
+export function warmLocalizedPlaybackUrl(url?: string | null): Promise<string> {
+  return localizePlaybackUrl(url).catch((error) => {
+    console.warn('[Playback] Failed to warm localized media URL:', url, error)
+    return String(url || '').trim()
+  })
+}

@@ -4,28 +4,25 @@
 /// 10-band graphic equalizer
 pub struct Equalizer {
     bands: [f32; 10],
-    // Frequency bands in Hz
-    frequencies: [f32; 10],
 }
 
 impl Equalizer {
+    const FREQUENCIES: [f32; 10] = [
+        31.0,    // Band 0: 31 Hz (Sub-bass)
+        62.0,    // Band 1: 62 Hz (Bass)
+        125.0,   // Band 2: 125 Hz (Low bass)
+        250.0,   // Band 3: 250 Hz (Upper bass)
+        500.0,   // Band 4: 500 Hz (Low mids)
+        1000.0,  // Band 5: 1 kHz (Mids)
+        2000.0,  // Band 6: 2 kHz (Upper mids)
+        4000.0,  // Band 7: 4 kHz (Presence)
+        8000.0,  // Band 8: 8 kHz (Highs)
+        16000.0, // Band 9: 16 kHz (Ultra highs)
+    ];
+
     /// Create a new equalizer with flat response
     pub fn new() -> Self {
-        Self {
-            bands: [0.0; 10],
-            frequencies: [
-                31.0,   // Band 0: 31 Hz (Sub-bass)
-                62.0,   // Band 1: 62 Hz (Bass)
-                125.0,  // Band 2: 125 Hz (Low bass)
-                250.0,  // Band 3: 250 Hz (Upper bass)
-                500.0,  // Band 4: 500 Hz (Low mids)
-                1000.0, // Band 5: 1 kHz (Mids)
-                2000.0, // Band 6: 2 kHz (Upper mids)
-                4000.0, // Band 7: 4 kHz (Presence)
-                8000.0, // Band 8: 8 kHz (Highs)
-                16000.0,// Band 9: 16 kHz (Ultra highs)
-            ],
-        }
+        Self { bands: [0.0; 10] }
     }
 
     /// Set gain for a specific band (-12dB to +12dB)
@@ -56,13 +53,13 @@ impl Equalizer {
 
     /// Get band frequencies
     pub fn get_frequencies(&self) -> [f32; 10] {
-        self.frequencies
+        Self::FREQUENCIES
     }
 
     /// Get frequency labels for UI display
     pub fn get_frequency_labels(&self) -> [&'static str; 10] {
         [
-            "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"
+            "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k",
         ]
     }
 

@@ -472,8 +472,8 @@ onUnmounted(() => {
   bottom: 0;
   left: var(--sidebar-width);
   overflow: hidden;
-  color: #f8fafc;
-  background: #06111f;
+  color: #fff7ff;
+  background: transparent;
 }
 
 .player-detail__backdrop,
@@ -484,19 +484,19 @@ onUnmounted(() => {
 
 .player-detail__backdrop {
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.18), transparent 24%);
+    radial-gradient(circle at top left, rgba(124, 82, 255, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(255, 79, 139, 0.14), transparent 24%);
   background-size: cover;
   background-position: center;
   filter: blur(34px) saturate(1.2);
   transform: scale(1.08);
-  opacity: 0.38;
+  opacity: 0.26;
 }
 
 .player-detail__overlay {
   background:
-    linear-gradient(180deg, rgba(3, 9, 22, 0.4) 0%, rgba(3, 9, 22, 0.88) 100%),
-    linear-gradient(135deg, rgba(6, 16, 34, 0.94) 0%, rgba(10, 24, 46, 0.9) 48%, rgba(5, 11, 24, 0.96) 100%);
+    linear-gradient(180deg, rgba(19, 8, 34, 0.52) 0%, rgba(19, 8, 34, 0.76) 100%),
+    linear-gradient(135deg, rgba(31, 14, 52, 0.88) 0%, rgba(22, 10, 37, 0.82) 100%);
 }
 
 .player-detail__shell {
@@ -511,9 +511,11 @@ onUnmounted(() => {
 
 .glass-panel {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(22px);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 8px 18px rgba(4, 2, 14, 0.1);
+  backdrop-filter: blur(18px);
 }
 
 .detail-topbar {
@@ -582,8 +584,8 @@ onUnmounted(() => {
 }
 
 .detail-chip--accent {
-  background: rgba(34, 197, 94, 0.16);
-  color: #c7ffd9;
+  background: rgba(255, 79, 139, 0.16);
+  color: #ffd7e4;
 }
 
 .detail-stage {
@@ -616,7 +618,7 @@ onUnmounted(() => {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 79, 139, 0.2), transparent 70%);
   pointer-events: none;
 }
 
@@ -824,7 +826,7 @@ onUnmounted(() => {
 }
 
 .queue-item.active {
-  background: rgba(34, 197, 94, 0.16);
+  background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.14));
 }
 
 .queue-item__cover {
@@ -889,7 +891,7 @@ onUnmounted(() => {
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #38bdf8, #22c55e);
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
 }
 
 .progress-thumb {
@@ -997,8 +999,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, #22c55e, #38bdf8);
-  box-shadow: 0 18px 36px rgba(34, 197, 94, 0.28);
+  background: linear-gradient(135deg, var(--primary-color), #ff7ca7);
+  box-shadow: 0 18px 36px rgba(255, 79, 139, 0.28);
 }
 
 .mode-icon {
@@ -1007,145 +1009,7 @@ onUnmounted(() => {
 
 .volume-slider-large {
   width: 128px;
-  accent-color: #22c55e;
+  accent-color: var(--primary-color);
 }
 
-@media (max-width: 1380px) {
-  .detail-stage {
-    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 300px);
-  }
-
-  .track-copy__title {
-    font-size: clamp(2.1rem, 3vw, 3.6rem);
-  }
-
-  .lyric-line__text {
-    font-size: clamp(1.14rem, 2vw, 1.9rem);
-  }
-}
-
-@media (max-width: 1160px) {
-  .player-detail {
-    position: relative;
-    min-height: 100%;
-  }
-
-  .player-detail__shell {
-    height: auto;
-    min-height: 100%;
-  }
-
-  .detail-stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .detail-rail {
-    display: grid;
-    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .detail-facts {
-    grid-column: 1 / -1;
-  }
-
-  .lyrics-stage {
-    min-height: 440px;
-  }
-
-  .queue-stage {
-    min-height: 260px;
-  }
-
-  .controls-strip__body {
-    grid-template-columns: 1fr;
-    justify-items: center;
-  }
-
-  .controls-strip__track,
-  .controls-strip__tools {
-    width: 100%;
-  }
-
-  .controls-strip__track {
-    justify-content: flex-start;
-  }
-
-  .controls-strip__tools {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 720px) {
-  .player-detail__shell {
-    padding: 18px 16px 16px;
-    gap: 14px;
-  }
-
-  .detail-topbar {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .detail-topbar__status {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-
-  .detail-rail {
-    grid-template-columns: 1fr;
-  }
-
-  .cover-card {
-    max-width: 320px;
-  }
-
-  .lyrics-stage,
-  .queue-stage,
-  .controls-strip {
-    padding-left: 16px;
-    padding-right: 16px;
-    border-radius: 24px;
-  }
-
-  .lyric-line {
-    max-width: 100%;
-  }
-
-  .lyric-line.active {
-    transform: none;
-  }
-
-  .lyric-line__text {
-    font-size: 1.18rem;
-  }
-
-  .queue-item {
-    grid-template-columns: 48px minmax(0, 1fr);
-  }
-
-  .queue-item__duration {
-    display: none;
-  }
-
-  .control-buttons {
-    gap: 10px;
-  }
-
-  .play-btn-large {
-    width: 58px;
-    height: 58px;
-  }
-
-  .volume-slider-large {
-    width: 100%;
-    max-width: 180px;
-  }
-}
-
-@media (max-width: 900px) {
-  .player-detail {
-    top: 84px;
-    left: 0;
-  }
-}
 </style>

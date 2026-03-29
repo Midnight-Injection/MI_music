@@ -3,8 +3,8 @@
 //! Provides JavaScript execution environment for user music sources.
 //! Uses hidden WebViews to execute LX Music format scripts.
 
-mod manager;
 mod api;
+mod manager;
 
-pub use manager::*;
 pub use api::*;
+pub use manager::*;

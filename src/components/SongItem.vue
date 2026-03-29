@@ -4,7 +4,10 @@
     :class="{ 'is-playing': isPlaying, 'is-hover': isHover }"
     @mouseenter="isHover = true"
     @mouseleave="isHover = false"
+    @focusin="isHover = true"
+    @focusout="isHover = false"
     @dblclick="handlePlay"
+    @contextmenu.prevent="handleContextMenu"
   >
     <div class="song-cover">
       <img v-if="music.cover" :src="music.cover" :alt="music.name" />
@@ -36,18 +39,18 @@
 
     <div class="song-duration">{{ formatDuration(music.duration) }}</div>
 
-    <div v-if="isHover" class="song-actions">
-      <button class="action-btn" @click="handlePlay" title="播放">
+    <div class="song-actions">
+      <button class="action-btn" type="button" @click.stop="handlePlay" title="播放">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5v14l11-7z"/>
         </svg>
       </button>
-      <button class="action-btn" @click="handleAddToList" title="添加到播放列表">
+      <button class="action-btn" type="button" @click.stop="handleAddToPlaylist" title="添加到歌单" aria-label="添加到歌单">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
       </button>
-      <button class="action-btn" @click="handleAddToPlaylist" title="添加到歌单">
+      <button class="action-btn" type="button" @click.stop="handleAddToList" title="添加到播放列表" aria-label="添加到播放列表">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
         </svg>
@@ -72,6 +75,7 @@ const emit = defineEmits<{
   play: [music: MusicInfo]
   addToList: [music: MusicInfo]
   addToPlaylist: [music: MusicInfo]
+  contextMenu: [event: MouseEvent, music: MusicInfo]
 }>()
 
 const playerStore = usePlayerStore()
@@ -100,6 +104,10 @@ function handleAddToPlaylist() {
   emit('addToPlaylist', props.music)
 }
 
+function handleContextMenu(event: MouseEvent) {
+  emit('contextMenu', event, props.music)
+}
+
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
@@ -111,31 +119,37 @@ function formatDuration(seconds: number): string {
 .song-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: background-color 0.2s, transform 0.2s ease;
+  padding: 11px 14px;
+  border-radius: 20px;
+  transition: background-color 0.2s, transform 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
 
   &:hover,
   &.is-hover {
-    background-color: var(--bg-hover);
-    transform: translateX(4px);
+    background-color: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.16);
+    transform: translateY(-1px);
   }
 
   &.is-playing {
+    border-color: rgba(255, 255, 255, 0.18);
+
     .song-name {
-      color: var(--primary-color);
+      color: #fff7ff;
     }
   }
 
   .song-cover {
     position: relative;
-    width: 48px;
-    height: 48px;
-    border-radius: 4px;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.1);
     margin-right: 12px;
+    box-shadow: 0 14px 28px rgba(27, 14, 61, 0.18);
     flex-shrink: 0;
 
     img {
@@ -164,7 +178,7 @@ function formatDuration(seconds: number): string {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(40, 24, 78, 0.52);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -185,22 +199,23 @@ function formatDuration(seconds: number): string {
     .song-name-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       min-width: 0;
       margin-bottom: 4px;
     }
 
     .song-name {
-      font-size: 14px;
+      font-size: 0.92rem;
       color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       min-width: 0;
+      font-weight: 600;
     }
 
     .song-artist {
-      font-size: 12px;
+      font-size: 0.74rem;
       color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
@@ -211,9 +226,9 @@ function formatDuration(seconds: number): string {
       flex-shrink: 0;
       padding: 2px 8px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--primary-light) 88%, transparent);
-      color: var(--primary-color);
-      font-size: 11px;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff6ff;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.04em;
     }
@@ -222,17 +237,17 @@ function formatDuration(seconds: number): string {
       flex-shrink: 0;
       padding: 2px 8px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
-      color: var(--text-secondary);
-      font-size: 11px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.02em;
     }
   }
 
   .song-album {
-    width: 200px;
-    font-size: 13px;
+    width: 180px;
+    font-size: 0.76rem;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
@@ -241,8 +256,8 @@ function formatDuration(seconds: number): string {
   }
 
   .song-duration {
-    width: 60px;
-    font-size: 12px;
+    width: 56px;
+    font-size: 0.74rem;
     color: var(--text-secondary);
     text-align: right;
     margin-right: 16px;
@@ -252,14 +267,16 @@ function formatDuration(seconds: number): string {
     display: flex;
     gap: 8px;
     opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
     transition: opacity 0.2s;
 
     .action-btn {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border: none;
-      border-radius: 4px;
-      background: var(--bg-secondary);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.12);
       color: var(--text-primary);
       cursor: pointer;
       display: flex;
@@ -268,12 +285,12 @@ function formatDuration(seconds: number): string {
       transition: background-color 0.2s, transform 0.1s;
 
       svg {
-        width: 16px;
-        height: 16px;
+        width: 15px;
+        height: 15px;
       }
 
       &:hover {
-        background: var(--primary-color);
+        background: rgba(255, 255, 255, 0.2);
         color: white;
       }
 
@@ -285,6 +302,14 @@ function formatDuration(seconds: number): string {
 
   &:hover .song-actions {
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  &.is-hover .song-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 }
 </style>

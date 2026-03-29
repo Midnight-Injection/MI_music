@@ -2,21 +2,22 @@
 // This module handles API calls to various music sources
 
 pub mod helpers;
-mod source;
 pub mod kugou;
-pub mod migu;
 pub mod kuwo;
-pub mod qq;
+pub mod migu;
 pub mod netease;
+pub mod qq;
+mod source;
 
-pub use source::{
-    MusicSource, MusicInfo, LyricInfo, Quality, QualityInfo, MusicSourceError, Result
-};
 pub use kugou::KugouSource;
+pub use kuwo::KuwoSource;
 pub use migu::MiguSource;
 pub use netease::NeteaseSource;
 pub use qq::QqSource;
-pub use kuwo::KuwoSource;
+pub use source::{
+    LyricInfo, MusicInfo, MusicSource, Quality, QualityInfo, SourcePlaylistDetail,
+    SourcePlaylistSummary,
+};
 
 use std::collections::HashMap;
 
@@ -47,7 +48,10 @@ impl SourceRegistry {
 
     /// Get all registered source names
     pub fn list_sources(&self) -> Vec<String> {
-        self.sources.keys().cloned().collect()
+        self.sources
+            .values()
+            .map(|source| source.source_name().to_string())
+            .collect()
     }
 
     /// Check if a source is registered

@@ -50,7 +50,9 @@ interface SearchRequestInfo {
   limit: number
 }
 
-interface RequestEvent<TInfo = MusicUrlRequestInfo | LyricRequestInfo | SearchRequestInfo | Record<string, any>> {
+interface RequestEvent<
+  TInfo = MusicUrlRequestInfo | LyricRequestInfo | SearchRequestInfo | Record<string, any>,
+> {
   action: ScriptAction
   source: MusicSource
   info: TInfo
@@ -74,6 +76,17 @@ export interface ScriptCapability {
 const lxInstances = new Map<string, ScriptInstance>()
 const SCRIPT_MUSIC_URL_TIMEOUT_MS = 12_000
 const SCRIPT_SEARCH_TIMEOUT_MS = 8_000
+const SCRIPT_MUSIC_URL_CACHE_TTL_MS = 10 * 60 * 1000
+const SCRIPT_MUSIC_URL_FAILURE_TTL_MS = 20 * 1000
+
+interface ScriptMusicUrlCacheRecord {
+  error?: string
+  expiresAt: number
+  url: string | null
+}
+
+const scriptMusicUrlCache = new Map<string, ScriptMusicUrlCacheRecord>()
+const pendingMusicUrlRequests = new Map<string, Promise<string | null>>()
 
 function serializeError(error: unknown): string {
   if (error instanceof Error) return error.message || error.name || 'Unknown error'
@@ -148,10 +161,55 @@ function extractMusicUrl(result: unknown): string | null {
   return null
 }
 
+function normalizeCacheText(value?: string | number | null) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function buildScriptMusicUrlCacheKey(
+  sourceId: string,
+  musicSource: MusicSource,
+  musicInfo: ScriptMusicInfo,
+  quality: string
+) {
+  const identity = [
+    normalizeCacheText(musicInfo.songmid),
+    normalizeCacheText(musicInfo.hash),
+    normalizeCacheText(musicInfo.copyrightId),
+    normalizeCacheText(musicInfo.albumId),
+    normalizeCacheText(musicInfo.name),
+    normalizeCacheText(musicInfo.singer),
+    Number.isFinite(musicInfo.interval) ? Math.round(Number(musicInfo.interval)) : 0,
+  ].join('|')
+
+  return `${sourceId}:${musicSource}:${quality}:${identity}`
+}
+
+function readScriptMusicUrlCache(cacheKey: string): ScriptMusicUrlCacheRecord | null {
+  const record = scriptMusicUrlCache.get(cacheKey)
+  if (!record) return null
+
+  if (record.expiresAt <= Date.now()) {
+    scriptMusicUrlCache.delete(cacheKey)
+    return null
+  }
+
+  return record
+}
+
+function writeScriptMusicUrlCache(cacheKey: string, url: string | null, error?: string) {
+  scriptMusicUrlCache.set(cacheKey, {
+    url,
+    error,
+    expiresAt: Date.now() + (url ? SCRIPT_MUSIC_URL_CACHE_TTL_MS : SCRIPT_MUSIC_URL_FAILURE_TTL_MS),
+  })
+}
+
 function buildCapabilityFromSource(source: Pick<UserSourceScript, 'sources'>): ScriptCapability {
   const channels = Object.keys(source.sources || {})
   const actionSet = new Set(
-    Object.values(source.sources || {}).flatMap(item => item.actions || []),
+    Object.values(source.sources || {}).flatMap((item) => item.actions || [])
   )
 
   return {
@@ -216,7 +274,7 @@ function normalizeRequestHeaders(headers?: Record<string, unknown>): Record<stri
 
 function hasHeader(headers: Record<string, string>, name: string): boolean {
   const target = name.toLowerCase()
-  return Object.keys(headers).some(key => key.toLowerCase() === target)
+  return Object.keys(headers).some((key) => key.toLowerCase() === target)
 }
 
 function serializeFormValue(value: unknown): string {
@@ -259,7 +317,9 @@ function serializeFormBody(form: unknown): string | null {
   return String(form)
 }
 
-function serializeFormDataBody(formData: unknown): { contentType: string; body: { kind: 'base64'; data: string } } | null {
+function serializeFormDataBody(
+  formData: unknown
+): { contentType: string; body: { kind: 'base64'; data: string } } | null {
   if (typeof FormData === 'undefined' || !(formData instanceof FormData)) {
     return null
   }
@@ -277,8 +337,8 @@ function serializeFormDataBody(formData: unknown): { contentType: string; body: 
       encoder.encode(
         `--${boundary}\r\n` +
           `Content-Disposition: form-data; name="${key}"\r\n\r\n` +
-          `${rawValue}\r\n`,
-      ),
+          `${rawValue}\r\n`
+      )
     )
   }
 
@@ -310,7 +370,12 @@ function serializeRequestBody(body: unknown): { kind: 'text' | 'base64'; data: s
     return { kind: 'base64', data: btoa(String.fromCharCode(...new Uint8Array(body))) }
   }
   if (ArrayBuffer.isView(body)) {
-    return { kind: 'base64', data: btoa(String.fromCharCode(...new Uint8Array(body.buffer, body.byteOffset, body.byteLength))) }
+    return {
+      kind: 'base64',
+      data: btoa(
+        String.fromCharCode(...new Uint8Array(body.buffer, body.byteOffset, body.byteLength))
+      ),
+    }
   }
   return { kind: 'text', data: typeof body === 'object' ? JSON.stringify(body) : String(body) }
 }
@@ -424,6 +489,7 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
   const utils = {
     buffer: {
       from(data: any, _encoding?: string) {
+        void _encoding
         if (typeof data === 'string') return new TextEncoder().encode(data)
         return new Uint8Array(data)
       },
@@ -433,7 +499,7 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
         }
         if (encoding === 'hex') {
           return Array.from(buf)
-            .map(item => item.toString(16).padStart(2, '0'))
+            .map((item) => item.toString(16).padStart(2, '0'))
             .join('')
         }
         return new TextDecoder('utf-8').decode(buf)
@@ -457,10 +523,19 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
        * @param iv Initialization vector (optional)
        * @returns Encrypted data as WordArray
        */
-      aesEncrypt(buffer: Uint8Array | string, mode: string, key: Uint8Array | string, iv?: Uint8Array | string): any {
+      aesEncrypt(
+        buffer: Uint8Array | string,
+        mode: string,
+        key: Uint8Array | string,
+        iv?: Uint8Array | string
+      ): any {
         try {
-          const data = typeof buffer === 'string' ? buffer : CryptoJS.lib.WordArray.create(buffer as any)
-          const keyWordArray = typeof key === 'string' ? CryptoJS.enc.Utf8.parse(key) : CryptoJS.lib.WordArray.create(key as any)
+          const data =
+            typeof buffer === 'string' ? buffer : CryptoJS.lib.WordArray.create(buffer as any)
+          const keyWordArray =
+            typeof key === 'string'
+              ? CryptoJS.enc.Utf8.parse(key)
+              : CryptoJS.lib.WordArray.create(key as any)
           const ivWordArray = iv
             ? typeof iv === 'string'
               ? CryptoJS.enc.Utf8.parse(iv)
@@ -469,12 +544,23 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
 
           let encrypted: any
           if (mode.toLowerCase() === 'cbc') {
-            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, { iv: ivWordArray, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 })
+            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, {
+              iv: ivWordArray,
+              mode: CryptoJS.mode.CBC,
+              padding: CryptoJS.pad.Pkcs7,
+            })
           } else if (mode.toLowerCase() === 'ecb') {
-            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 })
+            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, {
+              mode: CryptoJS.mode.ECB,
+              padding: CryptoJS.pad.Pkcs7,
+            })
           } else {
             // Default to CBC
-            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, { iv: ivWordArray, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 })
+            encrypted = CryptoJS.AES.encrypt(data, keyWordArray, {
+              iv: ivWordArray,
+              mode: CryptoJS.mode.CBC,
+              padding: CryptoJS.pad.Pkcs7,
+            })
           }
 
           return encrypted.ciphertext
@@ -501,8 +587,12 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
        * @param key RSA public key
        * @throws Error - RSA not commonly used in music scripts
        */
-      rsaEncrypt(buffer: Uint8Array | string, key: string): never {
-        throw new Error('RSA encryption not supported in browser context. This script may not be compatible.')
+      rsaEncrypt(_buffer: Uint8Array | string, _key: string): never {
+        void _buffer
+        void _key
+        throw new Error(
+          'RSA encryption not supported in browser context. This script may not be compatible.'
+        )
       },
     },
   }
@@ -526,7 +616,7 @@ function createLxApi(_sourceId: string, source: UserSourceScript) {
       rawScript: source.script,
     },
     _handlers: handlers,
-    _sources: sources
+    _sources: sources,
   }
 
   return lxApi
@@ -562,15 +652,19 @@ async function initScript(source: UserSourceScript): Promise<ScriptInstance | nu
       // Wait for async initialization in scripts
       // Scripts should call lx.send('inited', { sources, status }) when ready
       // Give more time for heavily obfuscated scripts
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       const sourceKeys = Object.keys(lx._sources)
       const handlerCount = lx._handlers.length
 
-      console.log(`[ScriptRuntime] Script ${sourceId} loaded: ${sourceKeys.length} sources (${sourceKeys.join(', ') || 'none'}), ${handlerCount} handlers`)
+      console.log(
+        `[ScriptRuntime] Script ${sourceId} loaded: ${sourceKeys.length} sources (${sourceKeys.join(', ') || 'none'}), ${handlerCount} handlers`
+      )
 
       if (handlerCount === 0) {
-        console.warn(`[ScriptRuntime] Script ${sourceId} registered no handlers - script may not be compatible`)
+        console.warn(
+          `[ScriptRuntime] Script ${sourceId} registered no handlers - script may not be compatible`
+        )
       }
 
       const instance: ScriptInstance = {
@@ -597,12 +691,6 @@ async function initScript(source: UserSourceScript): Promise<ScriptInstance | nu
   }
 }
 
-function getSupportedChannels(instance: ScriptInstance, action?: ScriptAction): MusicSource[] {
-  return Object.entries(instance.sources)
-    .filter(([, source]) => !action || source.actions?.includes(action))
-    .map(([channel]) => channel as MusicSource)
-}
-
 function extractSearchItems(result: any): any[] {
   if (Array.isArray(result)) return result
   if (result && typeof result === 'object') {
@@ -618,66 +706,100 @@ async function getMusicUrlFromScript(
   source: UserSourceScript,
   musicSource: MusicSource,
   musicInfo: ScriptMusicInfo,
-  quality = '320k',
+  quality = '320k'
 ): Promise<string | null> {
-  try {
-    const existingInstance = lxInstances.get(source.id)
-    const instance = existingInstance ?? await initScript(source)
-
-    if (!instance || instance.handlers.length === 0) return null
-    const availableSources = Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
-    if (!availableSources[musicSource] || !availableSources[musicSource].actions?.includes('musicUrl')) return null
-
-    const event: RequestEvent<MusicUrlRequestInfo> = {
-      action: 'musicUrl',
-      source: musicSource,
-      info: {
-        type: quality,
-        musicInfo,
-      },
-    }
-
-    let lastHandlerError: unknown = null
-    for (const handler of instance.handlers) {
-      try {
-        const result = await withTimeout(
-          handler(event),
-          SCRIPT_MUSIC_URL_TIMEOUT_MS,
-          `musicUrl ${source.name}/${musicSource}/${quality}`,
-        )
-        const url = extractMusicUrl(result)
-        if (url) {
-          console.log(
-            `[ScriptRuntime] Got URL from ${source.id}/${musicSource}/${quality}:`,
-            url,
-          )
-          return url
-        }
-
-        if (result != null) {
-          console.warn(
-            `[ScriptRuntime] Handler returned non-url result for ${source.id}/${musicSource}/${quality}:`,
-            result,
-          )
-        }
-      } catch (error) {
-        lastHandlerError = error
-        console.error(
-          `[ScriptRuntime] Handler error in ${source.id} (${source.name}) for ${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
-          serializeError(error),
-        )
-      }
-    }
-
-    if (lastHandlerError) throw lastHandlerError
+  const cacheKey = buildScriptMusicUrlCacheKey(source.id, musicSource, musicInfo, quality)
+  const cached = readScriptMusicUrlCache(cacheKey)
+  if (cached) {
+    if (cached.url) return cached.url
+    if (cached.error) throw new Error(cached.error)
     return null
-  } catch (error) {
-    console.error(
-      `[ScriptRuntime] getMusicUrl failed for ${source.id}/${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
-      serializeError(error),
-    )
-    throw error
   }
+
+  const pending = pendingMusicUrlRequests.get(cacheKey)
+  if (pending) return pending
+
+  const task = (async () => {
+    try {
+      const existingInstance = lxInstances.get(source.id)
+      const instance = existingInstance ?? (await initScript(source))
+
+      if (!instance || instance.handlers.length === 0) {
+        writeScriptMusicUrlCache(cacheKey, null)
+        return null
+      }
+      const availableSources =
+        Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
+      if (
+        !availableSources[musicSource] ||
+        !availableSources[musicSource].actions?.includes('musicUrl')
+      ) {
+        writeScriptMusicUrlCache(cacheKey, null)
+        return null
+      }
+
+      const event: RequestEvent<MusicUrlRequestInfo> = {
+        action: 'musicUrl',
+        source: musicSource,
+        info: {
+          type: quality,
+          musicInfo,
+        },
+      }
+
+      let lastHandlerError: unknown = null
+      for (const handler of instance.handlers) {
+        try {
+          const result = await withTimeout(
+            handler(event),
+            SCRIPT_MUSIC_URL_TIMEOUT_MS,
+            `musicUrl ${source.name}/${musicSource}/${quality}`
+          )
+          const url = extractMusicUrl(result)
+          if (url) {
+            console.log(`[ScriptRuntime] Got URL from ${source.id}/${musicSource}/${quality}:`, url)
+            writeScriptMusicUrlCache(cacheKey, url)
+            return url
+          }
+
+          if (result != null) {
+            console.warn(
+              `[ScriptRuntime] Handler returned non-url result for ${source.id}/${musicSource}/${quality}:`,
+              result
+            )
+          }
+        } catch (error) {
+          lastHandlerError = error
+          console.error(
+            `[ScriptRuntime] Handler error in ${source.id} (${source.name}) for ${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+            serializeError(error)
+          )
+        }
+      }
+
+      if (lastHandlerError) {
+        const message = serializeError(lastHandlerError)
+        writeScriptMusicUrlCache(cacheKey, null, message)
+        throw lastHandlerError
+      }
+
+      writeScriptMusicUrlCache(cacheKey, null)
+      return null
+    } catch (error) {
+      const message = serializeError(error)
+      console.error(
+        `[ScriptRuntime] getMusicUrl failed for ${source.id}/${musicSource}/${quality}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
+        message
+      )
+      writeScriptMusicUrlCache(cacheKey, null, message)
+      throw error
+    } finally {
+      pendingMusicUrlRequests.delete(cacheKey)
+    }
+  })()
+
+  pendingMusicUrlRequests.set(cacheKey, task)
+  return task
 }
 
 async function searchFromScript(
@@ -685,20 +807,21 @@ async function searchFromScript(
   keyword: string,
   page = 1,
   limit = 30,
-  preferredChannel?: MusicSource,
+  preferredChannel?: MusicSource
 ): Promise<any[]> {
   try {
     const existingInstance = lxInstances.get(source.id)
-    const instance = existingInstance ?? await initScript(source)
+    const instance = existingInstance ?? (await initScript(source))
 
     if (!instance || instance.handlers.length === 0) return []
 
-    const availableSources = Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
+    const availableSources =
+      Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
     const supportedChannels = Object.entries(availableSources)
       .filter(([, item]) => item.actions?.includes('search'))
       .map(([channel]) => channel as MusicSource)
     const searchChannels = preferredChannel
-      ? supportedChannels.filter(channel => channel === preferredChannel)
+      ? supportedChannels.filter((channel) => channel === preferredChannel)
       : supportedChannels
 
     if (searchChannels.length === 0) return []
@@ -716,9 +839,9 @@ async function searchFromScript(
           const handlerResult = await withTimeout(
             handler(event),
             SCRIPT_SEARCH_TIMEOUT_MS,
-            `search ${source.name}/${channel}/${keyword}`,
+            `search ${source.name}/${channel}/${keyword}`
           )
-          const items = extractSearchItems(handlerResult).map(item => {
+          const items = extractSearchItems(handlerResult).map((item) => {
             if (item && typeof item === 'object' && !Array.isArray(item)) {
               return {
                 ...item,
@@ -731,7 +854,7 @@ async function searchFromScript(
         } catch (error) {
           console.error(
             `[ScriptRuntime] Search handler error in ${source.id}/${channel}/${keyword}:`,
-            serializeError(error),
+            serializeError(error)
           )
         }
       }
@@ -747,15 +870,17 @@ async function searchFromScript(
 async function getLyricFromScript(
   source: UserSourceScript,
   musicSource: MusicSource,
-  musicInfo: ScriptMusicInfo,
+  musicInfo: ScriptMusicInfo
 ): Promise<unknown | null> {
   try {
     const existingInstance = lxInstances.get(source.id)
-    const instance = existingInstance ?? await initScript(source)
+    const instance = existingInstance ?? (await initScript(source))
 
     if (!instance || instance.handlers.length === 0) return null
-    const availableSources = Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
-    if (!availableSources[musicSource] || !availableSources[musicSource].actions?.includes('lyric')) return null
+    const availableSources =
+      Object.keys(instance.sources).length > 0 ? instance.sources : source.sources
+    if (!availableSources[musicSource] || !availableSources[musicSource].actions?.includes('lyric'))
+      return null
 
     const event: RequestEvent<LyricRequestInfo> = {
       action: 'lyric',
@@ -771,7 +896,7 @@ async function getLyricFromScript(
         const result = await withTimeout(
           handler(event),
           SCRIPT_MUSIC_URL_TIMEOUT_MS,
-          `lyric ${source.name}/${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}`,
+          `lyric ${source.name}/${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}`
         )
 
         if (result != null) {
@@ -781,7 +906,7 @@ async function getLyricFromScript(
         lastHandlerError = error
         console.error(
           `[ScriptRuntime] Lyric handler error in ${source.id} (${source.name}) for ${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
-          serializeError(error),
+          serializeError(error)
         )
       }
     }
@@ -791,7 +916,7 @@ async function getLyricFromScript(
   } catch (error) {
     console.error(
       `[ScriptRuntime] getLyric failed for ${source.id}/${musicSource}/${musicInfo.songmid || musicInfo.hash || musicInfo.copyrightId || musicInfo.name}:`,
-      serializeError(error),
+      serializeError(error)
     )
     throw error
   }
@@ -807,23 +932,29 @@ export function useScriptRuntime() {
     if (!userSourceStore.isLoaded) {
       console.log('[ScriptRuntime] Loading user sources...')
       await userSourceStore.loadUserSources()
-      console.log('[ScriptRuntime] User sources loaded, enabledSources:', userSourceStore.enabledSources.length)
+      console.log(
+        '[ScriptRuntime] User sources loaded, enabledSources:',
+        userSourceStore.enabledSources.length
+      )
     }
 
     isInitialized.value = true
-    console.log('[ScriptRuntime] Initialized runtime state; enabledSources:', userSourceStore.enabledSources.length)
+    console.log(
+      '[ScriptRuntime] Initialized runtime state; enabledSources:',
+      userSourceStore.enabledSources.length
+    )
   }
 
   async function getMusicUrl(
     musicSource: MusicSource,
     musicInfo: ScriptMusicInfo,
     quality = '320k',
-    preferredSourceId?: string,
+    preferredSourceId?: string
   ): Promise<string | null> {
     await initialize()
 
     const sources = preferredSourceId
-      ? userSourceStore.enabledSources.filter(source => source.id === preferredSourceId)
+      ? userSourceStore.enabledSources.filter((source) => source.id === preferredSourceId)
       : userSourceStore.enabledSources
 
     for (const source of sources) {
@@ -839,11 +970,11 @@ export function useScriptRuntime() {
     keyword: string,
     page = 1,
     limit = 30,
-    preferredChannel?: MusicSource,
+    preferredChannel?: MusicSource
   ): Promise<any[]> {
     await initialize()
 
-    const source = userSourceStore.enabledSources.find(item => item.id === sourceId)
+    const source = userSourceStore.enabledSources.find((item) => item.id === sourceId)
     if (!source) return []
 
     return searchFromScript(source, keyword, page, limit, preferredChannel)
@@ -852,11 +983,11 @@ export function useScriptRuntime() {
   async function getLyric(
     sourceId: string,
     musicSource: MusicSource,
-    musicInfo: ScriptMusicInfo,
+    musicInfo: ScriptMusicInfo
   ): Promise<unknown | null> {
     await initialize()
 
-    const source = userSourceStore.enabledSources.find(item => item.id === sourceId)
+    const source = userSourceStore.enabledSources.find((item) => item.id === sourceId)
     if (!source) return null
 
     return getLyricFromScript(source, musicSource, musicInfo)
@@ -882,6 +1013,8 @@ export function useScriptRuntime() {
 
   function cleanup() {
     lxInstances.clear()
+    scriptMusicUrlCache.clear()
+    pendingMusicUrlRequests.clear()
     isInitialized.value = false
   }
 

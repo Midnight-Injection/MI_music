@@ -9,7 +9,9 @@
     <div class="header__actions">
       <label v-if="!isSearchPage" class="header__search glass-panel">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.44 1.41-1.41-4.44-4.44A6.5 6.5 0 0 0 10.5 4Z M6 10.5a4.5 4.5 0 1 1 9 0a4.5 4.5 0 0 1-9 0Z" />
+          <path
+            d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.44 1.41-1.41-4.44-4.44A6.5 6.5 0 0 0 10.5 4Z M6 10.5a4.5 4.5 0 1 1 9 0a4.5 4.5 0 0 1-9 0Z"
+          />
         </svg>
         <input
           v-model="searchText"
@@ -61,44 +63,50 @@ function handleSearch() {
 .header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 16px;
-  min-height: var(--header-height);
-  padding: 18px 24px 8px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 4px 16px 0;
 }
 
 .header__title-block {
   min-width: 0;
 
   h2 {
-    margin-top: 8px;
-    font-size: 1.3rem;
+    margin-top: 1px;
+    font-size: 1.1rem;
     letter-spacing: -0.04em;
   }
 
   p {
-    margin-top: 6px;
+    margin-top: 1px;
     color: var(--text-secondary);
-    font-size: 0.92rem;
+    font-size: 0.74rem;
   }
 }
 
 .header__actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
 }
 
 .header__search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: min(420px, 34vw);
-  height: 46px;
-  padding: 0 14px;
+  gap: 8px;
+  width: 320px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 12px;
   border-radius: 999px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
 
   svg {
     width: 16px;
@@ -123,14 +131,16 @@ function handleSearch() {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  min-width: 120px;
-  max-width: 180px;
-  min-height: 46px;
-  padding: 0 14px;
+  min-width: 122px;
+  flex: 0 1 182px;
+  max-width: 182px;
+  min-height: 40px;
+  padding: 0 12px;
   border-radius: 999px;
-  background: transparent;
+  background: linear-gradient(135deg, rgba(124, 82, 255, 0.16), rgba(255, 79, 139, 0.12));
   border: 1px solid var(--border-color);
   color: var(--text-primary);
+  box-shadow: none;
 
   strong,
   span {
@@ -142,31 +152,14 @@ function handleSearch() {
   }
 
   strong {
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     font-weight: 700;
   }
 
   span {
     margin-top: 2px;
     color: var(--text-secondary);
-    font-size: 0.74rem;
-  }
-}
-
-@media (max-width: 900px) {
-  .header {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    padding: 0 14px 8px;
-  }
-
-  .header__actions {
-    width: 100%;
-  }
-
-  .header__search {
-    flex: 1;
-    width: auto;
+    font-size: 0.66rem;
   }
 }
 </style>

@@ -45,7 +45,7 @@ const leaders = [
 <style scoped lang="scss">
 .leaderboard-table {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .leader-row {
@@ -53,15 +53,16 @@ const leaders = [
   grid-template-columns: 72px minmax(0, 1fr) 72px;
   align-items: center;
   gap: 16px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .leader-row__rank {
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  color: var(--primary-color);
+  color: var(--text-primary);
 }
 
 .leader-row__meta {
@@ -73,6 +74,7 @@ const leaders = [
   span {
     margin-top: 6px;
     color: var(--text-secondary);
+    font-size: 0.84rem;
   }
 }
 
@@ -80,13 +82,13 @@ const leaders = [
   justify-self: end;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--error-color);
+  background: rgba(255, 107, 129, 0.12);
+  color: #ffc5cf;
   font-weight: 700;
 
   &.up {
     background: rgba(34, 197, 94, 0.12);
-    color: var(--success-color);
+    color: #baf7cd;
   }
 }
 </style>

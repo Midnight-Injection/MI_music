@@ -63,9 +63,9 @@ pub struct InternalPlayerState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LoopMode {
-    None,       // Play through queue once
-    All,        // Loop the entire queue
-    One,        // Loop current track
+    None, // Play through queue once
+    All,  // Loop the entire queue
+    One,  // Loop current track
 }
 
 impl Default for InternalPlayerState {

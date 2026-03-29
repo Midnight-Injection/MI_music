@@ -46,10 +46,7 @@ pub fn get_current_line(
 
 /// Load lyrics for current track
 #[tauri::command]
-pub fn load_lyrics(
-    lrc_content: String,
-    state: State<Mutex<LyricsState>>,
-) -> Result<(), String> {
+pub fn load_lyrics(lrc_content: String, state: State<Mutex<LyricsState>>) -> Result<(), String> {
     let lyrics = parse_lrc(&lrc_content).map_err(|e| e.to_string())?;
 
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
@@ -60,10 +57,7 @@ pub fn load_lyrics(
 
 /// Set lyrics offset in milliseconds
 #[tauri::command]
-pub fn set_lyrics_offset(
-    offset_ms: i64,
-    state: State<Mutex<LyricsState>>,
-) -> Result<(), String> {
+pub fn set_lyrics_offset(offset_ms: i64, state: State<Mutex<LyricsState>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     let sync = state_guard
         .sync
@@ -100,7 +94,9 @@ pub fn reset_lyrics(state: State<Mutex<LyricsState>>) -> Result<(), String> {
 
 /// Get all lyrics lines
 #[tauri::command]
-pub fn get_all_lyrics(state: State<Mutex<LyricsState>>) -> Result<Vec<crate::lyrics::LyricLine>, String> {
+pub fn get_all_lyrics(
+    state: State<Mutex<LyricsState>>,
+) -> Result<Vec<crate::lyrics::LyricLine>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     let sync = state_guard
         .sync

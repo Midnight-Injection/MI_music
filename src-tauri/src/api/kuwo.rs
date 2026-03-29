@@ -37,7 +37,7 @@ struct KuwoSearchResponse {
     #[serde(rename = "abslist")]
     abslist: Vec<KuwoSongInfo>,
     #[serde(rename = "TOTAL")]
-    total: Option<String>,
+    _total: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,7 +63,8 @@ struct KuwoSongInfo {
 struct KuwoUrlResponse {
     code: i32,
     url: Option<String>,
-    msg: String,
+    #[serde(rename = "msg")]
+    _msg: String,
 }
 
 /// Kuwo lyrics response structure
@@ -163,7 +164,9 @@ impl KuwoSource {
         let pattern = format!("{}:", key);
         info.find(&pattern).and_then(|pos| {
             let start = pos + pattern.len();
-            let end = info[start..].find(',').unwrap_or_else(|| info[start..].len());
+            let end = info[start..]
+                .find(',')
+                .unwrap_or_else(|| info[start..].len());
             Some(info[start..start + end].to_string())
         })
     }
@@ -290,17 +293,16 @@ impl MusicSource for KuwoSource {
         let alt_text = alt_text.trim();
 
         if alt_text.is_empty() || alt_text.contains("error") || alt_text.contains("not found") {
-            return Err(super::source::MusicSourceError::SongNotFound(song_id.to_string()));
+            return Err(super::source::MusicSourceError::SongNotFound(
+                song_id.to_string(),
+            ));
         }
         Ok(alt_text.to_string())
     }
 
     async fn get_lyric(&self, song_id: &str) -> Result<LyricInfo> {
         let encrypted_params = Self::encrypt_lyric_params(song_id, false);
-        let url = format!(
-            "http://newlyric.kuwo.cn/newlyric.lrc?{}",
-            encrypted_params
-        );
+        let url = format!("http://newlyric.kuwo.cn/newlyric.lrc?{}", encrypted_params);
 
         let response = self.client.get(&url).send().await?;
 

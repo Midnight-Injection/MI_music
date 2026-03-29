@@ -174,12 +174,12 @@ function getStatusText(status: string): string {
 .download-item {
   display: flex;
   gap: 12px;
-  padding: 12px;
-  background: var(--bg-primary);
-  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
   margin-bottom: 8px;
   transition: all 0.2s ease;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 
   &:hover {
     border-color: var(--border-color);
@@ -201,7 +201,7 @@ function getStatusText(status: string): string {
   .item-cover {
     width: 56px;
     height: 56px;
-    border-radius: 6px;
+    border-radius: 16px;
     overflow: hidden;
     flex-shrink: 0;
     background: var(--bg-secondary);
@@ -225,7 +225,7 @@ function getStatusText(status: string): string {
       font-size: 24px;
       font-weight: bold;
       color: var(--text-secondary);
-      background: linear-gradient(135deg, var(--primary-color), var(--primary-color-light));
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     }
   }
 
@@ -276,7 +276,7 @@ function getStatusText(status: string): string {
 
         .progress-fill {
           height: 100%;
-          background: linear-gradient(90deg, var(--primary-color), var(--primary-color-light));
+          background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
           border-radius: 3px;
           transition: width 0.3s ease;
           position: relative;
