@@ -103,6 +103,12 @@ pub struct MusicInfo {
     /// QQ media mid required by some resolvers
     #[serde(skip_serializing_if = "Option::is_none")]
     pub str_media_mid: Option<String>,
+    /// QQ numeric song id used by some third-party aggregators
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub song_id: Option<String>,
+    /// QQ search msg id used by some third-party aggregators
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub msg_id: Option<String>,
     /// Migu copyright ID used by some resolvers
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copyright_id: Option<String>,

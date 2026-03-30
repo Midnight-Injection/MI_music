@@ -8,15 +8,22 @@ import type {
 import { useSettingsStore } from '../../store/settings'
 import { searchBuiltInTracks as searchBuiltInTracksByChannel } from './providers'
 import {
-  compareSearchTracks,
   decorateTrackForPlayback,
 } from './normalize'
+import {
+  createAggregateSearchStrategy,
+  createSingleChannelSearchStrategy,
+} from './strategies'
 import type { SearchRuntimeSnapshot, UserSourceOption } from './types'
-import type { SearchRequest } from './types'
+import type {
+  AggregateSearchHandlers,
+  SearchRequest,
+  SearchExecutionStrategy,
+} from './types'
 
 const AGGREGATE_CHANNELS: BuiltInSearchChannel[] = ['tx', 'wy', 'kg', 'kw', 'mg']
 const DEFAULT_SEARCH_TIMEOUT_MS = 12000
-const AGGREGATE_SEARCH_TIMEOUT_MS = 5000
+let cachedRuntimeSnapshot: SearchRuntimeSnapshot | null = null
 
 function isTauriContext(): boolean {
   return typeof window !== 'undefined' && '__TAURI__' in window
@@ -58,7 +65,14 @@ export function buildSearchResultPayload(
 
 export function useSearchService() {
   const settingsStore = useSettingsStore()
-  void settingsStore
+
+  function getEnabledBuiltInChannels(): BuiltInSearchChannel[] {
+    return settingsStore
+      .getEnabledChannelIds()
+      .filter((channel): channel is BuiltInSearchChannel =>
+        AGGREGATE_CHANNELS.includes(channel as BuiltInSearchChannel),
+      )
+  }
 
   async function searchBuiltInChannel(
     channel: BuiltInSearchChannel,
@@ -76,17 +90,26 @@ export function useSearchService() {
       decorateTrackForPlayback(
         track,
         resolveBuiltInSearchChannel(track, channel),
-        'built-in-search'
+        'built-in-search',
       )
     )
   }
 
-  async function refreshAvailability(): Promise<SearchRuntimeSnapshot> {
+  async function refreshAvailability(force = false): Promise<SearchRuntimeSnapshot> {
+    if (!force && cachedRuntimeSnapshot) {
+      return cachedRuntimeSnapshot
+    }
+
     let builtInChannelIds: BuiltInSearchChannel[] = ['kw']
     const scriptCapabilities: SearchRuntimeSnapshot['scriptCapabilities'] = {}
 
     if (!isTauriContext()) {
-      return { builtInChannelIds, scriptCapabilities }
+      const snapshot = {
+        builtInChannelIds,
+        scriptCapabilities,
+      }
+      cachedRuntimeSnapshot = snapshot
+      return snapshot
     }
 
     try {
@@ -96,10 +119,17 @@ export function useSearchService() {
       console.error('Failed to load built-in channels:', error)
     }
 
-    return {
+    const enabledChannels = new Set(getEnabledBuiltInChannels())
+
+    builtInChannelIds = builtInChannelIds.filter((channel) => enabledChannels.has(channel))
+
+    const snapshot = {
       builtInChannelIds,
       scriptCapabilities,
     }
+
+    cachedRuntimeSnapshot = snapshot
+    return snapshot
   }
 
   function getUserSourceOptions(
@@ -131,9 +161,14 @@ export function useSearchService() {
     snapshot: SearchRuntimeSnapshot,
     selectedUserSourceId?: string
   ): Set<SearchChannel> {
-    return new Set<SearchChannel>([
+    const channels = [
       ...snapshot.builtInChannelIds,
       ...getCustomSearchChannelIds(snapshot.scriptCapabilities, selectedUserSourceId),
+    ]
+
+    return new Set<SearchChannel>([
+      ...(snapshot.builtInChannelIds.length ? ['all' as const] : []),
+      ...channels,
     ])
   }
 
@@ -148,95 +183,41 @@ export function useSearchService() {
     )
   }
 
+  function getAggregateChannels(): BuiltInSearchChannel[] {
+    const cachedChannels = cachedRuntimeSnapshot?.builtInChannelIds || []
+    if (cachedChannels.length) return cachedChannels
+
+    const enabledChannels = getEnabledBuiltInChannels()
+    return enabledChannels.length ? enabledChannels : ['kw']
+  }
+
+  const singleChannelStrategy: SearchExecutionStrategy = createSingleChannelSearchStrategy({
+    searchBuiltInChannel,
+    getAggregateChannels,
+  })
+
+  const aggregateSearchStrategy: SearchExecutionStrategy = createAggregateSearchStrategy({
+    searchBuiltInChannel,
+    getAggregateChannels,
+  })
+
   async function searchAggregateTracks(request: SearchRequest): Promise<SearchResult> {
-    if (!isTauriContext()) {
-      return {
-        data: [],
-        total: 0,
-        channel: 'all',
-        page: request.page,
-        hasMore: false,
-      }
+    return aggregateSearchStrategy.execute(request)
+  }
+
+  async function runSearch(
+    request: SearchRequest,
+    handlers?: AggregateSearchHandlers,
+  ): Promise<SearchResult> {
+    if (request.channel === 'all') {
+      return aggregateSearchStrategy.execute(request, handlers)
     }
 
-    const availability = await refreshAvailability()
-    const channels = availability.builtInChannelIds
-
-    if (!channels.length) {
-      return {
-        data: [],
-        total: 0,
-        channel: 'all',
-        page: request.page,
-        hasMore: false,
-      }
-    }
-
-    const channelResults = await Promise.allSettled(
-      channels.map(async (channel) => ({
-        channel,
-        data: await searchBuiltInChannel(
-          channel,
-          request.keyword,
-          request.page,
-          request.limit,
-          AGGREGATE_SEARCH_TIMEOUT_MS,
-        ),
-      })),
-    )
-
-    const successfulResults = channelResults.flatMap((result) =>
-      result.status === 'fulfilled' ? [result.value] : []
-    )
-    const failedResults = channelResults.flatMap((result, index) =>
-      result.status === 'rejected'
-        ? [{
-          channel: channels[index],
-          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
-        }]
-        : []
-    )
-
-    if (failedResults.length > 0) {
-      console.warn('[Search] Aggregate search skipped failed channels:', failedResults)
-    }
-
-    if (successfulResults.length === 0) {
-      const reasonSummary = failedResults
-        .map(({ channel, reason }) => `${channel}: ${reason}`)
-        .join('；')
-      throw new Error(
-        reasonSummary
-          ? `综合搜索失败，所有渠道均不可用（${reasonSummary}）`
-          : '综合搜索失败，请稍后重试'
-      )
-    }
-
-    const merged = successfulResults
-      .flatMap((item) => item.data)
-      .sort((left, right) => compareSearchTracks(left, right, request.keyword))
-
-    return {
-      data: merged,
-      total: merged.length,
-      channel: 'all',
-      page: request.page,
-      hasMore: successfulResults.some((item) => item.data.length >= request.limit),
-    }
+    return singleChannelStrategy.execute(request)
   }
 
   async function searchTracks(request: SearchRequest): Promise<SearchResult> {
-    if (request.channel === 'all') {
-      return searchAggregateTracks(request)
-    }
-
-    const builtInResults = await searchBuiltinTracks(request)
-    return buildSearchResultPayload(
-      builtInResults,
-      request.channel,
-      request.page,
-      request.limit,
-    )
+    return runSearch(request)
   }
 
   return {
@@ -247,6 +228,7 @@ export function useSearchService() {
     getAvailableChannelSet,
     searchBuiltinTracks,
     searchAggregateTracks,
+    runSearch,
     searchTracks,
   }
 }

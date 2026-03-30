@@ -5,7 +5,7 @@
         <button
           v-for="tab in tabs"
           :key="tab.key"
-          :class="['tab-button', { active: activeTab === tab.key }]"
+          :class="['tab-button', 'app-pill', activeTab === tab.key ? 'accent' : 'ghost', { active: activeTab === tab.key }]"
           @click="activeTab = tab.key"
         >
           {{ tab.label }}
@@ -13,12 +13,12 @@
       </div>
 
       <div class="setting-toolbar__actions">
-        <button class="action-button" @click="exportSettings" title="导出设置">
+        <button class="action-button app-icon-button accent" @click="exportSettings" title="导出设置">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
         </button>
-        <button class="action-button" @click="importSettings" title="导入设置">
+        <button class="action-button app-icon-button secondary" @click="importSettings" title="导入设置">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
           </svg>
@@ -47,7 +47,7 @@
               </span>
             </div>
             <button
-              :class="['toggle-btn', { disabled: !channel.enabled }]"
+              :class="['toggle-btn', 'app-button', 'compact', channel.enabled ? 'danger' : 'success']"
               @click="toggleChannel(channel.id, !channel.enabled)"
             >
               {{ channel.enabled ? '禁用' : '启用' }}
@@ -60,10 +60,10 @@
           <div class="section-header">
             <div class="section-title">
               <h2>自定义音源</h2>
-              <span class="section-badge">扩展</span>
+              <span class="section-badge app-pill warning compact">扩展</span>
             </div>
             <div class="header-buttons">
-              <button class="import-btn" @click="importUserSource">
+              <button class="import-btn app-button accent" @click="importUserSource">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 5v14M5 12h14"/>
                 </svg>
@@ -118,7 +118,7 @@
                     </span>
                   </div>
                 </div>
-                <div class="card-status" :class="{ active: source.enabled }">
+                <div :class="['card-status', 'app-pill', 'compact', source.enabled ? 'success' : 'secondary']">
                   {{ settingsStore.settings.activeUserSourceId === source.id ? '当前音源' : (source.enabled ? '已启用' : '已禁用') }}
                 </div>
               </div>
@@ -137,7 +137,7 @@
               </div>
               <div class="card-actions">
                 <button
-                  :class="['action-btn', 'primary', { active: settingsStore.settings.activeUserSourceId === source.id }]"
+                  :class="['action-btn', 'app-button', settingsStore.settings.activeUserSourceId === source.id ? 'accent' : 'secondary', { active: settingsStore.settings.activeUserSourceId === source.id }]"
                   :disabled="!source.enabled"
                   @click="setActiveUserSource(source.id)"
                 >
@@ -148,7 +148,7 @@
                   {{ settingsStore.settings.activeUserSourceId === source.id ? '当前音源' : '设为当前' }}
                 </button>
                 <button
-                  :class="['action-btn', 'toggle', { active: source.enabled }]"
+                  :class="['action-btn', 'app-button', source.enabled ? 'warning' : 'success', { active: source.enabled }]"
                   @click="toggleUserSource(source.id, !source.enabled)"
                 >
                   <svg v-if="source.enabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -161,7 +161,7 @@
                   {{ source.enabled ? '禁用' : '启用' }}
                 </button>
                 <button
-                  class="action-btn delete"
+                  class="action-btn app-button danger delete"
                   @click="deleteUserSource(source.id)"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -248,6 +248,166 @@
             :model-value="settingsStore.settings.autoSkipOnError"
             @update:model-value="updateSetting('autoSkipOnError', $event)"
           />
+        </SettingGroup>
+        <SettingGroup title="播放诊断" description="排查当前歌曲的解析来源、缓存状态和失效音源。">
+          <div class="diagnostic-panel">
+            <div class="diagnostic-toolbar">
+              <button
+                :class="['app-button', diagnosticsOpen ? 'accent' : 'secondary']"
+                @click="diagnosticsOpen = !diagnosticsOpen"
+              >
+                {{ diagnosticsOpen ? '收起诊断' : '展开诊断' }}
+              </button>
+              <button class="app-button ghost" @click="refreshDiagnostics">刷新</button>
+              <button class="app-button secondary" @click="handleClearPlaybackSourceCache">
+                清空播放成功缓存
+              </button>
+              <button class="app-button warning" @click="handleClearSourceHealth">
+                清空健康记录
+              </button>
+              <button class="app-button danger" @click="handleClearBadSourceBlacklist">
+                清空失效音源黑名单
+              </button>
+            </div>
+
+            <div v-if="diagnosticsOpen" class="diagnostic-grid">
+              <div class="diagnostic-card diagnostic-card--wide">
+                <div class="diagnostic-card__header">
+                  <h3>当前播放</h3>
+                  <span class="app-pill compact secondary">
+                    {{ player.currentMusic ? '已载入歌曲' : '暂无歌曲' }}
+                  </span>
+                </div>
+                <template v-if="player.currentMusic">
+                  <div class="diagnostic-kv">
+                    <span>歌曲</span>
+                    <strong>{{ player.currentMusic.name }} - {{ player.currentMusic.artist }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>解析来源</span>
+                    <strong>{{ playbackSourceInfo.compactLabel || '未解析' }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>解析器 / 渠道</span>
+                    <strong>
+                      {{ playbackSourceInfo.resolverLabel || '未解析' }}
+                      <template v-if="playbackSourceInfo.channelLabel">
+                        · {{ playbackSourceInfo.channelLabel }}
+                      </template>
+                    </strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>自定义音源</span>
+                    <strong>{{ playbackSourceInfo.userSourceLabel || '未使用' }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>目标音质</span>
+                    <strong>{{ settingsStore.settings.audioQuality }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>当前提示</span>
+                    <strong>{{ player.playbackNotice || '无' }}</strong>
+                  </div>
+                  <div class="diagnostic-kv diagnostic-kv--stack">
+                    <span>播放地址</span>
+                    <code>{{ truncatedResolvedUrl || '暂无' }}</code>
+                  </div>
+                </template>
+                <p v-else class="diagnostic-empty">开始播放任意歌曲后，这里会显示当前解析路径。</p>
+              </div>
+
+              <div class="diagnostic-card">
+                <div class="diagnostic-card__header">
+                  <h3>成功缓存</h3>
+                  <span class="app-pill compact success" v-if="currentTrackCacheRecord">命中</span>
+                  <span class="app-pill compact secondary" v-else>空</span>
+                </div>
+                <template v-if="currentTrackCacheRecord">
+                  <div class="diagnostic-kv">
+                    <span>缓存音源</span>
+                    <strong>{{ getUserSourceName(currentTrackCacheRecord.sourceId) }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>实际音质</span>
+                    <strong>{{ currentTrackCacheRecord.actualQuality || '未知' }}</strong>
+                  </div>
+                  <div class="diagnostic-kv">
+                    <span>更新时间</span>
+                    <strong>{{ formatTimestamp(currentTrackCacheRecord.updatedAt) }}</strong>
+                  </div>
+                </template>
+                <p v-else class="diagnostic-empty">当前歌曲没有命中的播放成功缓存。</p>
+              </div>
+
+              <div class="diagnostic-card">
+                <div class="diagnostic-card__header">
+                  <h3>失效音源</h3>
+                  <span class="app-pill compact warning">{{ currentTrackBlockedRecords.length }}</span>
+                </div>
+                <div v-if="currentTrackBlockedRecords.length" class="diagnostic-list">
+                  <div
+                    v-for="record in currentTrackBlockedRecords"
+                    :key="`${record.sourceId}-${record.updatedAt}`"
+                    class="diagnostic-list__item"
+                  >
+                    <div class="diagnostic-list__title">
+                      {{ getUserSourceName(record.sourceId) }}
+                    </div>
+                    <div class="diagnostic-list__meta">
+                      过期于 {{ formatTimestamp(record.expiresAt) }} · {{ formatExpiry(record.expiresAt) }}
+                    </div>
+                    <div class="diagnostic-list__reason">{{ record.reason }}</div>
+                  </div>
+                </div>
+                <p v-else class="diagnostic-empty">当前歌曲没有被拉黑的自定义音源。</p>
+              </div>
+
+              <div class="diagnostic-card diagnostic-card--wide">
+                <div class="diagnostic-card__header">
+                  <h3>当前渠道健康度</h3>
+                  <span class="app-pill compact secondary">
+                    {{ currentPlaybackChannelLabel || '未确定渠道' }}
+                  </span>
+                </div>
+                <div v-if="currentTrackHealthRows.length" class="diagnostic-list">
+                  <div
+                    v-for="row in currentTrackHealthRows"
+                    :key="row.source.id"
+                    class="diagnostic-list__item"
+                  >
+                    <div class="diagnostic-list__row">
+                      <div class="diagnostic-list__title">{{ row.source.name }}</div>
+                      <span
+                        :class="[
+                          'app-pill',
+                          'compact',
+                          row.record?.cooldownUntil ? 'warning' : row.record ? 'success' : 'secondary',
+                        ]"
+                      >
+                        {{
+                          row.record?.cooldownUntil
+                            ? '冷却中'
+                            : row.record
+                              ? '已记录'
+                              : '未记录'
+                        }}
+                      </span>
+                    </div>
+                    <div class="diagnostic-list__meta">
+                      成功 {{ row.record?.successCount || 0 }} / 失败 {{ row.record?.failureCount || 0 }}
+                    </div>
+                    <div class="diagnostic-list__meta">
+                      最近成功 {{ formatTimestamp(row.record?.lastSuccessAt) }} · 最近失败 {{ formatTimestamp(row.record?.lastFailureAt) }}
+                    </div>
+                    <div v-if="row.record?.lastError" class="diagnostic-list__reason">
+                      {{ row.record.lastError }}
+                    </div>
+                  </div>
+                </div>
+                <p v-else class="diagnostic-empty">当前渠道下还没有可显示的健康度记录。</p>
+              </div>
+            </div>
+          </div>
         </SettingGroup>
       </SettingSection>
 
@@ -338,23 +498,23 @@
           <SettingItem
             label="主题模式"
             type="select"
-            :model-value="settingsStore.settings.themeMode"
+            :model-value="themeStore.settings.themeMode"
             :options="themeModeOptions"
-            @update:model-value="updateSetting('themeMode', $event)"
+            @update:model-value="updateThemeMode"
           />
           <SettingItem
             label="主题颜色"
             type="color-palette"
-            :model-value="settingsStore.settings.themeColor"
+            :model-value="themeStore.settings.themeColor"
             :options="themeColors"
-            @update:model-value="updateSetting('themeColor', $event)"
+            @update:model-value="updateThemeColor"
           />
           <SettingItem
-            v-if="settingsStore.settings.themeColor === 'custom'"
+            v-if="themeStore.settings.themeColor === 'custom'"
             label="自定义颜色"
             type="color"
-            :model-value="settingsStore.settings.customColor"
-            @update:model-value="updateSetting('customColor', $event)"
+            :model-value="themeStore.settings.customColor"
+            @update:model-value="updateCustomThemeColor"
           />
         </SettingGroup>
       </SettingSection>
@@ -390,31 +550,15 @@
 
       <!-- Sync Tab -->
       <SettingSection v-if="activeTab === 'sync'" title="同步设置">
-        <SettingGroup title="同步">
+        <SettingGroup title="同步" description="同步能力暂未实现，当前版本仅保留说明以避免误导。">
           <SettingItem
             label="同步模式"
             type="select"
             :model-value="settingsStore.settings.syncMode"
             :options="syncModeOptions"
-            @update:model-value="updateSetting('syncMode', $event)"
+            :disabled="true"
           />
-          <SettingItem
-            v-if="settingsStore.settings.syncMode !== 'disabled'"
-            label="主机地址"
-            type="text"
-            :model-value="settingsStore.settings.syncHost"
-            placeholder="localhost"
-            @update:model-value="updateSetting('syncHost', $event)"
-          />
-          <SettingItem
-            v-if="settingsStore.settings.syncMode !== 'disabled'"
-            label="端口"
-            type="number"
-            :model-value="settingsStore.settings.syncPort"
-            :min="1"
-            :max="65535"
-            @update:model-value="updateSetting('syncPort', $event)"
-          />
+          <p class="sync-placeholder">同步功能将在后续版本实现，当前不会建立任何客户端或服务端连接。</p>
         </SettingGroup>
       </SettingSection>
 
@@ -436,7 +580,7 @@
           </div>
         </div>
         <div class="about-links">
-          <a href="#" class="about-link">
+          <a href="#" class="about-link app-button secondary">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
             </svg>
@@ -444,7 +588,7 @@
           </a>
         </div>
         <div class="reset-section">
-          <button class="reset-btn" @click="resetAllSettings">
+          <button class="reset-btn app-button danger" @click="resetAllSettings">
             重置所有设置
           </button>
         </div>
@@ -461,8 +605,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useSettingsStore } from '../store/settings'
+import { useThemeStore } from '../store/theme'
+import { usePlayerStore } from '../store/player'
 import { useUserSourceStore } from '../stores/userSource'
 import SettingItem from '../components/settings/SettingItem.vue'
 import SettingGroup from '../components/settings/SettingGroup.vue'
@@ -470,11 +616,30 @@ import SettingSection from '../components/settings/SettingSection.vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { save } from '@tauri-apps/plugin-dialog'
+import type { ThemeColorType, ThemeMode } from '../themes'
+import { getPlaybackSourceDisplayInfo, getChannelDisplayName } from '../lib/playbackSource'
+import {
+  clearPlaybackSourceCache,
+  getPlaybackSourceCacheRecord,
+} from '../modules/playback/sourceSuccessCache'
+import {
+  clearBlockedTrackSourceRecords,
+  getBlockedTrackSourceRecords,
+} from '../modules/playback/badSourceBlacklist'
+import {
+  clearSourceHealthRecords,
+  getSourceHealthRecordsSnapshot,
+} from '../modules/source-health/store'
+import { resolveMusicChannel } from '../modules/playback/types'
 
 const settingsStore = useSettingsStore()
+const themeStore = useThemeStore()
+const player = usePlayerStore()
 const userSourceStore = useUserSourceStore()
 
 const activeTab = ref('general')
+const diagnosticsOpen = ref(false)
+const diagnosticTick = ref(0)
 const toast = ref({
   show: false,
   message: '',
@@ -540,12 +705,78 @@ const syncModeOptions = [
 
 const themeColors = [
   { value: 'green', label: '绿色', color: '#1db954' },
-  { value: 'blue', label: '蓝色', color: '#007bff' },
-  { value: 'black', label: '黑色', color: '#000000' },
+  { value: 'blue', label: '蓝色', color: '#42a5ff' },
+  { value: 'red', label: '红色', color: '#ff617d' },
+  { value: 'pink', label: '粉色', color: '#ff4f8b' },
   { value: 'purple', label: '紫色', color: '#9b59b6' },
   { value: 'orange', label: '橙色', color: '#e67e22' },
-  { value: 'pink', label: '粉色', color: '#e91e63' }
+  { value: 'black', label: '黑色', color: '#d4d7e1' },
+  { value: 'grey', label: '灰色', color: '#9da8bd' },
+  { value: 'custom', label: '自定义', color: '#ffffff' },
 ]
+
+const playbackSourceInfo = computed(() => {
+  diagnosticTick.value
+  return getPlaybackSourceDisplayInfo({
+    currentMusic: player.currentMusic,
+    resolvedChannel: player.resolvedChannel,
+    resolvedResolver: player.resolvedResolver,
+    resolvedUserSourceId: player.resolvedUserSourceId,
+    userSources: userSourceStore.sortedUserSources.map((source) => ({
+      id: source.id,
+      name: source.name,
+    })),
+  })
+})
+
+const currentPlaybackChannel = computed(() => {
+  diagnosticTick.value
+  if (!player.currentMusic) return null
+  return player.resolvedChannel || resolveMusicChannel(player.currentMusic)
+})
+
+const currentPlaybackChannelLabel = computed(() =>
+  getChannelDisplayName(currentPlaybackChannel.value)
+)
+
+const truncatedResolvedUrl = computed(() => {
+  diagnosticTick.value
+  const url = player.resolvedUrl || ''
+  if (!url) return ''
+  return url.length > 120 ? `${url.slice(0, 117)}...` : url
+})
+
+const currentTrackCacheRecord = computed(() => {
+  diagnosticTick.value
+  if (!player.currentMusic) return null
+  return getPlaybackSourceCacheRecord(player.currentMusic, settingsStore.settings.audioQuality) || null
+})
+
+const currentTrackBlockedRecords = computed(() => {
+  diagnosticTick.value
+  if (!player.currentMusic) return []
+  return getBlockedTrackSourceRecords(player.currentMusic)
+})
+
+const currentTrackHealthRows = computed(() => {
+  diagnosticTick.value
+  const channel = currentPlaybackChannel.value
+  if (!channel) return []
+
+  const records = getSourceHealthRecordsSnapshot()
+  return userSourceStore.sortedUserSources
+    .filter((source) => source.sources?.[channel]?.actions?.includes('musicUrl'))
+    .map((source) => ({
+      source,
+      record:
+        records.find(
+          (item) =>
+            item.channel === channel
+            && item.action === 'musicUrl'
+            && item.sourceId === source.id,
+        ) || null,
+    }))
+})
 
 // Toast notification
 function showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
@@ -555,10 +786,76 @@ function showToast(message: string, type: 'success' | 'error' | 'info' = 'succes
   }, 3000)
 }
 
+function refreshDiagnostics() {
+  diagnosticTick.value += 1
+  showToast('播放诊断已刷新', 'info')
+}
+
+function getUserSourceName(sourceId?: string | null) {
+  if (!sourceId) return '未知音源'
+  return userSourceStore.sortedUserSources.find((source) => source.id === sourceId)?.name || sourceId
+}
+
+function formatTimestamp(timestamp?: number) {
+  if (!timestamp) return '无'
+  return new Date(timestamp).toLocaleString('zh-CN', { hour12: false })
+}
+
+function formatExpiry(expiresAt: number) {
+  const remainingMs = expiresAt - Date.now()
+  if (remainingMs <= 0) return '即将过期'
+
+  const hours = Math.floor(remainingMs / (60 * 60 * 1000))
+  const minutes = Math.max(1, Math.ceil((remainingMs % (60 * 60 * 1000)) / (60 * 1000)))
+
+  if (hours <= 0) return `${minutes} 分钟后到期`
+  return `${hours} 小时 ${minutes} 分钟后到期`
+}
+
+function handleClearPlaybackSourceCache() {
+  clearPlaybackSourceCache()
+  diagnosticTick.value += 1
+  showToast('播放成功缓存已清空', 'info')
+}
+
+function handleClearSourceHealth() {
+  clearSourceHealthRecords()
+  diagnosticTick.value += 1
+  showToast('音源健康记录已清空', 'info')
+}
+
+function handleClearBadSourceBlacklist() {
+  clearBlockedTrackSourceRecords()
+  diagnosticTick.value += 1
+  showToast('失效音源黑名单已清空', 'info')
+}
+
 // Update setting
 function updateSetting(key: string, value: any) {
   settingsStore.updateSetting(key as any, value)
   showToast('设置已保存')
+}
+
+async function updateThemeMode(value: ThemeMode) {
+  await themeStore.setThemeMode(value)
+  settingsStore.syncThemeSettings(themeStore.settings)
+  showToast('主题模式已更新')
+}
+
+async function updateThemeColor(value: ThemeColorType) {
+  if (value === 'custom') {
+    await themeStore.setThemeColor('custom', themeStore.settings.customColor)
+  } else {
+    await themeStore.setThemeColor(value)
+  }
+  settingsStore.syncThemeSettings(themeStore.settings)
+  showToast('主题颜色已更新')
+}
+
+async function updateCustomThemeColor(value: string) {
+  await themeStore.setCustomColor(value)
+  settingsStore.syncThemeSettings(themeStore.settings)
+  showToast('自定义主题颜色已更新')
 }
 
 // Toggle channel
@@ -669,7 +966,12 @@ async function selectDownloadPath() {
 // Export settings to JSON file
 async function exportSettings() {
   try {
-    const settings = JSON.stringify(settingsStore.settings, null, 2)
+    const settings = JSON.stringify({
+      ...settingsStore.settings,
+      themeColor: themeStore.settings.themeColor,
+      themeMode: themeStore.settings.themeMode,
+      customColor: themeStore.settings.customColor,
+    }, null, 2)
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const filename = `jiyu-music-settings-${timestamp}.json`
 
@@ -707,9 +1009,30 @@ async function importSettings() {
       const content = await readTextFile(filePath)
       const importedSettings = JSON.parse(content)
 
-      // Validate and merge settings
-      settingsStore.updateSettings(importedSettings)
-      applyTheme()
+      const {
+        themeColor,
+        themeMode,
+        customColor,
+        ...generalSettings
+      } = importedSettings
+
+      settingsStore.updateSettings(generalSettings)
+
+      if (themeMode) {
+        await themeStore.setThemeMode(themeMode)
+      }
+
+      if (themeColor === 'custom') {
+        await themeStore.setThemeColor('custom', customColor || themeStore.settings.customColor)
+      } else if (themeColor) {
+        await themeStore.setThemeColor(themeColor)
+      }
+
+      if (themeColor === 'custom' && customColor) {
+        await themeStore.setCustomColor(customColor)
+      }
+
+      settingsStore.syncThemeSettings(themeStore.settings)
 
       showToast('设置已成功导入')
     }
@@ -720,71 +1043,19 @@ async function importSettings() {
 }
 
 // Reset all settings to default
-function resetAllSettings() {
+async function resetAllSettings() {
   if (confirm('确定要重置所有设置吗？此操作无法撤销。')) {
     settingsStore.resetSettings()
-    applyTheme()
+    await themeStore.resetTheme()
+    settingsStore.syncThemeSettings(themeStore.settings)
     showToast('设置已重置为默认值', 'info')
   }
 }
 
-// Apply theme changes
-function applyTheme() {
-  const { themeMode, themeColor, customColor } = settingsStore.settings
-  const root = document.documentElement
-
-  if (themeMode === 'auto' || themeMode === undefined) {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.setAttribute('data-theme-mode', prefersDark ? 'dark' : 'light')
-  } else {
-    root.setAttribute('data-theme-mode', themeMode as string)
-  }
-
-  let primaryColor = '#1db954'
-  if (themeColor === 'custom' && customColor) {
-    primaryColor = customColor
-  } else {
-    const colorObj = themeColors.find(c => c.value === themeColor)
-    if (colorObj) {
-      primaryColor = colorObj.color
-    }
-  }
-
-  root.setAttribute('data-theme-color', (themeColor || 'pink') as string)
-  root.style.setProperty('--primary-color', primaryColor)
-  root.style.setProperty('--primary-hover', adjustColor(primaryColor, 20))
-}
-
-function adjustColor(color: string, amount: number): string {
-  const hex = color.replace('#', '')
-  const num = parseInt(hex, 16)
-  const r = Math.min(255, Math.max(0, (num >> 16) + amount))
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount))
-  const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount))
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
-}
-
-// Auto-save settings on change
-watch(() => settingsStore.settings, (newSettings) => {
-  localStorage.setItem('settings', JSON.stringify(newSettings))
-}, { deep: true })
-
 onMounted(async () => {
-  // Load settings from localStorage
-  const saved = localStorage.getItem('settings')
-  if (saved) {
-    try {
-      settingsStore.loadSettings(JSON.parse(saved))
-    } catch (e) {
-      console.error('Failed to load settings:', e)
-    }
+  if (!userSourceStore.isLoaded) {
+    await userSourceStore.loadUserSources()
   }
-
-  // Load user sources from backend
-  await userSourceStore.loadUserSources()
-
-  // Apply theme on mount
-  applyTheme()
 })
 </script>
 
@@ -820,27 +1091,9 @@ onMounted(async () => {
 }
 
 .action-button {
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-
   svg {
     width: 20px;
     height: 20px;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.12);
-    color: var(--text-primary);
   }
 }
 
@@ -860,24 +1113,15 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 18px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
   font-size: 14px;
-  cursor: pointer;
-  border-radius: 16px;
-  transition: all 0.2s;
   white-space: nowrap;
 
   &:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
   }
 
   &.active {
-    color: var(--text-primary);
-    background: linear-gradient(135deg, rgba(255, 79, 139, 0.18), rgba(124, 82, 255, 0.14));
+    box-shadow: var(--button-accent-shadow);
   }
 }
 
@@ -888,6 +1132,13 @@ onMounted(async () => {
   background:
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 22%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+}
+
+.sync-placeholder {
+  padding: 16px 0 4px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 0.9rem;
 }
 
 .sources-section {
@@ -940,23 +1191,7 @@ onMounted(async () => {
   }
 
   .toggle-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 999px;
-    background: var(--primary-color);
-    color: white;
-    cursor: pointer;
     font-size: 12px;
-    transition: all 0.2s;
-
-    &:hover {
-      opacity: 0.9;
-    }
-
-    &.disabled {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-secondary);
-    }
   }
 }
 
@@ -987,14 +1222,7 @@ onMounted(async () => {
 }
 
 .section-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 12px;
   font-size: 11px;
-  font-weight: 600;
-  background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.18));
-  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1018,29 +1246,11 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary-color), #ff7aac);
-  color: white;
   font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 16px 30px color-mix(in srgb, var(--primary-color) 24%, transparent);
 
   svg {
     width: 18px;
     height: 18px;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  &:active {
-    transform: translateY(0);
   }
 }
 
@@ -1246,23 +1456,7 @@ onMounted(async () => {
 }
 
 .card-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
   font-size: 12px;
-  font-weight: 500;
-
-  &.active {
-    background: rgba(29, 185, 84, 0.1);
-    color: var(--primary-color);
-  }
-
-  &:not(.active) {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-  }
 }
 
 .card-actions {
@@ -1272,38 +1466,150 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.diagnostic-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.diagnostic-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.diagnostic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.diagnostic-card--wide {
+  grid-column: 1 / -1;
+}
+
+.diagnostic-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-primary);
+  }
+}
+
+.diagnostic-kv {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+
+  span {
+    flex: 0 0 88px;
+    color: var(--text-secondary);
+  }
+
+  strong,
+  code {
+    flex: 1;
+    color: var(--text-primary);
+    text-align: right;
+    word-break: break-all;
+  }
+
+  code {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 12px;
+  }
+}
+
+.diagnostic-kv--stack {
+  flex-direction: column;
+
+  span {
+    flex: none;
+  }
+
+  code {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+.diagnostic-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.diagnostic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diagnostic-list__item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.diagnostic-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnostic-list__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.diagnostic-list__meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.diagnostic-list__reason {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 .action-btn {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
   font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &.toggle {
-    background: var(--primary-color);
-    color: white;
-
-    &:hover {
-      background: var(--primary-hover, #1ed66b);
-    }
-  }
 
   &.delete {
-    background: transparent;
-    color: #ffc5cf;
-    border: 1px solid rgba(255, 107, 129, 0.28);
-
-    &:hover {
-      background: #e74c3c;
-      color: white;
-    }
+    min-height: 40px;
   }
 
   svg {
@@ -1360,24 +1666,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  color: var(--text-primary);
   text-decoration: none;
   font-size: 14px;
-  transition: all 0.2s;
 
   svg {
     width: 20px;
     height: 20px;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.12);
-    color: var(--text-primary);
   }
 }
 
@@ -1387,18 +1681,7 @@ onMounted(async () => {
 }
 
 .reset-btn {
-  padding: 10px 24px;
-  background: rgba(255, 107, 129, 0.14);
-  color: white;
-  border: none;
-  border-radius: 16px;
   font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    opacity: 0.9;
-  }
 }
 
 .toast {
@@ -1472,8 +1755,23 @@ onMounted(async () => {
   }
 
   .tab-button {
-    padding: 10px 16px;
     font-size: 13px;
+  }
+
+  .diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostic-kv {
+    flex-direction: column;
+
+    span {
+      flex: none;
+    }
+
+    strong {
+      text-align: left;
+    }
   }
 }
 </style>

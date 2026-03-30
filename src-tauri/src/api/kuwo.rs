@@ -1,8 +1,8 @@
+use super::helpers::build_client;
 use super::source::{LyricInfo, MusicInfo, MusicSource, Quality, QualityInfo, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
-use std::time::Duration;
 
 const KUWO_SOURCE: &str = "kw";
 
@@ -14,14 +14,9 @@ pub struct KuwoSource {
 impl KuwoSource {
     /// Create a new Kuwo music source instance
     pub fn new() -> Self {
-        let client = Client::builder()
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36")
-            .connect_timeout(Duration::from_secs(8))
-            .timeout(Duration::from_secs(12))
-            .build()
-            .unwrap();
-
-        Self { client }
+        Self {
+            client: build_client(),
+        }
     }
 }
 
@@ -238,6 +233,8 @@ impl MusicSource for KuwoSource {
                 album_id: song.albumid.unwrap_or_default(),
                 hash: None,
                 str_media_mid: None,
+                song_id: None,
+                msg_id: None,
                 copyright_id: None,
                 interval: song.duration,
                 album_name: song.album.unwrap_or_default(),
@@ -358,6 +355,8 @@ impl MusicSource for KuwoSource {
                     album_id: song.albumid.unwrap_or_default(),
                     hash: None,
                     str_media_mid: None,
+                    song_id: None,
+                    msg_id: None,
                     copyright_id: None,
                     interval: Self::format_duration(song.duration),
                     album_name: song.album.unwrap_or_default(),

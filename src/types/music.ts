@@ -18,6 +18,8 @@ export interface UnifiedTrack {
   source?: TrackSource | string
   sourceId?: string
   songmid?: string
+  songId?: string
+  msgId?: string
   hash?: string
   strMediaMid?: string
   copyrightId?: string
@@ -39,6 +41,8 @@ export interface ChannelSearchResultItem {
   songmid: string
   album_id: string
   hash?: string
+  song_id?: string
+  msg_id?: string
   str_media_mid?: string
   copyright_id?: string
   interval: string

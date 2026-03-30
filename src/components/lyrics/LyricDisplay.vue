@@ -1,8 +1,16 @@
 <template>
-  <div class="lyric-display">
+  <div class="lyric-display" :class="`lyric-display--${lyricPositionClass}`">
     <div v-if="loading" class="lyric-loading">
       <div class="loading-spinner"></div>
       <p>加载歌词中...</p>
+    </div>
+
+    <div v-else-if="!settingsStore.settings.lyricShow" class="lyric-empty">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.94 17.94A10.94 10.94 0 0112 19C7 19 2.73 15.89 1 12c.73-1.63 1.85-3.06 3.23-4.22M9.9 4.24A10.94 10.94 0 0112 5c5 0 9.27 3.11 11 7a10.96 10.96 0 01-4.06 4.94M1 1l22 22"/>
+      </svg>
+      <p>歌词显示已关闭</p>
+      <p class="hint">可在设置中重新开启歌词显示</p>
     </div>
 
     <div v-else-if="error" class="lyric-error">
@@ -31,6 +39,9 @@
           :is-next="index === currentLineIndex - startLine + 1"
           :current-word-index="currentWordIndex"
           :show-words="showWordLevel"
+          :show-translation="settingsStore.settings.showTranslation"
+          :show-romanization="settingsStore.settings.showRomanization"
+          :font-size="settingsStore.settings.lyricFontSize"
         />
       </div>
     </div>
@@ -67,6 +78,10 @@
         逐字
       </button>
     </div>
+
+    <div v-if="romanizationUnavailable" class="lyric-capability-note">
+      当前歌词源暂不支持注音显示
+    </div>
   </div>
 </template>
 
@@ -75,11 +90,13 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import LyricLine from './LyricLine.vue'
 import type { LyricLine as LyricLineType } from './types'
+import { useSettingsStore } from '../../store/settings'
 
 const props = defineProps<{
   currentTime: number
 }>()
 
+const settingsStore = useSettingsStore()
 const linesContainerRef = ref<HTMLElement>()
 
 const loading = ref(false)
@@ -105,6 +122,12 @@ const offsetDisplay = computed(() => {
   const seconds = offset.value / 1000
   return seconds >= 0 ? `+${seconds.toFixed(1)}s` : `${seconds.toFixed(1)}s`
 })
+const lyricPositionClass = computed(() => settingsStore.settings.lyricPosition)
+const romanizationUnavailable = computed(() => (
+  settingsStore.settings.showRomanization
+  && lyrics.value.length > 0
+  && !lyrics.value.some((line) => Boolean(line.romanization))
+))
 
 async function loadLyrics() {
   try {
@@ -213,6 +236,18 @@ defineExpose({
   overflow: hidden;
 }
 
+.lyric-display--top .lyric-lines-container {
+  align-content: flex-start;
+}
+
+.lyric-display--center .lyric-lines-container {
+  align-content: center;
+}
+
+.lyric-display--bottom .lyric-lines-container {
+  align-content: flex-end;
+}
+
 .lyric-loading,
 .lyric-error,
 .lyric-empty {
@@ -238,7 +273,7 @@ defineExpose({
     width: 32px;
     height: 32px;
     border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #1db954;
+    border-top-color: var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -258,6 +293,8 @@ defineExpose({
   height: 100%;
   overflow-y: auto;
   padding: 20px 16px;
+  display: grid;
+  align-content: center;
   scroll-behavior: smooth;
 
   &::-webkit-scrollbar {
@@ -276,6 +313,12 @@ defineExpose({
       background: rgba(255, 255, 255, 0.3);
     }
   }
+}
+
+.lyric-capability-note {
+  padding: 0 16px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .lyric-controls {
@@ -304,9 +347,9 @@ defineExpose({
     }
 
     &.active {
-      background: rgba(29, 185, 84, 0.2);
-      color: #1db954;
-      border-color: #1db954;
+      background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+      color: var(--primary-color);
+      border-color: var(--primary-color);
     }
   }
 

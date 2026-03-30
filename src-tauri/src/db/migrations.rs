@@ -66,6 +66,11 @@ fn get_migrations() -> &'static [Migration] {
             name: "003_playlist_library_metadata",
             sql: include_str!("migrations/003_playlist_library_metadata.sql"),
         },
+        Migration {
+            version: 4,
+            name: "004_imported_playlist_sync",
+            sql: include_str!("migrations/004_imported_playlist_sync.sql"),
+        },
     ]
 }
 
@@ -84,6 +89,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.0, 3);
+        assert_eq!(result.0, 4);
     }
 }

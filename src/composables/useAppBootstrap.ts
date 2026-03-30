@@ -1,9 +1,11 @@
 import { onUnmounted, ref } from 'vue'
 import { usePlaylistStore } from '../store/playlist'
+import { usePlayerStore } from '../store/player'
 import { useSettingsStore } from '../store/settings'
 import { useThemeStore } from '../store/theme'
 import { useUserSourceStore } from '../stores/userSource'
 import { ensureDatabaseInitialized } from '../utils/tauriDatabase'
+import { useAppliedSettings } from './useAppliedSettings'
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -13,7 +15,9 @@ export function useAppBootstrap() {
   const settingsStore = useSettingsStore()
   const themeStore = useThemeStore()
   const playlistStore = usePlaylistStore()
+  const playerStore = usePlayerStore()
   const userSourceStore = useUserSourceStore()
+  const appliedSettings = useAppliedSettings()
 
   const hasBootstrapped = ref(false)
   const isLoading = ref(false)
@@ -22,6 +26,7 @@ export function useAppBootstrap() {
 
   let bootstrapPromise: Promise<void> | null = null
   let unsubscribeSettings: (() => void) | null = null
+  let unsubscribePlayer: (() => void) | null = null
 
   function hydrateSettingsFromLocalStorage() {
     const saved = localStorage.getItem('settings')
@@ -42,6 +47,33 @@ export function useAppBootstrap() {
     })
   }
 
+  function hydratePlayerSessionFromLocalStorage() {
+    const saved = localStorage.getItem('player-session')
+    if (!saved) return null
+
+    try {
+      const parsed = JSON.parse(saved)
+      playerStore.restoreSession(parsed)
+      return parsed
+    } catch (error) {
+      console.error('Failed to load player session from localStorage:', error)
+      return null
+    }
+  }
+
+  function ensurePlayerPersistence() {
+    if (unsubscribePlayer) return
+
+    unsubscribePlayer = playerStore.$subscribe((_mutation, state) => {
+      localStorage.setItem('player-session', JSON.stringify({
+        playlist: state.playlist,
+        currentIndex: state.currentIndex,
+        currentTime: state.currentTime,
+        wasPlaying: state.isPlaying,
+      }))
+    })
+  }
+
   async function bootstrapApp() {
     if (bootstrapPromise) return bootstrapPromise
 
@@ -50,6 +82,7 @@ export function useAppBootstrap() {
       errorMessage.value = null
 
       hydrateSettingsFromLocalStorage()
+      const restoredPlayerSession = hydratePlayerSessionFromLocalStorage()
 
       const errors: string[] = []
 
@@ -59,6 +92,8 @@ export function useAppBootstrap() {
         console.error('Failed to initialize theme:', error)
         errors.push(`主题初始化失败：${getErrorMessage(error)}`)
       }
+
+      appliedSettings.init()
 
       try {
         await ensureDatabaseInitialized()
@@ -76,6 +111,20 @@ export function useAppBootstrap() {
       }
 
       ensureSettingsPersistence()
+      ensurePlayerPersistence()
+
+      if (
+        restoredPlayerSession?.wasPlaying
+        && settingsStore.settings.startupAutoPlay
+        && playerStore.currentMusic
+      ) {
+        try {
+          await playerStore.playMusic(playerStore.currentMusic)
+        } catch (error) {
+          console.error('Failed to auto resume last track:', error)
+          errors.push(`自动恢复播放失败：${getErrorMessage(error)}`)
+        }
+      }
 
       errorMessage.value = errors.length ? errors.join('；') : null
       isReady.value = errors.length === 0
@@ -91,9 +140,14 @@ export function useAppBootstrap() {
   }
 
   function dispose() {
+    appliedSettings.dispose()
     if (unsubscribeSettings) {
       unsubscribeSettings()
       unsubscribeSettings = null
+    }
+    if (unsubscribePlayer) {
+      unsubscribePlayer()
+      unsubscribePlayer = null
     }
   }
 

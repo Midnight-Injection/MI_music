@@ -68,6 +68,8 @@ impl NeteaseSource {
             album_id: song.album.id.to_string(),
             hash: None,
             str_media_mid: None,
+            song_id: None,
+            msg_id: None,
             copyright_id: None,
             interval: format_duration_millis(song.duration),
             album_name: song.album.name,
@@ -91,8 +93,14 @@ impl NeteaseSource {
             .client
             .post("https://music.163.com/api/v3/song/detail")
             .form(&[
-                ("c", serde_json::to_string(&c_payload).unwrap_or_else(|_| "[]".to_string())),
-                ("ids", serde_json::to_string(&ids_payload).unwrap_or_else(|_| "[]".to_string())),
+                (
+                    "c",
+                    serde_json::to_string(&c_payload).unwrap_or_else(|_| "[]".to_string()),
+                ),
+                (
+                    "ids",
+                    serde_json::to_string(&ids_payload).unwrap_or_else(|_| "[]".to_string()),
+                ),
             ])
             .send()
             .await?;
@@ -104,10 +112,7 @@ impl NeteaseSource {
             .map(|song| (song.id, song))
             .collect::<std::collections::HashMap<_, _>>();
 
-        Ok(ids
-            .iter()
-            .filter_map(|id| song_map.remove(id))
-            .collect())
+        Ok(ids.iter().filter_map(|id| song_map.remove(id)).collect())
     }
 }
 
@@ -153,7 +158,10 @@ struct NeteasePlaylistSearchResponse {
 #[derive(Debug, Deserialize, Clone)]
 struct NeteaseSong {
     id: i64,
-    #[serde(default = "default_string", deserialize_with = "deserialize_null_default")]
+    #[serde(
+        default = "default_string",
+        deserialize_with = "deserialize_null_default"
+    )]
     name: String,
     #[serde(
         default,
@@ -178,14 +186,20 @@ struct NeteaseSong {
 
 #[derive(Debug, Deserialize, Clone)]
 struct NeteaseArtist {
-    #[serde(default = "default_string", deserialize_with = "deserialize_null_default")]
+    #[serde(
+        default = "default_string",
+        deserialize_with = "deserialize_null_default"
+    )]
     name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 struct NeteaseAlbum {
     id: i64,
-    #[serde(default = "default_string", deserialize_with = "deserialize_null_default")]
+    #[serde(
+        default = "default_string",
+        deserialize_with = "deserialize_null_default"
+    )]
     name: String,
     #[serde(rename = "picUrl")]
     pic_url: Option<String>,
@@ -394,8 +408,7 @@ impl MusicSource for NeteaseSource {
                 .map(|song| song.id)
                 .collect::<Vec<_>>()
         } else {
-            playlist
-                .track_ids[start..end]
+            playlist.track_ids[start..end]
                 .iter()
                 .map(|track| track.id)
                 .collect::<Vec<_>>()

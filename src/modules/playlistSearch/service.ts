@@ -10,6 +10,23 @@ import type {
 const SUPPORTED_PLAYLIST_CHANNELS: PlaylistSearchChannel[] = ['wy', 'tx']
 export const PLAYLIST_TRACK_PAGE_SIZE = 50
 
+export function buildSourcePlaylistUrl(source: PlaylistSearchChannel, playlistId: string): string {
+  switch (source) {
+    case 'wy':
+      return `https://music.163.com/#/playlist?id=${encodeURIComponent(playlistId)}`
+    case 'tx':
+      return `https://y.qq.com/n/ryqq/playlist/${encodeURIComponent(playlistId)}`
+    case 'kw':
+      return `https://www.kuwo.cn/playlist_detail/${encodeURIComponent(playlistId)}`
+    case 'kg':
+      return `https://www.kugou.com/songlist/${encodeURIComponent(playlistId)}`
+    case 'mg':
+      return `https://music.migu.cn/v3/music/playlist/${encodeURIComponent(playlistId)}`
+    default:
+      return ''
+  }
+}
+
 function isTauriContext(): boolean {
   return typeof window !== 'undefined' && '__TAURI__' in window
 }

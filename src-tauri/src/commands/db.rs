@@ -1,5 +1,5 @@
 use crate::db::models::playlist::{
-    AddTrackResult, CreatePlaylist, Playlist, PlaylistSummary, UpdatePlaylist,
+    AddTrackResult, CreatePlaylist, ImportPlaylistResult, Playlist, PlaylistSummary, UpdatePlaylist,
 };
 use crate::db::models::settings::{Setting, UpsertSetting};
 use crate::db::models::song::{CreateSong, PlaylistTrackInput, Song, StoredTrack, UpdateSong};
@@ -12,38 +12,83 @@ use tokio::sync::Mutex;
 /// Database state shared across Tauri commands
 pub type DbState = Arc<Mutex<Option<Database>>>;
 
-/// Initialize the database
-#[tauri::command]
-pub async fn init_database(db_state: State<'_, DbState>, app_path: String) -> Result<(), String> {
-    std::fs::create_dir_all(Path::new(&app_path))
+async fn initialize_database_internal(db_state: &DbState, app_path: &str) -> Result<(), String> {
+    {
+        let guard = db_state.lock().await;
+        if guard.is_some() {
+            return Ok(());
+        }
+    }
+
+    std::fs::create_dir_all(Path::new(app_path))
         .map_err(|e| format!("Failed to create app data directory: {}", e))?;
 
     let db_path = format!("{}/jiyu_music.db", app_path);
 
-    match Database::new(&db_path).await {
-        Ok(db) => {
-            // Run migrations
-            if let Err(e) = db.migrate().await {
-                return Err(format!("Migration failed: {}", e));
-            }
+    let db = Database::new(&db_path)
+        .await
+        .map_err(|e| format!("Failed to initialize database: {}", e))?;
 
-            // Set global pool for other modules
-            db.set_global_pool()
-                .map_err(|e| format!("Failed to set global pool: {}", e))?;
+    db.migrate()
+        .await
+        .map_err(|e| format!("Migration failed: {}", e))?;
 
-            // Store the database in state
-            let mut guard = db_state.lock().await;
-            *guard = Some(db);
+    db.ensure_global_pool()
+        .map_err(|e| format!("Failed to set global pool: {}", e))?;
 
-            if let Some(db) = guard.as_ref() {
-                Playlist::ensure_defaults(db.pool())
-                    .await
-                    .map_err(|e| format!("Failed to initialize default playlists: {}", e))?;
-            }
+    let mut guard = db_state.lock().await;
+    if guard.is_some() {
+        return Ok(());
+    }
 
-            Ok(())
-        }
-        Err(e) => Err(format!("Failed to initialize database: {}", e)),
+    *guard = Some(db);
+
+    if let Some(db) = guard.as_ref() {
+        Playlist::ensure_defaults(db.pool())
+            .await
+            .map_err(|e| format!("Failed to initialize default playlists: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Initialize the database
+#[tauri::command]
+pub async fn init_database(db_state: State<'_, DbState>, app_path: String) -> Result<(), String> {
+    initialize_database_internal(db_state.inner(), &app_path).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_test_app_dir() -> String {
+        let unique_suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before unix epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("jiyu_music_init_test_{unique_suffix}"));
+        dir.to_string_lossy().to_string()
+    }
+
+    #[tokio::test]
+    async fn init_database_is_idempotent_for_same_process() {
+        let db_state: DbState = Arc::new(Mutex::new(None));
+        let app_dir = create_test_app_dir();
+
+        initialize_database_internal(&db_state, &app_dir)
+            .await
+            .expect("first init should succeed");
+        initialize_database_internal(&db_state, &app_dir)
+            .await
+            .expect("second init should succeed");
+
+        let guard = db_state.lock().await;
+        assert!(guard.is_some(), "database state should remain initialized");
+
+        drop(guard);
+        let _ = std::fs::remove_dir_all(&app_dir);
     }
 }
 
@@ -65,6 +110,10 @@ pub async fn create_playlist(
         description,
         cover_url,
         system_key: None,
+        import_source: None,
+        import_source_playlist_id: None,
+        import_source_playlist_url: None,
+        last_synced_at: None,
     };
 
     Playlist::create(db.pool(), input)
@@ -113,6 +162,8 @@ pub async fn update_playlist(
         name,
         description,
         cover_url,
+        import_source_playlist_url: None,
+        last_synced_at: None,
     };
 
     Playlist::update(db.pool(), id, input)
@@ -228,6 +279,123 @@ pub async fn reorder_playlist_songs(
     Playlist::reorder_songs(db.pool(), playlist_id, &song_ids)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn create_imported_playlist(
+    db_state: State<'_, DbState>,
+    name: String,
+    description: Option<String>,
+    cover_url: Option<String>,
+    import_source: String,
+    import_source_playlist_id: String,
+    import_source_playlist_url: Option<String>,
+    tracks: Vec<PlaylistTrackInput>,
+) -> Result<ImportPlaylistResult, String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let (playlist, created) = if let Some(existing) =
+        Playlist::get_by_import_source(db.pool(), &import_source, &import_source_playlist_id)
+            .await
+            .map_err(|e| e.to_string())?
+    {
+        let updated = Playlist::update(
+            db.pool(),
+            existing.id,
+            UpdatePlaylist {
+                name: Some(name),
+                description,
+                cover_url,
+                import_source_playlist_url,
+                last_synced_at: Some(now.clone()),
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Imported playlist not found after update")?;
+
+        (updated, false)
+    } else {
+        let created = Playlist::create(
+            db.pool(),
+            CreatePlaylist {
+                name,
+                description,
+                cover_url,
+                system_key: None,
+                import_source: Some(import_source),
+                import_source_playlist_id: Some(import_source_playlist_id),
+                import_source_playlist_url,
+                last_synced_at: Some(now.clone()),
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+        (created, true)
+    };
+
+    Playlist::replace_tracks(db.pool(), playlist.id, tracks)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let refreshed = Playlist::get_by_id(db.pool(), playlist.id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Imported playlist not found after save")?;
+
+    Ok(ImportPlaylistResult {
+        playlist: refreshed,
+        created,
+    })
+}
+
+#[tauri::command]
+pub async fn sync_imported_playlist(
+    db_state: State<'_, DbState>,
+    playlist_id: i64,
+    name: Option<String>,
+    description: Option<String>,
+    cover_url: Option<String>,
+    import_source_playlist_url: Option<String>,
+    tracks: Vec<PlaylistTrackInput>,
+) -> Result<Playlist, String> {
+    let guard = db_state.lock().await;
+    let db = guard.as_ref().ok_or("Database not initialized")?;
+
+    let existing = Playlist::get_by_id(db.pool(), playlist_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Playlist not found")?;
+
+    if existing.import_source.is_none() || existing.import_source_playlist_id.is_none() {
+        return Err("当前歌单不是可同步的导入歌单".to_string());
+    }
+
+    Playlist::update(
+        db.pool(),
+        playlist_id,
+        UpdatePlaylist {
+            name,
+            description,
+            cover_url,
+            import_source_playlist_url,
+            last_synced_at: Some(chrono::Utc::now().to_rfc3339()),
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Playlist::replace_tracks(db.pool(), playlist_id, tracks)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Playlist::get_by_id(db.pool(), playlist_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Playlist not found after sync".to_string())
 }
 
 // Song commands

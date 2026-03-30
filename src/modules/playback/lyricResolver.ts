@@ -1,9 +1,11 @@
+import { invoke } from '@tauri-apps/api/core'
 import { useScriptRuntime, type MusicSource } from '../../composables/useScriptRuntime'
 import type { LyricLine } from '../../components/lyrics/types'
 import { useSettingsStore } from '../../store/settings'
 import { useUserSourceStore } from '../../stores/userSource'
 import type { BuiltInSearchChannel } from '../../types/music'
 import type { MusicInfo } from '../../types/music'
+import { searchBuiltInTracks } from '../search/providers'
 import { normalizeScriptSearchResult } from '../search/normalize'
 import {
   markSourceFailure,
@@ -12,18 +14,25 @@ import {
   orderSourcesForAction,
 } from '../source-health/store'
 import { parseScriptLyricResult } from './lyricParser'
-import { getCachedPreferredSourceId } from './sourceSuccessCache'
 import {
-  buildTrackIdentityParts,
-  isDurationClose,
-} from './trackIdentity'
+  buildTrackSearchKeyword,
+  pickMatchedTrack,
+} from './matchedTrack'
+import { getCachedPreferredSourceId } from './sourceSuccessCache'
 import { resolveMusicChannel, toScriptMusicInfo } from './types'
 
 interface LyricResolution {
   lines: LyricLine[]
   offset: number
-  userSourceId: string
+  userSourceId: string | null
   channel: MusicSource
+}
+
+interface NativeLyricPayload {
+  lyric?: string | null
+  tlyric?: string | null
+  rlyric?: string | null
+  lxlyric?: string | null
 }
 
 function getSourceActionChannels(
@@ -37,6 +46,14 @@ function getSourceActionChannels(
 
 function isBuiltInSearchChannel(channel: MusicSource): channel is BuiltInSearchChannel {
   return channel !== 'local'
+}
+
+function getBuiltInLyricSongId(track: MusicInfo, channel: BuiltInSearchChannel): string | null {
+  if (channel === 'kg') {
+    return track.hash || track.songmid || track.id || null
+  }
+
+  return track.songmid || track.hash || track.copyrightId || track.id || null
 }
 
 function getPreferredSourceId(
@@ -62,36 +79,26 @@ function getPreferredSourceId(
   return undefined
 }
 
-function pickMatchedLyricTrack(target: MusicInfo, candidates: MusicInfo[]): MusicInfo | null {
-  const targetParts = buildTrackIdentityParts(target)
-  const targetTitle = targetParts.title
-  const targetArtist = targetParts.artist
-  const targetAlbum = targetParts.album
-
-  const scored = candidates
-    .map((candidate) => {
-      const candidateParts = buildTrackIdentityParts(candidate)
-      if (!candidateParts.title || !candidateParts.artist) return null
-      if (candidateParts.title !== targetTitle) return null
-      if (targetArtist && candidateParts.artist !== targetArtist) return null
-      if (!isDurationClose(target.duration, candidate.duration)) return null
-
-      let score = 100
-      if (targetAlbum && candidateParts.album && targetAlbum === candidateParts.album) score += 20
-      if (target.duration && candidate.duration) score += 10 - Math.min(10, Math.abs(target.duration - candidate.duration))
-
-      return { candidate, score }
-    })
-    .filter((item): item is { candidate: MusicInfo; score: number } => Boolean(item))
-    .sort((left, right) => right.score - left.score)
-
-  return scored[0]?.candidate || null
-}
-
 export function useLyricResolver() {
   const userSourceStore = useUserSourceStore()
   const settingsStore = useSettingsStore()
   const scriptRuntime = useScriptRuntime()
+
+  async function tryBuiltInLyricLookup(
+    channel: BuiltInSearchChannel,
+    track: MusicInfo,
+  ): Promise<{ lines: LyricLine[]; offset: number } | null> {
+    const songId = getBuiltInLyricSongId(track, channel)
+    if (!songId) return null
+
+    const payload = await invoke<NativeLyricPayload>('get_lyric', {
+      songId,
+      source: channel,
+    })
+    const parsed = parseScriptLyricResult(payload)
+    if (!parsed?.lines.length) return null
+    return parsed
+  }
 
   async function tryDirectLyricLookup(
     sourceId: string,
@@ -118,7 +125,7 @@ export function useLyricResolver() {
 
     if (!searchChannelSequence.length) return null
 
-    const keyword = [track.name, track.artist].filter(Boolean).join(' ').trim() || track.name
+    const keyword = buildTrackSearchKeyword(track)
     const seenCandidateIds = new Set<string>()
 
     for (const searchChannel of searchChannelSequence) {
@@ -131,7 +138,7 @@ export function useLyricResolver() {
           return true
         })
 
-      const matched = pickMatchedLyricTrack(track, candidates)
+      const matched = pickMatchedTrack(track, candidates)
       if (!matched) continue
 
       const lyricChannel = resolveMusicChannel(matched)
@@ -142,6 +149,41 @@ export function useLyricResolver() {
         lines: parsed.lines,
         offset: parsed.offset,
         userSourceId: source.id,
+        channel: lyricChannel,
+      }
+    }
+
+    return null
+  }
+
+  async function tryBuiltInMatchedLyricLookup(
+    track: MusicInfo,
+    preferredChannel: BuiltInSearchChannel,
+  ): Promise<LyricResolution | null> {
+    const searchChannelSequence: BuiltInSearchChannel[] = [
+      preferredChannel,
+      ...(['kw', 'kg', 'tx', 'wy', 'mg'] as BuiltInSearchChannel[]).filter(
+        (channel) => channel !== preferredChannel,
+      ),
+    ]
+
+    const keyword = buildTrackSearchKeyword(track)
+
+    for (const searchChannel of searchChannelSequence) {
+      const candidates = await searchBuiltInTracks(searchChannel, keyword, 1, 12)
+      const matched = pickMatchedTrack(track, candidates)
+      if (!matched) continue
+
+      const lyricChannel = resolveMusicChannel(matched)
+      if (!isBuiltInSearchChannel(lyricChannel)) continue
+
+      const parsed = await tryBuiltInLyricLookup(lyricChannel, matched)
+      if (!parsed) continue
+
+      return {
+        lines: parsed.lines,
+        offset: parsed.offset,
+        userSourceId: null,
         channel: lyricChannel,
       }
     }
@@ -166,6 +208,9 @@ export function useLyricResolver() {
     await scriptRuntime.initialize()
 
     const primaryChannel = preferredChannel || resolveMusicChannel(track)
+    const builtInPrimaryChannel = isBuiltInSearchChannel(primaryChannel)
+      ? primaryChannel
+      : resolveMusicChannel(track)
     const orderedSources = orderSourcesForAction(
       primaryChannel,
       'lyric',
@@ -215,6 +260,31 @@ export function useLyricResolver() {
       }
 
       markSourceFailure(primaryChannel, 'lyric', source.id, lastError || '歌词匹配失败')
+    }
+
+    if (isBuiltInSearchChannel(builtInPrimaryChannel)) {
+      try {
+        const directBuiltInLyric = await tryBuiltInLyricLookup(builtInPrimaryChannel, track)
+        if (directBuiltInLyric) {
+          return {
+            lines: directBuiltInLyric.lines,
+            offset: directBuiltInLyric.offset,
+            userSourceId: null,
+            channel: builtInPrimaryChannel,
+          }
+        }
+      } catch {
+        // Fallback to matched built-in lookup below.
+      }
+
+      try {
+        const matchedBuiltInLyric = await tryBuiltInMatchedLyricLookup(track, builtInPrimaryChannel)
+        if (matchedBuiltInLyric) {
+          return matchedBuiltInLyric
+        }
+      } catch {
+        // Keep null return semantics for lyric resolution failures.
+      }
     }
 
     return null

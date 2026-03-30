@@ -1,8 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import {
+  buildSourcePlaylistUrl,
+  getSourcePlaylistDetail,
+  getSourcePlaylistTracks,
+} from '../modules/playlistSearch/service'
 import type { MusicInfo } from '../types/music'
-import type { Playlist, PlaylistInfo } from '../types/playlist'
+import type {
+  ImportedPlaylistResult,
+  Playlist,
+  PlaylistInfo,
+  PlaylistSearchChannel,
+  SourcePlaylistSummary,
+} from '../types/playlist'
 import { ensureDatabaseInitialized, isTauriContext } from '../utils/tauriDatabase'
 
 interface PlaylistOverviewDto {
@@ -11,12 +22,20 @@ interface PlaylistOverviewDto {
   description?: string | null
   coverUrl?: string | null
   systemKey?: string | null
+  importSource?: PlaylistSearchChannel | null
+  importSourcePlaylistId?: string | null
+  importSourcePlaylistUrl?: string | null
+  lastSyncedAt?: string | null
   createdAt: string
   updatedAt: string
   musicCount: number
 }
 
 interface CreatedPlaylistDto {
+  id: number
+}
+
+interface SyncImportedPlaylistDto {
   id: number
 }
 
@@ -116,6 +135,10 @@ function fallbackPlaylists(): Playlist[] {
       id: 1,
       name: '试听列表',
       systemKey: 'default',
+      importSource: null,
+      importSourcePlaylistId: null,
+      importSourcePlaylistUrl: null,
+      lastSyncedAt: null,
       musics: [],
       createdAt: now,
       updatedAt: now,
@@ -124,6 +147,10 @@ function fallbackPlaylists(): Playlist[] {
       id: 2,
       name: '我的收藏',
       systemKey: 'love',
+      importSource: null,
+      importSourcePlaylistId: null,
+      importSourcePlaylistUrl: null,
+      lastSyncedAt: null,
       musics: [],
       createdAt: now,
       updatedAt: now,
@@ -134,6 +161,15 @@ function fallbackPlaylists(): Playlist[] {
 export interface AddMusicToPlaylistResult {
   track: MusicInfo
   status: 'added' | 'alreadyExists'
+}
+
+export interface ImportSourcePlaylistResult {
+  playlist: Playlist
+  status: 'created' | 'updated'
+}
+
+function isImportedPlaylist(playlist: Pick<Playlist, 'importSource' | 'importSourcePlaylistId'>): boolean {
+  return Boolean(playlist.importSource && playlist.importSourcePlaylistId)
 }
 
 export const usePlaylistStore = defineStore('playlist', () => {
@@ -152,6 +188,10 @@ export const usePlaylistStore = defineStore('playlist', () => {
       description: item.description ?? null,
       cover: item.coverUrl ?? null,
       systemKey: item.systemKey ?? null,
+      importSource: item.importSource ?? null,
+      importSourcePlaylistId: item.importSourcePlaylistId ?? null,
+      importSourcePlaylistUrl: item.importSourcePlaylistUrl ?? null,
+      lastSyncedAt: item.lastSyncedAt ?? null,
       musics: trackMap.get(item.id) ?? [],
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -247,6 +287,10 @@ export const usePlaylistStore = defineStore('playlist', () => {
       const newPlaylist: Playlist = {
         id: Date.now(),
         name,
+        importSource: null,
+        importSourcePlaylistId: null,
+        importSourcePlaylistUrl: null,
+        lastSyncedAt: null,
         musics: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -303,6 +347,10 @@ export const usePlaylistStore = defineStore('playlist', () => {
       name: playlist.name,
       musicCount: playlist.musics.length,
       systemKey: playlist.systemKey ?? null,
+      importSource: playlist.importSource ?? null,
+      importSourcePlaylistId: playlist.importSourcePlaylistId ?? null,
+      importSourcePlaylistUrl: playlist.importSourcePlaylistUrl ?? null,
+      lastSyncedAt: playlist.lastSyncedAt ?? null,
       createdAt: playlist.createdAt,
       updatedAt: playlist.updatedAt,
     }))
@@ -419,6 +467,132 @@ export const usePlaylistStore = defineStore('playlist', () => {
     await refreshPlaylists()
   }
 
+  async function importSourcePlaylist(
+    playlistSummary: SourcePlaylistSummary,
+  ): Promise<ImportSourcePlaylistResult> {
+    await ensureReady()
+
+    const detail = await getSourcePlaylistDetail(playlistSummary.source, playlistSummary.id)
+    const tracks = await getSourcePlaylistTracks(
+      playlistSummary.source,
+      playlistSummary.id,
+      detail.trackCount ?? playlistSummary.trackCount,
+    )
+    const sourcePlaylistUrl = buildSourcePlaylistUrl(playlistSummary.source, playlistSummary.id) || null
+
+    if (!isTauriContext()) {
+      const existing = playlists.value.find((playlist) =>
+        playlist.importSource === playlistSummary.source
+        && playlist.importSourcePlaylistId === playlistSummary.id,
+      )
+      const now = new Date().toISOString()
+
+      if (existing) {
+        existing.name = detail.name
+        existing.description = detail.description ?? null
+        existing.cover = detail.cover ?? null
+        existing.importSourcePlaylistUrl = sourcePlaylistUrl
+        existing.lastSyncedAt = now
+        existing.updatedAt = now
+        existing.musics = tracks.map((track) => ({ ...track }))
+        return {
+          playlist: existing,
+          status: 'updated',
+        }
+      }
+
+      const createdPlaylist: Playlist = {
+        id: Date.now(),
+        name: detail.name,
+        description: detail.description ?? null,
+        cover: detail.cover ?? null,
+        systemKey: null,
+        importSource: playlistSummary.source,
+        importSourcePlaylistId: playlistSummary.id,
+        importSourcePlaylistUrl: sourcePlaylistUrl,
+        lastSyncedAt: now,
+        musics: tracks.map((track) => ({ ...track })),
+        createdAt: now,
+        updatedAt: now,
+      }
+      playlists.value.push(createdPlaylist)
+      return {
+        playlist: createdPlaylist,
+        status: 'created',
+      }
+    }
+
+    const result = await invoke<ImportedPlaylistResult>('create_imported_playlist', {
+      name: detail.name,
+      description: detail.description ?? null,
+      coverUrl: detail.cover ?? null,
+      importSource: playlistSummary.source,
+      importSourcePlaylistId: playlistSummary.id,
+      importSourcePlaylistUrl: sourcePlaylistUrl,
+      tracks: tracks.map(toPlaylistTrackInput),
+    })
+
+    await refreshPlaylists()
+
+    const playlist = playlists.value.find((item) => item.id === result.playlist.id)
+    if (!playlist) {
+      throw new Error('收藏歌单后未找到对应的本地歌单')
+    }
+
+    return {
+      playlist,
+      status: result.created ? 'created' : 'updated',
+    }
+  }
+
+  async function syncImportedPlaylist(playlistId: number): Promise<Playlist> {
+    await ensureReady()
+
+    const playlist = getPlaylist(playlistId)
+    if (!playlist || !isImportedPlaylist(playlist)) {
+      throw new Error('当前歌单不是可同步的导入歌单')
+    }
+
+    const detail = await getSourcePlaylistDetail(playlist.importSource!, playlist.importSourcePlaylistId!)
+    const tracks = await getSourcePlaylistTracks(
+      playlist.importSource!,
+      playlist.importSourcePlaylistId!,
+      detail.trackCount,
+    )
+    const sourcePlaylistUrl =
+      buildSourcePlaylistUrl(playlist.importSource!, playlist.importSourcePlaylistId!) || null
+
+    if (!isTauriContext()) {
+      const now = new Date().toISOString()
+      playlist.name = detail.name
+      playlist.description = detail.description ?? null
+      playlist.cover = detail.cover ?? null
+      playlist.importSourcePlaylistUrl = sourcePlaylistUrl
+      playlist.lastSyncedAt = now
+      playlist.updatedAt = now
+      playlist.musics = tracks.map((track) => ({ ...track }))
+      return playlist
+    }
+
+    const result = await invoke<SyncImportedPlaylistDto>('sync_imported_playlist', {
+      playlistId,
+      name: detail.name,
+      description: detail.description ?? null,
+      coverUrl: detail.cover ?? null,
+      importSourcePlaylistUrl: sourcePlaylistUrl,
+      tracks: tracks.map(toPlaylistTrackInput),
+    })
+
+    await refreshPlaylists()
+
+    const syncedPlaylist = playlists.value.find((item) => item.id === result.id || item.id === playlistId)
+    if (!syncedPlaylist) {
+      throw new Error('同步歌单后未找到对应的本地歌单')
+    }
+
+    return syncedPlaylist
+  }
+
   return {
     playlists,
     currentPlaylistId,
@@ -441,6 +615,8 @@ export const usePlaylistStore = defineStore('playlist', () => {
     selectAll,
     reorderMusic,
     batchRemoveFromPlaylist,
+    importSourcePlaylist,
+    syncImportedPlaylist,
     refreshPlaylists,
   }
 })

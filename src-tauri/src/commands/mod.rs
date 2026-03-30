@@ -14,13 +14,13 @@ pub mod search;
 pub mod theme;
 pub mod user_source;
 
-pub use app::exit_app;
+pub use app::{exit_app, set_network_proxy};
 pub use db::{
-    add_song_to_playlist, add_track_to_playlist, create_playlist, create_song, delete_playlist,
-    delete_song, get_all_settings, get_all_songs, get_playlist, get_playlist_overviews,
-    get_playlist_songs, get_playlists, get_setting, init_database, remove_song_from_playlist,
-    remove_tracks_from_playlist, reorder_playlist_songs, search_local_songs, set_setting,
-    update_playlist, update_song,
+    add_song_to_playlist, add_track_to_playlist, create_imported_playlist, create_playlist,
+    create_song, delete_playlist, delete_song, get_all_settings, get_all_songs, get_playlist,
+    get_playlist_overviews, get_playlist_songs, get_playlists, get_setting, init_database,
+    remove_song_from_playlist, remove_tracks_from_playlist, reorder_playlist_songs,
+    search_local_songs, set_setting, sync_imported_playlist, update_playlist, update_song,
 };
 pub use default_sources::{
     has_default_sources_been_imported, import_default_sources, list_available_default_sources,
@@ -50,8 +50,8 @@ pub use player::{
 pub use script_runtime::script_http_request;
 pub use search::{
     cache_media_url, get_available_sources, get_lyric, get_song_url, get_source_playlist,
-    get_source_playlist_detail, load_cached_media_blob, probe_media_url,
-    search_all_music_sources, search_music_sources, search_source_playlists,
+    get_source_playlist_detail, load_cached_media_blob, probe_media_url, search_all_music_sources,
+    search_music_sources, search_source_playlists,
 };
 pub use theme::{get_theme, reset_theme, set_theme};
 pub use user_source::{

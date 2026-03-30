@@ -22,13 +22,13 @@
           @click="selectPlaylist(list.id)"
           @contextmenu.prevent="showPlaylistMenu($event, list)"
         >
-          <span class="playlist-chip__icon">{{ getPlaylistIcon(list.systemKey) }}</span>
+          <span class="playlist-chip__icon">{{ getPlaylistIcon(list) }}</span>
           <span class="playlist-chip__content">
             <span class="playlist-chip__name">{{ list.name }}</span>
-            <span class="playlist-chip__meta">{{ getPlaylistTypeLabel(list.systemKey) }} · {{ list.musics.length }} 首</span>
+            <span class="playlist-chip__meta">{{ getPlaylistTypeLabel(list) }} · {{ list.musics.length }} 首</span>
           </span>
           <button
-            v-if="!isDefaultPlaylist(list.systemKey)"
+            v-if="!isDefaultPlaylist(list)"
             type="button"
             class="playlist-chip__delete"
             title="删除歌单"
@@ -51,13 +51,23 @@
 
       <div v-if="currentPlaylist" class="playlist-hero glass-panel">
         <div class="playlist-hero__cover">
-          <div class="playlist-hero__icon">{{ getPlaylistIcon(currentPlaylist.systemKey) }}</div>
+          <div class="playlist-hero__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
         </div>
 
         <div class="playlist-hero__meta">
-          <span class="playlist-hero__kicker">{{ getPlaylistTypeLabel(currentPlaylist.systemKey) }}</span>
+          <span class="playlist-hero__kicker">{{ getPlaylistTypeLabel(currentPlaylist) }}</span>
           <h2>{{ currentPlaylist.name }}</h2>
           <p>{{ getPlaylistDescription(currentPlaylist) }}</p>
+
+          <div v-if="isImportedPlaylist(currentPlaylist)" class="playlist-hero__source">
+            <span class="playlist-hero__source-pill">{{ getImportSourceLabel(currentPlaylist) }}</span>
+            <span v-if="currentPlaylist.importSourcePlaylistUrl" class="playlist-hero__source-url">
+              {{ currentPlaylist.importSourcePlaylistUrl }}
+            </span>
+            <span class="playlist-hero__source-time">
+              {{ currentPlaylist.lastSyncedAt ? `上次同步：${formatSyncTime(currentPlaylist.lastSyncedAt)}` : '尚未同步' }}
+            </span>
+          </div>
 
           <div class="playlist-hero__stats">
             <span class="playlist-stat">
@@ -85,6 +95,15 @@
             ▶ 播放全部
           </button>
           <button
+            v-if="isImportedPlaylist(currentPlaylist)"
+            type="button"
+            class="hero-action hero-action--sync"
+            :disabled="syncingPlaylistId === currentPlaylist.id"
+            @click="syncCurrentPlaylist"
+          >
+            {{ syncingPlaylistId === currentPlaylist.id ? '同步中...' : '同步刷新' }}
+          </button>
+          <button
             v-if="playlistStore.selectedMusicIds.size > 0"
             type="button"
             class="hero-action hero-action--danger"
@@ -96,7 +115,7 @@
       </div>
 
       <div v-if="currentPlaylist && currentPlaylist.musics.length === 0" class="playlist-empty glass-panel">
-        <div class="playlist-empty__icon">{{ getPlaylistIcon(currentPlaylist.systemKey) }}</div>
+        <div class="playlist-empty__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
         <h3>这个歌单还是空的</h3>
         <p>去搜索页添加歌曲，或者先创建更多自定义歌单整理音乐。</p>
       </div>
@@ -287,6 +306,7 @@ const operationNotice = ref<{
   type: 'info',
   message: '',
 })
+const syncingPlaylistId = ref<number | null>(null)
 let operationNoticeTimer: number | null = null
 
 const currentPlaylist = computed(() =>
@@ -317,6 +337,9 @@ const songMenuItems = computed<ContextMenuItem[]>(() => ([
   { key: 'view-artist', label: '👤 查看歌手' },
 ]))
 const playlistMenuItems = computed<ContextMenuItem[]>(() => ([
+  ...(contextMenu.value.playlist && isImportedPlaylist(contextMenu.value.playlist)
+    ? [{ key: 'sync-playlist', label: '⟳ 同步刷新' as const }]
+    : []),
   { key: 'delete-playlist', label: '× 删除歌单', danger: true },
 ]))
 const contextMenuItems = computed<ContextMenuItem[]>(() =>
@@ -325,7 +348,7 @@ const contextMenuItems = computed<ContextMenuItem[]>(() =>
 const addToMenuItems = computed<ContextMenuItem[]>(() =>
   targetPlaylists.value.map((playlist) => ({
     key: String(playlist.id),
-    label: `${getPlaylistIcon(playlist.systemKey)} ${playlist.name}`,
+    label: `${getPlaylistIcon(playlist)} ${playlist.name}`,
   })),
 )
 
@@ -346,7 +369,19 @@ function getMusicSelectionKey(music: MusicInfo): string {
   return String(music.storageSongId ?? music.id)
 }
 
-function getPlaylistIcon(systemKey?: string | null): string {
+function isImportedPlaylist(playlist?: Playlist | null): boolean {
+  return Boolean(playlist?.importSource && playlist?.importSourcePlaylistId)
+}
+
+function getPlaylistIcon(playlistOrSystemKey?: Playlist | string | null): string {
+  const systemKey = typeof playlistOrSystemKey === 'object'
+    ? playlistOrSystemKey?.systemKey
+    : playlistOrSystemKey
+
+  if (typeof playlistOrSystemKey === 'object' && isImportedPlaylist(playlistOrSystemKey)) {
+    return '🌐'
+  }
+
   switch (systemKey) {
     case 'default':
       return '🎵'
@@ -357,7 +392,15 @@ function getPlaylistIcon(systemKey?: string | null): string {
   }
 }
 
-function getPlaylistTypeLabel(systemKey?: string | null): string {
+function getPlaylistTypeLabel(playlistOrSystemKey?: Playlist | string | null): string {
+  const systemKey = typeof playlistOrSystemKey === 'object'
+    ? playlistOrSystemKey?.systemKey
+    : playlistOrSystemKey
+
+  if (typeof playlistOrSystemKey === 'object' && isImportedPlaylist(playlistOrSystemKey)) {
+    return '导入歌单'
+  }
+
   switch (systemKey) {
     case 'default':
       return '试听列表'
@@ -368,8 +411,28 @@ function getPlaylistTypeLabel(systemKey?: string | null): string {
   }
 }
 
+function getImportSourceLabel(playlist: Playlist): string {
+  switch (playlist.importSource) {
+    case 'wy':
+      return '网易云歌单'
+    case 'tx':
+      return '腾讯歌单'
+    case 'kw':
+      return '酷我歌单'
+    case 'kg':
+      return '酷狗歌单'
+    case 'mg':
+      return '咪咕歌单'
+    default:
+      return '远程歌单'
+  }
+}
+
 function getPlaylistDescription(playlist: Playlist): string {
   if (playlist.description?.trim()) return playlist.description.trim()
+  if (isImportedPlaylist(playlist)) {
+    return '由搜索结果收藏而来，可在本地管理，也可以随时同步远程歌单内容。'
+  }
   switch (playlist.systemKey) {
     case 'default':
       return '适合快速试播、临时收纳和整理搜索结果。'
@@ -380,8 +443,22 @@ function getPlaylistDescription(playlist: Playlist): string {
   }
 }
 
-function isDefaultPlaylist(systemKey?: string | null): boolean {
+function isDefaultPlaylist(playlistOrSystemKey?: Playlist | string | null): boolean {
+  const systemKey = typeof playlistOrSystemKey === 'object'
+    ? playlistOrSystemKey?.systemKey
+    : playlistOrSystemKey
   return systemKey === 'default' || systemKey === 'love'
+}
+
+function formatSyncTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function selectPlaylist(id: number) {
@@ -407,6 +484,24 @@ async function deletePlaylist(id: number) {
       ?? playlistStore.playlists[0]?.id
       ?? null,
     )
+  }
+}
+
+async function syncCurrentPlaylist() {
+  if (!currentPlaylist.value || !isImportedPlaylist(currentPlaylist.value)) return
+  if (syncingPlaylistId.value === currentPlaylist.value.id) return
+
+  syncingPlaylistId.value = currentPlaylist.value.id
+  setOperationNotice('info', `正在同步：${currentPlaylist.value.name}`)
+
+  try {
+    const synced = await playlistStore.syncImportedPlaylist(currentPlaylist.value.id)
+    setOperationNotice('success', `已同步歌单：${synced.name}`)
+  } catch (error) {
+    console.error('[List] Failed to sync imported playlist:', error)
+    setOperationNotice('error', error instanceof Error ? error.message : '同步歌单失败，请重试')
+  } finally {
+    syncingPlaylistId.value = null
   }
 }
 
@@ -624,6 +719,26 @@ async function deletePlaylistFromContext() {
   hideContextMenu()
 }
 
+async function syncPlaylistFromContext() {
+  if (!contextMenu.value.playlist || !isImportedPlaylist(contextMenu.value.playlist)) {
+    hideContextMenu()
+    return
+  }
+
+  hideContextMenu()
+  syncingPlaylistId.value = contextMenu.value.playlist.id
+
+  try {
+    const synced = await playlistStore.syncImportedPlaylist(contextMenu.value.playlist.id)
+    setOperationNotice('success', `已同步歌单：${synced.name}`)
+  } catch (error) {
+    console.error('[List] Failed to sync playlist from context:', error)
+    setOperationNotice('error', error instanceof Error ? error.message : '同步歌单失败，请重试')
+  } finally {
+    syncingPlaylistId.value = null
+  }
+}
+
 function handleContextMenuSelect(key: string) {
   switch (key) {
     case 'play':
@@ -646,6 +761,9 @@ function handleContextMenuSelect(key: string) {
       return
     case 'delete-playlist':
       void deletePlaylistFromContext()
+      return
+    case 'sync-playlist':
+      void syncPlaylistFromContext()
       return
     default:
       hideContextMenu()
@@ -928,6 +1046,32 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
+.playlist-hero__source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.playlist-hero__source-pill,
+.playlist-hero__source-url,
+.playlist-hero__source-time {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.playlist-hero__source-url {
+  max-width: min(100%, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .playlist-stat {
   display: inline-flex;
   flex-direction: column;
@@ -971,6 +1115,11 @@ onUnmounted(() => {
   &--danger {
     background: rgba(255, 107, 129, 0.14);
     color: #ffc5cf;
+  }
+
+  &--sync {
+    background: rgba(87, 198, 255, 0.14);
+    color: #d7f4ff;
   }
 
   &:disabled {

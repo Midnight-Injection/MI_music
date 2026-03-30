@@ -118,6 +118,8 @@ impl MiguSource {
             album_id,
             hash: None,
             str_media_mid: None,
+            song_id: None,
+            msg_id: None,
             copyright_id,
             interval,
             album_name: album,

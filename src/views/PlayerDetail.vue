@@ -4,8 +4,17 @@
     <div class="player-detail__overlay"></div>
 
     <div class="player-detail__shell">
-      <header class="detail-topbar">
-        <button class="back-btn" @click="goBack" title="返回">
+      <header
+        class="detail-topbar"
+        @mousedown="handleTopbarDragStart"
+      >
+        <button
+          class="back-btn"
+          data-window-no-drag
+          @mousedown.stop
+          @click="goBack"
+          title="返回"
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
           </svg>
@@ -69,21 +78,27 @@
           </div>
 
           <div ref="lyricsScrollerRef" class="lyrics-scroller">
-            <div v-if="player.hasLyrics" class="lyrics-lines">
+            <div v-if="settingsStore.settings.lyricShow && player.hasLyrics" class="lyrics-lines">
               <div
                 v-for="(line, index) in lyricRows"
                 :key="`${line.time_ms}-${index}`"
                 :ref="(el) => setLyricLineRef(el, index)"
                 class="lyric-line"
                 :class="{ active: index === player.currentLyricIndex }"
+                :style="{ '--detail-lyric-font-size': `${settingsStore.settings.lyricFontSize}px` }"
               >
                 <p class="lyric-line__text">{{ line.text || '...' }}</p>
-                <p v-if="line.translation" class="lyric-line__translation">{{ line.translation }}</p>
+                <p
+                  v-if="settingsStore.settings.showTranslation && line.translation"
+                  class="lyric-line__translation"
+                >
+                  {{ line.translation }}
+                </p>
               </div>
             </div>
             <div v-else class="lyrics-empty">
-              <p>当前歌曲暂无歌词</p>
-              <span>切换歌曲后会自动更新</span>
+              <p>{{ settingsStore.settings.lyricShow ? '当前歌曲暂无歌词' : '歌词显示已关闭' }}</p>
+              <span>{{ settingsStore.settings.lyricShow ? '切换歌曲后会自动更新' : '可在设置中重新开启歌词显示' }}</span>
             </div>
           </div>
         </section>
@@ -165,13 +180,14 @@
           <div class="control-buttons">
             <button
               class="control-btn-large"
+              data-window-no-drag
               @click="togglePlayMode"
               :title="playModeTitle"
             >
               <span class="mode-icon">{{ playModeIcon }}</span>
             </button>
 
-            <button class="control-btn-large" @click="player.playPrevious" title="上一首">
+            <button class="control-btn-large" data-window-no-drag @click="player.playPrevious" title="上一首">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
               </svg>
@@ -179,6 +195,7 @@
 
             <button
               class="play-btn-large"
+              data-window-no-drag
               @click="togglePlay"
               :title="player.isPlaying ? '暂停' : '播放'"
             >
@@ -190,7 +207,7 @@
               </svg>
             </button>
 
-            <button class="control-btn-large" @click="player.playNext" title="下一首">
+            <button class="control-btn-large" data-window-no-drag @click="player.playNext" title="下一首">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
               </svg>
@@ -198,7 +215,7 @@
           </div>
 
           <div class="controls-strip__tools">
-            <button class="control-btn-large" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+            <button class="control-btn-large" data-window-no-drag @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path v-if="isMuted || volumeValue === 0" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
                 <path v-else d="M3 9v6h4l5 5V4L9 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
@@ -212,6 +229,8 @@
               max="1"
               step="0.01"
               class="volume-slider-large"
+              data-window-no-drag
+              @mousedown.stop
               @input="handleVolumeChange"
             />
           </div>
@@ -223,8 +242,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRouter } from 'vue-router'
 import { usePlayerStore } from '../store/player'
+import { useSettingsStore } from '../store/settings'
 import { useUserSourceStore } from '../stores/userSource'
 import type { PlayMode } from '../types/player'
 import { getPlaybackSourceDisplayInfo } from '../lib/playbackSource'
@@ -232,7 +253,10 @@ import { formatQualityLabel } from '../lib/trackQuality'
 
 const router = useRouter()
 const player = usePlayerStore()
+const settingsStore = useSettingsStore()
 const userSourceStore = useUserSourceStore()
+const isTauriWindow = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+const appWindow = isTauriWindow ? getCurrentWindow() : null
 
 const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23111b2e" width="200" height="200"/%3E%3Ccircle cx="100" cy="100" r="54" fill="%23ffffff" fill-opacity="0.08"/%3E%3C/svg%3E'
 const isDragging = ref(false)
@@ -332,6 +356,25 @@ watch(() => player.currentMusic?.id, async () => {
 
 function goBack() {
   router.back()
+}
+
+function isTopbarInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement
+    && Boolean(target.closest('button, input, select, textarea, a, [data-window-no-drag]'))
+  )
+}
+
+async function handleTopbarDragStart(event: MouseEvent) {
+  if (!appWindow || event.button !== 0 || isTopbarInteractiveTarget(event.target)) {
+    return
+  }
+
+  try {
+    await appWindow.startDragging()
+  } catch (error) {
+    console.error('Failed to start window dragging from player detail:', error)
+  }
 }
 
 function togglePlay() {
@@ -466,14 +509,15 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .player-detail {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: var(--sidebar-width);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
-  color: #fff7ff;
+  color: var(--text-primary);
   background: transparent;
+  border-radius: calc(var(--radius-lg) + 6px);
+  isolation: isolate;
 }
 
 .player-detail__backdrop,
@@ -484,19 +528,19 @@ onUnmounted(() => {
 
 .player-detail__backdrop {
   background:
-    radial-gradient(circle at top left, rgba(124, 82, 255, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(255, 79, 139, 0.14), transparent 24%);
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary-hover) 18%, transparent), transparent 28%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--primary-color) 14%, transparent), transparent 24%);
   background-size: cover;
   background-position: center;
-  filter: blur(34px) saturate(1.2);
+  filter: blur(28px) saturate(1.06);
   transform: scale(1.08);
-  opacity: 0.26;
+  opacity: 0.22;
 }
 
 .player-detail__overlay {
   background:
-    linear-gradient(180deg, rgba(19, 8, 34, 0.52) 0%, rgba(19, 8, 34, 0.76) 100%),
-    linear-gradient(135deg, rgba(31, 14, 52, 0.88) 0%, rgba(22, 10, 37, 0.82) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 72%, transparent) 0%, color-mix(in srgb, var(--bg-elevated) 88%, transparent) 100%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 90%, transparent) 0%, color-mix(in srgb, var(--bg-primary) 84%, transparent) 100%);
 }
 
 .player-detail__shell {
@@ -506,16 +550,15 @@ onUnmounted(() => {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 18px;
   height: 100%;
-  padding: 24px 28px 22px;
+  min-height: 0;
+  padding: 16px 18px 18px;
 }
 
 .glass-panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  box-shadow: 0 8px 18px rgba(4, 2, 14, 0.1);
-  backdrop-filter: blur(18px);
+  border: 1px solid var(--border-color);
+  background: var(--panel-gradient);
+  box-shadow: var(--panel-shadow-soft);
+  backdrop-filter: var(--glass-blur);
 }
 
 .detail-topbar {
@@ -523,15 +566,27 @@ onUnmounted(() => {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-color) 10%, transparent), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .back-btn {
   width: 46px;
   height: 46px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-color);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  color: var(--text-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -552,7 +607,7 @@ onUnmounted(() => {
 .section-head__eyebrow,
 .track-copy__eyebrow {
   margin: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   font-size: 0.72rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -560,7 +615,7 @@ onUnmounted(() => {
 
 .detail-topbar__hint {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-secondary);
   font-size: 0.95rem;
 }
 
@@ -578,14 +633,17 @@ onUnmounted(() => {
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--pill-secondary-bg);
+  color: var(--text-primary);
   font-size: 0.82rem;
+  border: 1px solid var(--pill-secondary-border);
+  box-shadow: 0 10px 22px rgba(10, 6, 26, 0.12);
 }
 
 .detail-chip--accent {
-  background: rgba(255, 79, 139, 0.16);
-  color: #ffd7e4;
+  background: var(--pill-accent-bg);
+  border-color: var(--pill-accent-border);
+  color: var(--text-primary);
 }
 
 .detail-stage {
@@ -606,9 +664,10 @@ onUnmounted(() => {
   position: relative;
   padding: 16px;
   border-radius: 30px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel-gradient);
+  border: 1px solid var(--border-color);
   overflow: hidden;
+  box-shadow: var(--panel-shadow-soft);
 }
 
 .cover-card__glow {
@@ -618,7 +677,7 @@ onUnmounted(() => {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 79, 139, 0.2), transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary-color) 22%, transparent), transparent 70%);
   pointer-events: none;
 }
 
@@ -631,7 +690,7 @@ onUnmounted(() => {
   object-fit: cover;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--shadow-lg);
 }
 
 .album-art--placeholder {
@@ -643,20 +702,29 @@ onUnmounted(() => {
 }
 
 .track-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 2px 4px;
+  min-width: 0;
 }
 
 .track-copy__title {
-  margin: 12px 0 0;
-  font-size: clamp(2.4rem, 4vw, 4.4rem);
-  line-height: 0.94;
+  margin: 0;
+  font-size: clamp(1.9rem, 3vw, 3.2rem);
+  line-height: 1;
   letter-spacing: -0.04em;
   word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .track-copy__subtitle {
-  margin: 14px 0 0;
-  color: rgba(255, 255, 255, 0.68);
+  margin: 0;
+  color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1.6;
 }
@@ -668,7 +736,7 @@ onUnmounted(() => {
   padding: 16px 18px;
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
 }
 
 .detail-facts__row {
@@ -679,12 +747,12 @@ onUnmounted(() => {
 }
 
 .detail-facts__label {
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-tertiary);
   font-size: 0.82rem;
 }
 
 .detail-facts__value {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   font-size: 0.94rem;
   line-height: 1.45;
   word-break: break-word;
@@ -721,7 +789,7 @@ onUnmounted(() => {
 
 .section-head__note {
   margin: 0;
-  color: rgba(255, 255, 255, 0.54);
+  color: var(--text-tertiary);
   font-size: 0.85rem;
   text-align: right;
 }
@@ -752,13 +820,13 @@ onUnmounted(() => {
 
 .lyric-line {
   max-width: 88%;
-  color: rgba(255, 255, 255, 0.32);
+  color: color-mix(in srgb, var(--text-secondary) 44%, transparent);
   transition: color 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
   opacity: 0.74;
 }
 
 .lyric-line.active {
-  color: #f8fafc;
+  color: var(--text-primary);
   opacity: 1;
   transform: translateX(12px);
 }
@@ -769,7 +837,7 @@ onUnmounted(() => {
 }
 
 .lyric-line__text {
-  font-size: clamp(1.28rem, 2.2vw, 2.3rem);
+  font-size: var(--detail-lyric-font-size, clamp(1.28rem, 2.2vw, 2.3rem));
   line-height: 1.34;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -777,8 +845,8 @@ onUnmounted(() => {
 
 .lyric-line__translation {
   margin-top: 8px;
-  color: rgba(255, 255, 255, 0.46);
-  font-size: 0.96rem;
+  color: var(--text-secondary);
+  font-size: calc(var(--detail-lyric-font-size, 1.28rem) - 4px);
   line-height: 1.5;
 }
 
@@ -788,7 +856,7 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
   min-height: 180px;
 }
 
@@ -826,7 +894,12 @@ onUnmounted(() => {
 }
 
 .queue-item.active {
-  background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.14));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-color) 16%, transparent),
+    color-mix(in srgb, var(--primary-hover) 12%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--primary-color) 18%, var(--border-color));
 }
 
 .queue-item__cover {
@@ -849,13 +922,13 @@ onUnmounted(() => {
 }
 
 .queue-item__title {
-  color: #fff;
+  color: var(--text-primary);
   font-size: 0.95rem;
 }
 
 .queue-item__artist,
 .queue-item__duration {
-  color: rgba(255, 255, 255, 0.54);
+  color: var(--text-tertiary);
   font-size: 0.82rem;
 }
 
@@ -872,7 +945,7 @@ onUnmounted(() => {
 }
 
 .time-label {
-  color: rgba(255, 255, 255, 0.54);
+  color: var(--text-tertiary);
   font-size: 0.82rem;
 }
 
@@ -900,8 +973,8 @@ onUnmounted(() => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 6px 18px rgba(255, 255, 255, 0.3);
+  background: var(--text-primary);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-color) 22%, transparent);
   transform: translate(-50%, -50%);
 }
 
@@ -950,7 +1023,7 @@ onUnmounted(() => {
 
   span {
     margin-top: 4px;
-    color: rgba(255, 255, 255, 0.56);
+    color: var(--text-secondary);
     font-size: 0.84rem;
   }
 }
@@ -974,7 +1047,7 @@ onUnmounted(() => {
 .control-btn-large,
 .play-btn-large {
   border: 0;
-  color: #fff;
+  color: var(--text-primary);
   transition: transform 0.16s ease, background 0.16s ease;
 
   &:hover {
@@ -989,7 +1062,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--button-secondary-bg);
+  border: 1px solid var(--button-secondary-border);
+  box-shadow: 0 12px 26px rgba(10, 6, 26, 0.14);
+
+  &:hover {
+    background: var(--pill-accent-bg);
+    border-color: var(--pill-accent-border);
+  }
 }
 
 .play-btn-large {
@@ -999,8 +1079,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary-color), #ff7ca7);
-  box-shadow: 0 18px 36px rgba(255, 79, 139, 0.28);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  box-shadow: 0 18px 36px color-mix(in srgb, var(--primary-color) 28%, transparent);
 }
 
 .mode-icon {
@@ -1010,6 +1090,52 @@ onUnmounted(() => {
 .volume-slider-large {
   width: 128px;
   accent-color: var(--primary-color);
+}
+
+@media (max-width: 1320px) {
+  .detail-stage {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+
+  .queue-stage {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 920px) {
+  .player-detail__shell {
+    gap: 14px;
+    padding: 12px;
+  }
+
+  .detail-topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .detail-topbar__status {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .detail-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-rail,
+  .lyrics-stage,
+  .queue-stage {
+    min-height: 0;
+  }
+
+  .controls-strip__body {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .controls-strip__track,
+  .controls-strip__tools {
+    justify-content: flex-start;
+  }
 }
 
 </style>

@@ -3,7 +3,7 @@
     <section class="search-home glass-panel">
       <div class="search-home__hero">
         <div class="search-home__copy">
-          <span class="search-home__eyebrow">Playlist Search</span>
+          <span class="search-home__eyebrow app-pill accent compact">Playlist Search</span>
           <h1>搜索歌单</h1>
           <p>输入关键词后按渠道分组搜索公开歌单，当前优先接入网易云音乐和 QQ 音乐。</p>
         </div>
@@ -24,7 +24,7 @@
           <button
             v-if="searchKeyword"
             type="button"
-            class="search-home__clear"
+            class="search-home__clear app-icon-button ghost compact"
             @click="handleClear"
           >
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -33,7 +33,7 @@
           </button>
         </div>
 
-        <button type="button" class="search-home__submit" @click="handleSearchSubmit">
+        <button type="button" class="search-home__submit app-button accent" @click="handleSearchSubmit">
           开始搜索
         </button>
       </div>
@@ -43,8 +43,12 @@
           v-for="option in PLAYLIST_CHANNEL_OPTIONS"
           :key="option.value"
           type="button"
-          class="channel-tabs__item"
-          :class="{ 'is-active': option.primary, 'is-disabled': !option.supported }"
+          :class="[
+            'channel-tabs__item',
+            'app-pill',
+            option.primary ? 'accent' : 'secondary',
+            { 'is-active': option.primary, 'is-disabled': !option.supported },
+          ]"
         >
           {{ option.label }}
         </button>
@@ -62,7 +66,7 @@
     <section v-if="!activePlaylistSummary" class="playlist-results glass-panel section-card">
       <header class="playlist-results__header">
         <div>
-          <span class="playlist-results__eyebrow">分渠道结果</span>
+          <span class="playlist-results__eyebrow app-pill primary compact">分渠道结果</span>
           <h2>搜索结果</h2>
           <p>{{ searchSummary }}</p>
         </div>
@@ -72,14 +76,18 @@
               v-for="option in SORT_OPTIONS"
               :key="option.value"
               type="button"
-              class="playlist-sort__item"
-              :class="{ 'is-active': selectedSort === option.value }"
+              :class="[
+                'playlist-sort__item',
+                'app-pill',
+                selectedSort === option.value ? 'accent' : 'ghost',
+                { 'is-active': selectedSort === option.value },
+              ]"
               @click="selectedSort = option.value"
             >
               {{ option.label }}
             </button>
           </div>
-          <span class="playlist-results__badge">{{ resultBadge }}</span>
+          <span class="playlist-results__badge app-pill warning compact">{{ resultBadge }}</span>
         </div>
       </header>
 
@@ -106,8 +114,7 @@
               <p>{{ option.primary ? '优先渠道' : '预留渠道' }}</p>
             </div>
             <span
-              class="playlist-group__state"
-              :class="`is-${channelStates[option.value].status}`"
+              :class="['playlist-group__state', 'app-pill', getChannelStateClass(channelStates[option.value].status)]"
             >
               {{ getChannelStateLabel(channelStates[option.value].status) }}
             </span>
@@ -117,12 +124,14 @@
             v-if="channelStates[option.value].status === 'success' && channelStates[option.value].items.length"
           >
             <div class="playlist-card-grid">
-              <button
+              <article
                 v-for="playlist in getSortedChannelItems(option.value)"
                 :key="`${playlist.source}-${playlist.id}`"
-                type="button"
                 class="playlist-card"
+                role="button"
+                tabindex="0"
                 @click="openPlaylistDetail(playlist)"
+                @keydown.enter.prevent="openPlaylistDetail(playlist)"
                 @contextmenu.prevent="showPlaylistMenu($event, playlist)"
               >
                 <div class="playlist-card__cover-shell">
@@ -139,8 +148,8 @@
 
                 <div class="playlist-card__body">
                   <div class="playlist-card__meta">
-                    <span class="playlist-card__source">{{ getChannelName(playlist.source) }}</span>
-                    <span v-if="playlist.trackCount" class="playlist-card__tracks">
+                    <span class="playlist-card__source app-pill secondary compact">{{ getChannelName(playlist.source) }}</span>
+                    <span v-if="playlist.trackCount" class="playlist-card__tracks app-pill ghost compact">
                       {{ playlist.trackCount }} 首
                     </span>
                   </div>
@@ -150,14 +159,24 @@
                     <span>{{ playlist.creator || '未知创建者' }}</span>
                     <strong>{{ formatPlayCount(playlist.playCount) }}</strong>
                   </footer>
+                  <div class="playlist-card__actions">
+                    <button
+                      type="button"
+                      class="playlist-card__favorite app-button secondary compact"
+                      :disabled="importingPlaylistKey === `${playlist.source}-${playlist.id}`"
+                      @click.stop="handleFavoritePlaylist(playlist)"
+                    >
+                      {{ importingPlaylistKey === `${playlist.source}-${playlist.id}` ? '收藏中...' : '收藏歌单' }}
+                    </button>
+                  </div>
                 </div>
-              </button>
+              </article>
             </div>
 
             <div class="playlist-group__pagination">
               <button
                 type="button"
-                class="playlist-group__page-btn"
+                class="playlist-group__page-btn app-button secondary compact"
                 :disabled="channelStates[option.value].isPaging || channelStates[option.value].page <= 1"
                 @click="handleChannelPageChange(option.value, channelStates[option.value].page - 1)"
               >
@@ -168,7 +187,7 @@
               </span>
               <button
                 type="button"
-                class="playlist-group__page-btn"
+                class="playlist-group__page-btn app-button secondary compact"
                 :disabled="channelStates[option.value].isPaging || !channelStates[option.value].hasNextPage"
                 @click="handleChannelPageChange(option.value, channelStates[option.value].page + 1)"
               >
@@ -189,10 +208,10 @@
 
     <section v-else class="playlist-detail glass-panel section-card">
       <header class="playlist-detail__header">
-        <button type="button" class="playlist-detail__back" @click="closePlaylistDetail">
+        <button type="button" class="playlist-detail__back app-button secondary compact" @click="closePlaylistDetail">
           返回搜索结果
         </button>
-        <span class="playlist-detail__source">{{ detailSourceLabel }}</span>
+        <span class="playlist-detail__source app-pill accent compact">{{ detailSourceLabel }}</span>
       </header>
 
       <div v-if="isDetailLoading" class="playlist-results__loading">
@@ -217,7 +236,7 @@
           </div>
 
           <div class="playlist-detail__meta">
-            <span class="playlist-detail__eyebrow">Playlist Detail</span>
+            <span class="playlist-detail__eyebrow app-pill accent compact">Playlist Detail</span>
             <h2>{{ detailName }}</h2>
             <p class="playlist-detail__creator">{{ detailCreator }}</p>
             <p class="playlist-detail__description">{{ detailDescription }}</p>
@@ -231,7 +250,7 @@
             <div class="playlist-detail__actions">
               <button
                 type="button"
-                class="playlist-detail__action is-primary"
+                class="playlist-detail__action app-button accent"
                 :disabled="playlistTracks.length === 0"
                 @click="handlePlayAll"
               >
@@ -239,11 +258,20 @@
               </button>
               <button
                 type="button"
-                class="playlist-detail__action"
+                class="playlist-detail__action app-button secondary"
                 :disabled="playlistTracks.length === 0"
                 @click="handleQueueAll"
               >
                 加入当前队列
+              </button>
+              <button
+                v-if="activePlaylistSummary"
+                type="button"
+                class="playlist-detail__action app-button ghost"
+                :disabled="importingPlaylistKey === `${activePlaylistSummary.source}-${activePlaylistSummary.id}`"
+                @click="handleFavoritePlaylist(activePlaylistSummary)"
+              >
+                {{ importingPlaylistKey === `${activePlaylistSummary.source}-${activePlaylistSummary.id}` ? '收藏中...' : '收藏歌单' }}
               </button>
             </div>
           </div>
@@ -295,7 +323,7 @@
               {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
             </p>
           </div>
-          <button class="playlist-dialog__close" @click="closeAddToPlaylistDialog">×</button>
+          <button class="playlist-dialog__close app-icon-button secondary compact" @click="closeAddToPlaylistDialog">×</button>
         </div>
         <div class="playlist-dialog__list">
           <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
@@ -303,7 +331,7 @@
           </div>
           <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
             <span>{{ playlistStore.initError }}</span>
-            <button type="button" class="playlist-dialog__retry" @click="retryPlaylistInit">重试</button>
+            <button type="button" class="playlist-dialog__retry app-button warning compact" @click="retryPlaylistInit">重试</button>
           </div>
           <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
             暂无可用歌单，请先去“我的歌单”创建一个歌单。
@@ -313,7 +341,7 @@
             v-for="playlist in playlistStore.playlists"
             :key="playlist.id"
             type="button"
-            class="playlist-dialog__item"
+            class="playlist-dialog__item app-button secondary"
             @click="confirmAddToPlaylist(playlist.id)"
           >
             <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
@@ -434,6 +462,7 @@ const playlistNotice = ref<{
   type: 'info',
   message: '',
 })
+const importingPlaylistKey = ref('')
 
 let playlistNoticeTimer: number | null = null
 const detailLoadAnchorRef = ref<HTMLDivElement | null>(null)
@@ -446,6 +475,7 @@ const songMenuItems: ContextMenuItem[] = [
 ]
 const playlistMenuItems: ContextMenuItem[] = [
   { key: 'open-playlist', label: '↗ 打开歌单详情' },
+  { key: 'favorite-playlist', label: '☆ 收藏歌单' },
 ]
 const contextMenuItems = computed<ContextMenuItem[]>(() =>
   contextMenu.value.type === 'song' ? songMenuItems : playlistMenuItems,
@@ -888,6 +918,12 @@ function handleContextMenuSelect(key: string) {
       }
       hideContextMenu()
       return
+    case 'favorite-playlist':
+      if (contextMenu.value.playlist) {
+        void handleFavoritePlaylist(contextMenu.value.playlist)
+      }
+      hideContextMenu()
+      return
     default:
       hideContextMenu()
   }
@@ -917,6 +953,28 @@ async function confirmAddToPlaylist(playlistId: number) {
   } catch (error) {
     console.error('[SongList] Failed to add music to playlist:', error)
     setPlaylistNotice('error', error instanceof Error ? error.message : '添加到歌单失败，请重试')
+  }
+}
+
+async function handleFavoritePlaylist(playlist: SourcePlaylistSummary) {
+  const playlistKey = `${playlist.source}-${playlist.id}`
+  if (importingPlaylistKey.value === playlistKey) return
+
+  importingPlaylistKey.value = playlistKey
+
+  try {
+    const result = await playlistStore.importSourcePlaylist(playlist)
+    setPlaylistNotice(
+      result.status === 'created' ? 'success' : 'info',
+      result.status === 'created'
+        ? `已收藏到本地歌单：${result.playlist.name}`
+        : `已刷新本地歌单：${result.playlist.name}`,
+    )
+  } catch (error) {
+    console.error('[SongList] Failed to favorite source playlist:', error)
+    setPlaylistNotice('error', error instanceof Error ? error.message : '收藏歌单失败，请稍后重试')
+  } finally {
+    importingPlaylistKey.value = ''
   }
 }
 
@@ -954,6 +1012,19 @@ function getChannelStateLabel(status: PlaylistChannelStatus) {
       return '异常'
     default:
       return '待搜索'
+  }
+}
+
+function getChannelStateClass(status: PlaylistChannelStatus) {
+  switch (status) {
+    case 'loading':
+      return 'warning'
+    case 'success':
+      return 'success'
+    case 'error':
+      return 'danger'
+    default:
+      return 'secondary'
   }
 }
 
@@ -1023,12 +1094,6 @@ onUnmounted(() => {
 }
 
 .search-home__eyebrow {
-  display: inline-flex;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 0.68rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -1058,14 +1123,7 @@ onUnmounted(() => {
 
 .playlist-results__eyebrow,
 .playlist-detail__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.78);
   font-size: 0.72rem;
-  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -1121,17 +1179,7 @@ onUnmounted(() => {
   position: absolute;
   top: 50%;
   right: 14px;
-  width: 24px;
-  height: 24px;
   transform: translateY(-50%);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
 
   svg {
     width: 14px;
@@ -1142,12 +1190,6 @@ onUnmounted(() => {
 .search-home__submit {
   min-width: 112px;
   min-height: 46px;
-  padding: 0 16px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #f2dcff, #d7c1ff);
-  color: #5b4198;
-  font-weight: 700;
-  box-shadow: 0 18px 36px rgba(83, 58, 141, 0.2);
 }
 
 .channel-tabs {
@@ -1157,19 +1199,10 @@ onUnmounted(() => {
 }
 
 .channel-tabs__item {
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary);
-  font-weight: 600;
   font-size: 0.76rem;
 
   &.is-active {
-    background: rgba(255, 255, 255, 0.18);
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: var(--button-accent-shadow);
   }
 
   &.is-disabled {
@@ -1251,49 +1284,23 @@ onUnmounted(() => {
 }
 
 .playlist-sort__item {
-  min-height: 30px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
   font-size: 0.74rem;
-  font-weight: 600;
   cursor: pointer;
 
   &.is-active {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--text-primary);
+    box-shadow: var(--button-accent-shadow);
   }
 }
 
 .playlist-results__badge,
 .playlist-group__state,
 .playlist-detail__source {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
   font-size: 0.74rem;
 }
 
 .playlist-group__state {
-  &.is-loading {
-    color: #b8eaff;
-  }
-
-  &.is-success {
-    color: #baf7cd;
-  }
-
-  &.is-empty,
-  &.is-unsupported {
-    color: rgba(255, 255, 255, 0.72);
-  }
-
-  &.is-error {
-    color: #ffc5cf;
+  &.secondary {
+    color: var(--text-secondary);
   }
 }
 
@@ -1347,17 +1354,6 @@ onUnmounted(() => {
 
 .playlist-group__page-btn {
   min-height: 34px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
 }
 
 .playlist-group__page-status {
@@ -1415,6 +1411,9 @@ onUnmounted(() => {
 }
 
 .playlist-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: 14px;
 
   h4 {
@@ -1444,6 +1443,17 @@ onUnmounted(() => {
   }
 }
 
+.playlist-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.playlist-card__favorite {
+  min-width: 92px;
+}
+
 .playlist-card__meta {
   display: flex;
   justify-content: space-between;
@@ -1453,15 +1463,10 @@ onUnmounted(() => {
 .playlist-card__source,
 .playlist-card__tracks {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.78);
 }
 
 .playlist-detail__back {
   min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
 }
 
 .playlist-detail__hero {
@@ -1519,16 +1524,6 @@ onUnmounted(() => {
 
 .playlist-detail__action {
   min-height: 42px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  font-weight: 700;
-
-  &.is-primary {
-    background: linear-gradient(135deg, #f2dcff, #d7c1ff);
-    color: #5b4198;
-  }
 
   &:disabled {
     cursor: not-allowed;
@@ -1611,13 +1606,7 @@ onUnmounted(() => {
 }
 
 .playlist-dialog__close {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
+  font-size: 1rem;
 }
 
 .playlist-dialog__list {
@@ -1645,16 +1634,11 @@ onUnmounted(() => {
 
 .playlist-dialog__retry,
 .playlist-dialog__item {
-  border: none;
-  cursor: pointer;
+  border-radius: 20px;
 }
 
 .playlist-dialog__retry {
   min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
 }
 
 .playlist-dialog__item {
@@ -1663,16 +1647,8 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 12px;
   min-height: 58px;
-  padding: 0 16px;
+  padding-inline: 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  transition: background-color 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    transform: translateY(-1px);
-  }
 }
 
 @keyframes spin {

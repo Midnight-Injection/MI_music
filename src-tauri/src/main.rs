@@ -25,10 +25,12 @@ fn main() {
         .manage(player_state)
         .invoke_handler(tauri::generate_handler![
             jiyu_music::exit_app,
+            jiyu_music::set_network_proxy,
             // Database commands
             jiyu_music::init_database,
             // Playlist commands
             jiyu_music::create_playlist,
+            jiyu_music::create_imported_playlist,
             jiyu_music::get_playlists,
             jiyu_music::get_playlist,
             jiyu_music::update_playlist,
@@ -46,6 +48,7 @@ fn main() {
             jiyu_music::add_track_to_playlist,
             jiyu_music::remove_tracks_from_playlist,
             jiyu_music::reorder_playlist_songs,
+            jiyu_music::sync_imported_playlist,
             // Settings commands
             jiyu_music::get_setting,
             jiyu_music::set_setting,

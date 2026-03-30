@@ -1,3 +1,4 @@
+use crate::api::helpers::build_media_client;
 use crate::db::get_pool;
 use crate::db::models::download::{CreateDownloadTask, DownloadTask, UpdateDownloadTask};
 use reqwest::Client;
@@ -14,14 +15,12 @@ lazy_static::lazy_static! {
 
 struct DownloadManager {
     active_downloads: HashMap<i64, tokio::task::JoinHandle<()>>,
-    client: Client,
 }
 
 impl DownloadManager {
     fn new() -> Self {
         Self {
             active_downloads: HashMap::new(),
-            client: Client::new(),
         }
     }
 
@@ -31,7 +30,7 @@ impl DownloadManager {
         url: String,
         path: PathBuf,
     ) -> Result<(), String> {
-        let client = self.client.clone();
+        let client = build_media_client();
 
         let handle = tokio::spawn(async move {
             if let Err(e) = Self::download_file(&client, url, path, task_id).await {

@@ -1,3 +1,4 @@
+use crate::api::helpers::build_media_client;
 use reqwest::Client;
 use thiserror::Error;
 
@@ -49,7 +50,7 @@ impl AudioPlayer {
                 position: 0.0,
                 current_url: None,
             },
-            http_client: Client::new(),
+            http_client: build_media_client(),
         })
     }
 

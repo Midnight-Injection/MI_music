@@ -33,10 +33,28 @@ export function useMusicUrlResolver() {
     }
 
     if (music.albumId) info.albumId = music.albumId
-    if (music.strMediaMid) info.strMediaMid = music.strMediaMid
-    if (music.copyrightId) info.copyrightId = music.copyrightId
+    if (music.strMediaMid) {
+      info.strMediaMid = music.strMediaMid
+      info.mediaMid = music.strMediaMid
+      info.media_mid = music.strMediaMid
+    }
+    if (music.copyrightId || (sourceId === 'tx' && music.songId)) {
+      info.copyrightId = music.copyrightId || music.songId
+    }
     if (sourceId === 'kg') info.hash = music.hash || music.songmid
     else if (music.songmid) info.songmid = music.songmid
+
+    if (sourceId === 'tx') {
+      if (music.songmid) info.mid = music.songmid
+      if (music.songId) {
+        info.songId = music.songId
+        info.songid = music.songId
+      }
+      if (music.msgId) {
+        info.msgId = music.msgId
+        info.msgid = music.msgId
+      }
+    }
 
     // Add source-specific fields based on the source
     // These would typically come from the search result

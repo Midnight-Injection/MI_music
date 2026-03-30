@@ -3,7 +3,6 @@ use crate::api::kugou::KugouSource;
 use crate::api::SourceRegistry;
 use crate::api::{LyricInfo, MusicInfo, Quality, SourcePlaylistDetail, SourcePlaylistSummary};
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 use std::time::Duration;
 use std::{path::Path, path::PathBuf};
 use tauri::{AppHandle, Manager};
@@ -11,14 +10,6 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinSet;
 use url::Url;
-
-/// Global source registry
-static SOURCE_REGISTRY: OnceLock<SourceRegistry> = OnceLock::new();
-
-/// Get or initialize the source registry
-fn get_registry() -> &'static SourceRegistry {
-    SOURCE_REGISTRY.get_or_init(|| SourceRegistry::new())
-}
 
 fn require_source<'a>(
     registry: &'a SourceRegistry,
@@ -44,6 +35,8 @@ pub struct MusicInfoWrapper {
     pub album_id: String,
     pub hash: Option<String>,
     pub str_media_mid: Option<String>,
+    pub song_id: Option<String>,
+    pub msg_id: Option<String>,
     pub copyright_id: Option<String>,
     pub interval: String,
     pub album_name: String,
@@ -69,6 +62,8 @@ impl From<MusicInfo> for MusicInfoWrapper {
             album_id: info.album_id,
             hash: info.hash,
             str_media_mid: info.str_media_mid,
+            song_id: info.song_id,
+            msg_id: info.msg_id,
             copyright_id: info.copyright_id,
             interval: info.interval,
             album_name: info.album_name,
@@ -86,10 +81,10 @@ pub async fn search_music_sources(
     page: u32,
     limit: u32,
 ) -> Result<Vec<MusicInfoWrapper>, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
     // Get the requested source
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     // Perform search
     let results = music_source
@@ -112,7 +107,7 @@ pub async fn search_all_music_sources(
     limit: u32,
 ) -> Result<Vec<MusicInfoWrapper>, String> {
     let requested_sources = if sources.is_empty() {
-        get_registry().list_sources()
+        SourceRegistry::new().list_sources()
     } else {
         sources
     };
@@ -122,8 +117,8 @@ pub async fn search_all_music_sources(
     for source in requested_sources {
         let keyword = keyword.clone();
         tasks.spawn(async move {
-            let registry = get_registry();
-            let music_source = require_source(registry, &source)?;
+            let registry = SourceRegistry::new();
+            let music_source = require_source(&registry, &source)?;
 
             let result = tokio::time::timeout(
                 Duration::from_secs(5),
@@ -178,7 +173,7 @@ pub async fn get_song_url(
     quality: String,
     album_id: Option<String>,
 ) -> Result<String, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
     let quality_enum =
         Quality::from_str(&quality).ok_or_else(|| format!("Invalid quality: {}", quality))?;
@@ -192,7 +187,7 @@ pub async fn get_song_url(
         }
     }
 
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     music_source
         .get_song_url(&song_id, quality_enum)
@@ -203,9 +198,9 @@ pub async fn get_song_url(
 /// Get lyrics for a song
 #[tauri::command]
 pub async fn get_lyric(song_id: String, source: String) -> Result<LyricInfo, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     music_source
         .get_lyric(&song_id)
@@ -221,9 +216,9 @@ pub async fn get_source_playlist(
     page: u32,
     page_size: u32,
 ) -> Result<Vec<MusicInfoWrapper>, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     let results = music_source
         .get_playlist(&playlist_id, page, page_size)
@@ -243,9 +238,9 @@ pub async fn search_source_playlists(
     page: u32,
     limit: u32,
 ) -> Result<Vec<SourcePlaylistSummary>, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     music_source
         .search_playlists(&keyword, page, limit)
@@ -259,9 +254,9 @@ pub async fn get_source_playlist_detail(
     playlist_id: String,
     source: String,
 ) -> Result<SourcePlaylistDetail, String> {
-    let registry = get_registry();
+    let registry = SourceRegistry::new();
 
-    let music_source = require_source(registry, &source)?;
+    let music_source = require_source(&registry, &source)?;
 
     music_source
         .get_playlist_detail(&playlist_id)
@@ -272,10 +267,88 @@ pub async fn get_source_playlist_detail(
 /// Get list of available music sources
 #[tauri::command]
 pub fn get_available_sources() -> Vec<String> {
-    get_registry().list_sources()
+    SourceRegistry::new().list_sources()
 }
 
-/// Probe whether a media URL is reachable enough for frontend playback.
+fn is_known_audio_extension(url: &str) -> bool {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| {
+            Path::new(parsed.path())
+                .extension()
+                .and_then(|value| value.to_str())
+                .map(|value| value.trim().to_ascii_lowercase())
+        })
+        .map(|value| {
+            matches!(
+                value.as_str(),
+                "mp3" | "flac" | "m4a" | "aac" | "ogg" | "wav"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn is_likely_audio_content_type(content_type: &str) -> bool {
+    let normalized = content_type.trim().to_ascii_lowercase();
+    normalized.starts_with("audio/")
+        || normalized.contains("application/octet-stream")
+        || normalized.contains("binary/octet-stream")
+}
+
+fn is_blocked_page_content_type(content_type: &str) -> bool {
+    let normalized = content_type.trim().to_ascii_lowercase();
+    normalized.starts_with("text/")
+        || normalized.contains("application/json")
+        || normalized.contains("application/javascript")
+        || normalized.contains("application/xml")
+        || normalized.contains("text/html")
+}
+
+fn looks_like_landing_page(body_preview: &str) -> bool {
+    let normalized = body_preview.trim().to_ascii_lowercase();
+    normalized.contains("<html")
+        || normalized.contains("<!doctype html")
+        || normalized.contains("download kuwo music")
+        || normalized.contains("open app")
+        || normalized.contains("下载酷我音乐")
+        || normalized.contains("酷我音乐app")
+        || normalized.contains("请下载")
+}
+
+async fn probe_media_response(
+    response: reqwest::Response,
+    url: &str,
+) -> Result<bool, reqwest::Error> {
+    if !response.status().is_success() && response.status().as_u16() != 206 {
+        return Ok(false);
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+
+    if is_likely_audio_content_type(&content_type) {
+        return Ok(true);
+    }
+
+    let preview = response.text().await.unwrap_or_default();
+    let blocked_by_body = looks_like_landing_page(&preview);
+
+    if is_blocked_page_content_type(&content_type) || blocked_by_body {
+        return Ok(false);
+    }
+
+    if content_type.is_empty() && is_known_audio_extension(url) {
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+/// Probe whether a media URL is actually playable audio rather than a landing page.
 #[tauri::command]
 pub async fn probe_media_url(url: String) -> Result<bool, String> {
     let client = build_client();
@@ -286,7 +359,10 @@ pub async fn probe_media_url(url: String) -> Result<bool, String> {
         .await
         .map_err(|e: reqwest::Error| e.to_string())?;
 
-    if ranged_response.status().is_success() || ranged_response.status().as_u16() == 206 {
+    if probe_media_response(ranged_response, &url)
+        .await
+        .map_err(|e: reqwest::Error| e.to_string())?
+    {
         return Ok(true);
     }
 
@@ -296,7 +372,9 @@ pub async fn probe_media_url(url: String) -> Result<bool, String> {
         .await
         .map_err(|e: reqwest::Error| e.to_string())?;
 
-    Ok(fallback_response.status().is_success() || fallback_response.status().as_u16() == 206)
+    probe_media_response(fallback_response, &url)
+        .await
+        .map_err(|e: reqwest::Error| e.to_string())
 }
 
 fn infer_media_extension(url: &str, content_type: Option<&str>) -> &'static str {
@@ -449,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_registry_initialization() {
-        let registry = get_registry();
+        let registry = SourceRegistry::new();
         assert!(registry.has_source("kw"));
         assert!(registry.has_source("kg"));
         assert!(registry.has_source("wy"));
@@ -465,5 +543,22 @@ mod tests {
         assert!(sources.contains(&"wy".to_string()));
         assert!(sources.contains(&"tx".to_string()));
         assert!(sources.contains(&"mg".to_string()));
+    }
+
+    #[test]
+    fn test_probe_media_helpers_accept_audio_types() {
+        assert!(is_likely_audio_content_type("audio/flac"));
+        assert!(is_likely_audio_content_type("audio/mpeg"));
+        assert!(is_likely_audio_content_type("application/octet-stream"));
+        assert!(is_known_audio_extension("https://example.com/test.flac"));
+    }
+
+    #[test]
+    fn test_probe_media_helpers_reject_landing_pages() {
+        assert!(is_blocked_page_content_type("text/html; charset=utf-8"));
+        assert!(looks_like_landing_page(
+            "<!doctype html><html><body>请下载酷我音乐app</body></html>"
+        ));
+        assert!(!looks_like_landing_page("ID3"));
     }
 }

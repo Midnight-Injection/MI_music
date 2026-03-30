@@ -1,7 +1,7 @@
 import type { MusicInfo } from '../../types/music'
 import { buildTrackSourceCacheKey } from './trackIdentity'
 
-interface PlaybackSourceCacheRecord {
+export interface PlaybackSourceCacheRecord {
   key: string
   sourceId: string
   actualQuality?: string
@@ -110,9 +110,45 @@ export function rememberSuccessfulSource(
   persistCacheRecords()
 }
 
+export function forgetSuccessfulSource(
+  track: MusicInfo,
+  targetQuality: string,
+  sourceId?: string
+) {
+  const key = buildTrackSourceCacheKey(track, targetQuality)
+  const nextRecords = loadCacheRecords().filter((item) => {
+    if (item.key !== key) return true
+    if (sourceId && item.sourceId !== sourceId) return true
+    return false
+  })
+
+  if (nextRecords.length === loadCacheRecords().length) return
+  cacheRecords = nextRecords
+  persistCacheRecords()
+}
+
 export function clearCachedSourcesById(sourceId: string) {
   const nextRecords = loadCacheRecords().filter((item) => item.sourceId !== sourceId)
   if (nextRecords.length === loadCacheRecords().length) return
   cacheRecords = nextRecords
   persistCacheRecords()
+}
+
+export function getPlaybackSourceCacheSnapshot(): PlaybackSourceCacheRecord[] {
+  return [...loadCacheRecords()]
+}
+
+export function getPlaybackSourceCacheRecord(
+  track: MusicInfo,
+  targetQuality: string,
+): PlaybackSourceCacheRecord | undefined {
+  const key = buildTrackSourceCacheKey(track, targetQuality)
+  return loadCacheRecords().find((item) => item.key === key)
+}
+
+export function clearPlaybackSourceCache() {
+  cacheRecords = []
+  if (canUseStorage()) {
+    window.localStorage.removeItem(STORAGE_KEY)
+  }
 }

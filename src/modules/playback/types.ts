@@ -8,10 +8,15 @@ export interface PlaybackResolution {
   quality?: string
   resolver: 'custom-source' | 'built-in' | 'direct-url'
   userSourceId?: string
+  matchedTrack?: MusicInfo
+}
+
+export interface PlaybackResolveOptions {
+  excludedSourceIds?: string[]
 }
 
 export interface PlaybackResolver {
-  resolve(track: MusicInfo): Promise<PlaybackResolution>
+  resolve(track: MusicInfo, options?: PlaybackResolveOptions): Promise<PlaybackResolution>
 }
 
 const AUDIO_QUALITY_PREFERENCES: Record<AudioQuality, string[]> = {
@@ -95,6 +100,15 @@ export function getCustomSourceQualityCandidates(
 }
 
 export function toScriptMusicInfo(music: MusicInfo, sourceId: MusicSource): ScriptMusicInfo {
+  const normalizedSongmid = music.songmid?.trim()
+  const normalizedSongId = music.songId?.trim()
+  const normalizedMsgId = music.msgId?.trim()
+  const normalizedStrMediaMid = music.strMediaMid?.trim()
+  const normalizedAlbumId = music.albumId?.trim()
+  const normalizedCopyrightId =
+    music.copyrightId?.trim() ||
+    (sourceId === 'tx' ? normalizedSongId : undefined)
+
   const info: ScriptMusicInfo = {
     name: music.name,
     singer: music.artist,
@@ -103,11 +117,31 @@ export function toScriptMusicInfo(music: MusicInfo, sourceId: MusicSource): Scri
     source: sourceId,
   }
 
-  if (music.albumId) info.albumId = music.albumId
-  if (music.strMediaMid) info.strMediaMid = music.strMediaMid
-  if (music.copyrightId) info.copyrightId = music.copyrightId
+  if (normalizedAlbumId) {
+    info.albumId = normalizedAlbumId
+    info.albumid = normalizedAlbumId
+  }
+  if (normalizedStrMediaMid) {
+    info.strMediaMid = normalizedStrMediaMid
+    info.mediaMid = normalizedStrMediaMid
+    info.media_mid = normalizedStrMediaMid
+  }
+  if (normalizedCopyrightId) info.copyrightId = normalizedCopyrightId
+
   if (sourceId === 'kg') info.hash = music.hash || music.songmid
-  else info.songmid = music.songmid
+  else if (normalizedSongmid) info.songmid = normalizedSongmid
+
+  if (sourceId === 'tx') {
+    if (normalizedSongmid) info.mid = normalizedSongmid
+    if (normalizedSongId) {
+      info.songId = normalizedSongId
+      info.songid = normalizedSongId
+    }
+    if (normalizedMsgId) {
+      info.msgId = normalizedMsgId
+      info.msgid = normalizedMsgId
+    }
+  }
 
   if (!info.songmid && !info.hash && music.id) {
     const parts = music.id.split('_')
@@ -115,6 +149,10 @@ export function toScriptMusicInfo(music: MusicInfo, sourceId: MusicSource): Scri
       if (sourceId === 'kg') info.hash = parts.slice(1).join('_')
       else info.songmid = parts.slice(1).join('_')
     }
+  }
+
+  if (sourceId === 'tx' && info.songmid && !info.mid) {
+    info.mid = info.songmid
   }
 
   return info

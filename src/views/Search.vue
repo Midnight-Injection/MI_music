@@ -3,7 +3,7 @@
     <section class="search-home glass-panel">
       <div class="search-home__hero">
         <div class="search-home__copy">
-          <span class="search-home__eyebrow">Search Home</span>
+          <span class="search-home__eyebrow app-pill accent compact">Search Home</span>
           <h1>搜索歌曲</h1>
           <p>输入关键词后直接搜索、试听，并加入当前播放队列或歌单。</p>
         </div>
@@ -22,14 +22,14 @@
             class="search-home__input"
             @keyup.enter="handleSearchSubmit"
           />
-          <button v-if="searchKeyword" type="button" class="search-home__clear" @click="handleClear">
+          <button v-if="searchKeyword" type="button" class="search-home__clear app-icon-button ghost compact" @click="handleClear">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
             </svg>
           </button>
         </div>
 
-        <button type="button" class="search-home__submit" @click="handleSearchSubmit">开始搜索</button>
+        <button type="button" class="search-home__submit app-button accent" @click="handleSearchSubmit">开始搜索</button>
       </div>
 
       <section class="channel-tabs">
@@ -37,8 +37,12 @@
           v-for="option in PLATFORM_SOURCE_OPTIONS"
           :key="option.value"
           type="button"
-          class="channel-tabs__item"
-          :class="{ 'is-active': selectedChannel === option.value, 'is-disabled': !availableChannelSet.has(option.value) }"
+          :class="[
+            'channel-tabs__item',
+            'app-pill',
+            selectedChannel === option.value ? 'accent' : 'secondary',
+            { 'is-active': selectedChannel === option.value, 'is-disabled': !availableChannelSet.has(option.value) },
+          ]"
           :disabled="!availableChannelSet.has(option.value)"
           @click="handleChannelChange(option.value)"
         >
@@ -63,7 +67,7 @@
             <span class="results-count">搜索结果</span>
             <p class="results-subtitle">{{ resultsSubtitle }}</p>
           </div>
-          <span class="results-badge">{{ resultsBadge }}</span>
+          <span class="results-badge app-pill primary compact">{{ resultsBadge }}</span>
         </div>
 
         <div v-if="hasResults" class="results-columns">
@@ -100,7 +104,7 @@
 
           <div class="pagination-bar">
             <button
-              class="pagination-btn"
+              class="pagination-btn app-button secondary compact"
               :disabled="isLoadingMore || !canGoPrev"
               @click="handlePageChange(currentPage - 1)"
             >
@@ -110,7 +114,7 @@
               {{ isLoadingMore ? '切换中...' : `第 ${currentPage} 页` }}
             </span>
             <button
-              class="pagination-btn"
+              class="pagination-btn app-button secondary compact"
               :disabled="isLoadingMore || !canGoNext"
               @click="handlePageChange(currentPage + 1)"
             >
@@ -134,7 +138,7 @@
               {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
             </p>
           </div>
-          <button class="playlist-dialog__close" @click="closeAddToPlaylistDialog">×</button>
+          <button class="playlist-dialog__close app-icon-button secondary compact" @click="closeAddToPlaylistDialog">×</button>
         </div>
         <div class="playlist-dialog__list">
           <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
@@ -142,7 +146,7 @@
           </div>
           <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
             <span>{{ playlistStore.initError }}</span>
-            <button type="button" class="playlist-dialog__retry" @click="retryPlaylistInit">重试</button>
+            <button type="button" class="playlist-dialog__retry app-button warning compact" @click="retryPlaylistInit">重试</button>
           </div>
           <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
             暂无可用歌单，请先去“我的歌单”创建一个歌单。
@@ -152,7 +156,7 @@
             v-for="playlist in playlistStore.playlists"
             :key="playlist.id"
             type="button"
-            class="playlist-dialog__item"
+            class="playlist-dialog__item app-button secondary"
             @click="confirmAddToPlaylist(playlist.id)"
           >
             <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
@@ -187,9 +191,11 @@ import { usePlaylistStore } from '../store/playlist'
 import { useSearchStore } from '../store/search'
 import type { ContextMenuItem } from '../types/context-menu'
 import type { Playlist } from '../types/playlist'
-import type { MusicInfo } from '../types/music'
+import type { MusicInfo, SearchChannel } from '../types/music'
+import type { AggregateChannelProgress } from '../modules/search/types'
 
 const PLATFORM_SOURCE_OPTIONS = [
+  { value: 'all', label: '综合' },
   { value: 'kw', label: '酷我' },
   { value: 'kg', label: '酷狗' },
   { value: 'wy', label: '网易' },
@@ -197,7 +203,8 @@ const PLATFORM_SOURCE_OPTIONS = [
   { value: 'mg', label: '咪咕' },
 ] as const
 
-type ChannelId = typeof PLATFORM_SOURCE_OPTIONS[number]['value']
+type ChannelOption = typeof PLATFORM_SOURCE_OPTIONS[number]
+type ChannelId = ChannelOption['value']
 
 const route = useRoute()
 const searchStore = useSearchStore()
@@ -258,6 +265,8 @@ const canGoPrev = computed(() => searchStore.canGoPrev)
 const currentPage = computed(() => searchStore.currentPage)
 const totalCount = computed(() => searchStore.totalCount)
 const searchError = computed(() => searchStore.currentError)
+const aggregateSummary = computed(() => searchStore.aggregateSummary)
+const isAggregateSettling = computed(() => searchStore.isSettling)
 const availableChannelSet = computed(() =>
   searchService.getAvailableChannelSet(
     {
@@ -266,8 +275,29 @@ const availableChannelSet = computed(() =>
     },
   ),
 )
-const resultsSubtitle = computed(() => `当前渠道：${getChannelName(selectedChannel.value)} · 每页 ${searchStore.pageSize} 条`)
-const resultsBadge = computed(() => `第 ${currentPage.value} 页 · ${totalCount.value || searchResults.value.length} 条`)
+const resultsSubtitle = computed(() => {
+  if (selectedChannel.value !== 'all') {
+    return `当前渠道：${getChannelName(selectedChannel.value)} · 每页 ${searchStore.pageSize} 条`
+  }
+
+  const summary = aggregateSummary.value
+  if (!summary.totalChannels) {
+    return `当前渠道：综合搜索 · 每页 ${searchStore.pageSize} 条`
+  }
+
+  if (isAggregateSettling.value) {
+    return `综合搜索 · 已完成 ${summary.completedChannels}/${summary.totalChannels} 渠道`
+  }
+
+  return `综合搜索 · 成功 ${summary.successChannels} · 失败 ${summary.failedChannels} · 超时 ${summary.timedOutChannels}`
+})
+const resultsBadge = computed(() => {
+  const baseText = `第 ${currentPage.value} 页 · ${totalCount.value || searchResults.value.length} 条`
+  if (selectedChannel.value === 'all' && isAggregateSettling.value) {
+    return `${baseText} · 聚合中`
+  }
+  return baseText
+})
 
 async function refreshAvailableChannels() {
   const availability = await searchService.refreshAvailability()
@@ -289,6 +319,7 @@ function clearPendingSearchState() {
   isSearchingLocal.value = false
   isLoadingMore.value = false
   searchStore.isSearching = false
+  searchStore.cancelActiveSearch()
 }
 
 function handleSearchSubmit() {
@@ -301,7 +332,10 @@ async function handleSearch(page = 1) {
   if (!keyword) return
 
   const requestId = createSearchRequestId()
+  const channel = selectedChannel.value
+
   searchStore.clearError()
+  searchStore.beginSearch(requestId, keyword, channel, page)
   if (page === 1) {
     searchStore.addRecentKeyword(keyword)
   }
@@ -313,13 +347,33 @@ async function handleSearch(page = 1) {
       isLoadingMore.value = true
     }
     searchStore.isSearching = true
-    const channel = selectedChannel.value
-    const result = await searchService.searchTracks({
+    const result = await searchService.runSearch({
       keyword,
       channel,
       page,
       limit: searchStore.pageSize,
-    })
+    }, channel === 'all' ? {
+      onStart(channels) {
+        searchStore.beginAggregateSearch(requestId, channels, {
+          clearResults: page === 1,
+        })
+      },
+      onPartial(partialChannel, tracks) {
+        searchStore.mergeAggregateResults(
+          requestId,
+          partialChannel,
+          tracks,
+          keyword,
+          page,
+        )
+      },
+      onChannelSettled(progress: AggregateChannelProgress) {
+        searchStore.markAggregateChannel(requestId, progress)
+      },
+      onComplete(aggregateResult) {
+        searchStore.finalizeAggregateSearch(requestId, aggregateResult)
+      },
+    } : undefined)
 
     if (!isActiveSearchRequest(requestId)) return
 
@@ -332,7 +386,11 @@ async function handleSearch(page = 1) {
     }
 
     searchStore.setSearchParams(keyword, channel, page)
-    searchStore.setResults(result)
+    if (channel !== 'all') {
+      searchStore.setResults(result)
+    } else {
+      searchStore.finalizeAggregateSearch(requestId, result)
+    }
     searchStore.clearError()
   } catch (error) {
     if (!isActiveSearchRequest(requestId)) return
@@ -368,7 +426,7 @@ function handleClear() {
   })
 }
 
-function handleChannelChange(channel: ChannelId) {
+function handleChannelChange(channel: SearchChannel) {
   if (selectedChannel.value === channel) return
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   clearPendingSearchState()
@@ -544,7 +602,7 @@ function getPlaylistLabel(systemKey?: Playlist['systemKey']) {
 }
 
 function getChannelName(channel: string): string {
-  if (channel === 'all') return '综合(已停用)'
+  if (channel === 'all') return '综合搜索'
   return PLATFORM_SOURCE_OPTIONS.find((option) => option.value === channel)?.label || channel
 }
 
@@ -618,12 +676,6 @@ onUnmounted(() => {
 }
 
 .search-home__eyebrow {
-  display: inline-flex;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 0.68rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -688,17 +740,7 @@ onUnmounted(() => {
   position: absolute;
   top: 50%;
   right: 14px;
-  width: 24px;
-  height: 24px;
   transform: translateY(-50%);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
 
   svg {
     width: 14px;
@@ -709,12 +751,6 @@ onUnmounted(() => {
 .search-home__submit {
   min-width: 112px;
   min-height: 46px;
-  padding: 0 16px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #f2dcff, #d7c1ff);
-  color: #5b4198;
-  font-weight: 700;
-  box-shadow: 0 18px 36px rgba(83, 58, 141, 0.2);
 }
 
 .channel-tabs {
@@ -724,19 +760,10 @@ onUnmounted(() => {
 }
 
 .channel-tabs__item {
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary);
-  font-weight: 600;
   font-size: 0.76rem;
 
   &.is-active {
-    background: rgba(255, 255, 255, 0.18);
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: var(--button-accent-shadow);
   }
 
   &.is-disabled {
@@ -809,10 +836,6 @@ onUnmounted(() => {
 }
 
 .results-badge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
   font-size: 0.72rem;
 }
 
@@ -863,17 +886,6 @@ onUnmounted(() => {
 
 .pagination-btn {
   min-width: 92px;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  font-weight: 600;
-
-  &:disabled {
-    opacity: 0.46;
-    cursor: not-allowed;
-  }
 }
 
 .pagination-status {
@@ -929,11 +941,6 @@ onUnmounted(() => {
 }
 
 .playlist-dialog__close {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
   font-size: 1rem;
 }
 
@@ -961,10 +968,7 @@ onUnmounted(() => {
 .playlist-dialog__retry,
 .playlist-dialog__item {
   min-height: 44px;
-  padding: 0 14px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
 }
 
 .playlist-dialog__item {
@@ -972,6 +976,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding-inline: 14px;
 }
 
 @keyframes spin {

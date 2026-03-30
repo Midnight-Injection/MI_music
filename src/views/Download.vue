@@ -5,16 +5,16 @@
         <div class="queue-panel__head">
           <h1>下载管理</h1>
           <div class="batch-actions">
-            <button @click="pauseAll" class="btn btn-secondary" :disabled="!hasActiveDownloads">
+            <button @click="pauseAll" class="btn app-button secondary compact" :disabled="!hasActiveDownloads">
               暂停全部
             </button>
-            <button @click="resumeAll" class="btn btn-secondary" :disabled="!hasPausedDownloads">
+            <button @click="resumeAll" class="btn app-button accent compact" :disabled="!hasPausedDownloads">
               继续全部
             </button>
-            <button @click="clearCompleted" class="btn btn-secondary" :disabled="!hasCompletedDownloads">
+            <button @click="clearCompleted" class="btn app-button success compact" :disabled="!hasCompletedDownloads">
               清除已完成
             </button>
-            <button @click="clearAll" class="btn btn-danger" :disabled="queue.length === 0">
+            <button @click="clearAll" class="btn app-button danger compact" :disabled="queue.length === 0">
               清空全部
             </button>
           </div>
@@ -23,25 +23,25 @@
         <div class="queue-tabs">
           <button
             @click="activeTab = 'downloading'"
-            :class="['tab', { active: activeTab === 'downloading' }]"
+            :class="['tab', 'app-pill', activeTab === 'downloading' ? 'accent' : 'secondary', { active: activeTab === 'downloading' }]"
           >
             下载中 ({{ downloadQueue.active.length }})
           </button>
           <button
             @click="activeTab = 'pending'"
-            :class="['tab', { active: activeTab === 'pending' }]"
+            :class="['tab', 'app-pill', activeTab === 'pending' ? 'warning' : 'secondary', { active: activeTab === 'pending' }]"
           >
             等待中 ({{ downloadQueue.pending.length }})
           </button>
           <button
             @click="activeTab = 'completed'"
-            :class="['tab', { active: activeTab === 'completed' }]"
+            :class="['tab', 'app-pill', activeTab === 'completed' ? 'success' : 'secondary', { active: activeTab === 'completed' }]"
           >
             已完成 ({{ downloadQueue.completed.length }})
           </button>
           <button
             @click="activeTab = 'failed'"
-            :class="['tab', { active: activeTab === 'failed' }]"
+            :class="['tab', 'app-pill', activeTab === 'failed' ? 'danger' : 'secondary', { active: activeTab === 'failed' }]"
           >
             失败 ({{ downloadQueue.failed.length }})
           </button>
@@ -104,6 +104,37 @@ const currentList = computed(() => {
 const hasActiveDownloads = computed(() => downloadQueue.value.active.length > 0)
 const hasPausedDownloads = computed(() => queue.value.some((d) => d.status === 'paused'))
 const hasCompletedDownloads = computed(() => downloadQueue.value.completed.length > 0)
+const maxConcurrentDownloads = computed(() => Math.max(1, settingsStore.settings.maxDownloads))
+
+async function markTaskPending(id: number) {
+  try {
+    await invoke('update_download_task', {
+      id,
+      updates: {
+        status: 'pending',
+      },
+    })
+  } catch (error) {
+    console.error('Failed to mark task pending:', error)
+  }
+}
+
+async function drainPendingDownloads() {
+  if (!downloadPath.value) return
+
+  const availableSlots = Math.max(0, maxConcurrentDownloads.value - downloadQueue.value.active.length)
+  if (availableSlots === 0) return
+
+  const pendingTasks = downloadQueue.value.pending.slice(0, availableSlots)
+  await Promise.all(pendingTasks.map(async (item) => {
+    try {
+      await invoke('resume_download', { id: item.id, savePath: downloadPath.value })
+      downloadStore.updateDownloadItem(item.id, { status: 'downloading' })
+    } catch (error) {
+      console.error('Failed to start pending download:', error)
+    }
+  }))
+}
 
 async function loadTasks() {
   try {
@@ -143,6 +174,8 @@ async function loadTasks() {
       createdAt: task.created_at,
       updatedAt: task.updated_at
     }))
+
+    await drainPendingDownloads()
   } catch (error) {
     console.error('Failed to load download tasks:', error)
   }
@@ -176,6 +209,12 @@ function pauseDownload(id: number) {
 function resumeDownload(id: number) {
   const item = queue.value.find((d) => d.id === id)
   if (item && downloadPath.value) {
+    if (downloadQueue.value.active.length >= maxConcurrentDownloads.value) {
+      downloadStore.updateDownloadItem(id, { status: 'pending' })
+      void markTaskPending(id)
+      return
+    }
+
     invoke('resume_download', { id, savePath: downloadPath.value })
     downloadStore.resumeDownload(id)
   }
@@ -190,6 +229,11 @@ function retryDownload(id: number) {
   const item = queue.value.find((d) => d.id === id)
   if (item && downloadPath.value) {
     downloadStore.retryDownload(id)
+    if (downloadQueue.value.active.length >= maxConcurrentDownloads.value) {
+      void markTaskPending(id)
+      return
+    }
+
     invoke('resume_download', { id, savePath: downloadPath.value })
   }
 }
@@ -214,15 +258,13 @@ function pauseAll() {
 
 function resumeAll() {
   if (!downloadPath.value) return
-  downloadStore.resumeAll()
   queue.value.forEach((item) => {
     if (item.status === 'paused') {
-      invoke('resume_download', {
-        id: item.id,
-        savePath: downloadPath.value
-      })
+      downloadStore.updateDownloadItem(item.id, { status: 'pending' })
+      void markTaskPending(item.id)
     }
   })
+  void drainPendingDownloads()
 }
 
 function clearCompleted() {
@@ -312,36 +354,17 @@ onUnmounted(() => {
       gap: 10px;
     }
 
-    .queue-tabs {
+      .queue-tabs {
       display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px 18px 0;
 
       .tab {
-        padding: 12px 20px;
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
         font-size: 14px;
-        transition: all 0.2s;
-        position: relative;
-
-        &:hover {
-          color: var(--text-primary);
-        }
 
         &.active {
-          color: var(--text-primary);
-          font-weight: 500;
-
-          &::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-          }
+          box-shadow: var(--button-accent-shadow);
         }
       }
     }
@@ -371,47 +394,10 @@ onUnmounted(() => {
   }
 
   .btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
     display: flex;
     align-items: center;
     gap: 6px;
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    &.btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-primary);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-
-      &:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.12);
-      }
-    }
-
-    &.btn-danger {
-      background: rgba(255, 107, 129, 0.14);
-      color: white;
-
-      &:hover:not(:disabled) {
-        opacity: 0.9;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(255, 77, 79, 0.3);
-      }
-
-      &:active:not(:disabled) {
-        transform: translateY(0);
-      }
-    }
   }
 
   @media (max-width: 960px) {

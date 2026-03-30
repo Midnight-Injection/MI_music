@@ -54,4 +54,28 @@ describe('Settings Store', () => {
     expect(store.settings.themeMode).toBe('dark')
     expect(store.settings.volume).toBe(0.5)
   })
+
+  it('should sync theme settings into the main settings store', () => {
+    const store = useSettingsStore()
+    store.syncThemeSettings({
+      themeColor: 'purple',
+      themeMode: 'dark',
+      customColor: '#6633ff',
+    })
+
+    expect(store.settings.themeColor).toBe('purple')
+    expect(store.settings.themeMode).toBe('dark')
+    expect(store.settings.customColor).toBe('#6633ff')
+  })
+
+  it('should keep default channels when saved settings omit sources', () => {
+    const store = useSettingsStore()
+    store.loadSettings({
+      ...store.settings,
+      sources: undefined,
+    })
+
+    expect(store.channelConfigs.length).toBeGreaterThan(0)
+    expect(store.settings.sources?.length).toBe(store.channelConfigs.length)
+  })
 })

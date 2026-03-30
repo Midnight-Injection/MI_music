@@ -9,6 +9,7 @@ const openMock = vi.fn()
 const searchSourcePlaylistsMock = vi.fn()
 const getSourcePlaylistDetailMock = vi.fn()
 const getSourcePlaylistTracksMock = vi.fn()
+const getSourcePlaylistTracksAllMock = vi.fn()
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
@@ -22,9 +23,11 @@ vi.mock('../../src/modules/playlistSearch/service', () => ({
   searchSourcePlaylists: searchSourcePlaylistsMock,
   getSourcePlaylistDetail: getSourcePlaylistDetailMock,
   getSourcePlaylistTracksPage: getSourcePlaylistTracksMock,
+  getSourcePlaylistTracks: getSourcePlaylistTracksAllMock,
   isPlaylistSearchSupported: (channel: string) => channel === 'wy' || channel === 'tx',
   getPlaylistUnsupportedMessage: (channel: string) => `${channel} 第一版暂不支持该渠道的歌单搜索。`,
   PLAYLIST_TRACK_PAGE_SIZE: 50,
+  buildSourcePlaylistUrl: (source: string, playlistId: string) => `https://example.com/${source}/${playlistId}`,
 }))
 
 function createPlaylist(source: 'wy' | 'tx', id: string, name: string): SourcePlaylistSummary {
@@ -78,6 +81,7 @@ describe('SongList playlist search', () => {
     searchSourcePlaylistsMock.mockReset()
     getSourcePlaylistDetailMock.mockReset()
     getSourcePlaylistTracksMock.mockReset()
+    getSourcePlaylistTracksAllMock.mockReset()
     localStorage.clear()
     invokeMock.mockResolvedValue(true)
   })
@@ -141,7 +145,7 @@ describe('SongList playlist search', () => {
     expect(getSourcePlaylistTracksMock).toHaveBeenCalledWith('wy', 'wy_1', 1, 50)
     expect(wrapper.text()).toContain('网易歌单 详情')
 
-    await wrapper.find('.playlist-detail__action.is-primary').trigger('click')
+    await wrapper.find('.playlist-detail__action.app-button.accent').trigger('click')
     expect(setPlaylistSpy).toHaveBeenCalledTimes(1)
     expect(setPlaylistSpy.mock.calls[0][0]).toHaveLength(2)
     expect(setPlaylistSpy.mock.calls[0][1]).toBe(0)
@@ -271,5 +275,33 @@ describe('SongList playlist search', () => {
 
     expect(getSourcePlaylistDetailMock).toHaveBeenCalledWith('wy', 'wy_1')
     expect(wrapper.text()).toContain('网易歌单 详情')
+  })
+
+  it('favorites a source playlist into the local library', async () => {
+    searchSourcePlaylistsMock.mockResolvedValue([createPlaylist('wy', 'wy_1', '网易歌单')])
+    getSourcePlaylistDetailMock.mockResolvedValue(createPlaylistDetail('wy', 'wy_1', '网易歌单'))
+    getSourcePlaylistTracksAllMock.mockResolvedValue([
+      createTrack('song_1', '第一首'),
+      createTrack('song_2', '第二首'),
+    ])
+
+    const { wrapper } = await mountSongList()
+    const { usePlaylistStore } = await import('../../src/store/playlist')
+    const playlistStore = usePlaylistStore()
+
+    await wrapper.find('input').setValue('周杰伦')
+    await wrapper.find('.search-home__submit').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.playlist-card__favorite').trigger('click')
+    await flushPromises()
+
+    const imported = playlistStore.playlists.find((playlist) => playlist.importSourcePlaylistId === 'wy_1')
+    expect(getSourcePlaylistTracksAllMock).toHaveBeenCalledWith('wy', 'wy_1', 2)
+    expect(imported).toBeTruthy()
+    expect(imported?.importSource).toBe('wy')
+    expect(imported?.importSourcePlaylistUrl).toBe('https://example.com/wy/wy_1')
+    expect(imported?.musics).toHaveLength(2)
+    expect(wrapper.text()).toContain('已收藏到本地歌单：网易歌单')
   })
 })

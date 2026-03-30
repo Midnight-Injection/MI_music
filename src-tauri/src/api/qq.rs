@@ -109,7 +109,9 @@ impl QqSource {
             album_id: album_mid.clone(),
             hash: None,
             str_media_mid: file.media_mid.clone().or(file.str_media_mid.clone()),
-            copyright_id: None,
+            song_id: song.song_id.map(|value| value.to_string()),
+            msg_id: song.msg_id.map(|value| value.to_string()),
+            copyright_id: song.song_id.map(|value| value.to_string()),
             interval: format_duration_seconds(song.interval),
             album_name,
             types: Self::map_types(&file),
@@ -173,8 +175,12 @@ struct QqWebSongItem {
     #[serde(rename = "albumname")]
     album_name: String,
     interval: i64,
+    #[serde(default, rename = "msgid")]
+    msg_id: Option<i64>,
     #[serde(default)]
     media_mid: Option<String>,
+    #[serde(default, rename = "songid")]
+    song_id: Option<i64>,
     #[serde(default, rename = "strMediaMid")]
     str_media_mid: Option<String>,
     singer: Vec<QqSinger>,
@@ -200,6 +206,9 @@ struct QqSongItem {
     #[serde(rename = "interval")]
     interval: i64,
     #[serde(default)]
+    #[serde(rename = "msgid")]
+    msg_id: Option<i64>,
+    #[serde(default)]
     #[serde(alias = "songmid")]
     mid: String,
     #[serde(default)]
@@ -209,6 +218,8 @@ struct QqSongItem {
     singer: Vec<QqSinger>,
     #[serde(default)]
     title_extra: Option<String>,
+    #[serde(default, rename = "songid")]
+    song_id: Option<i64>,
     #[serde(default, rename = "albummid")]
     album_mid: Option<String>,
     #[serde(default, rename = "albumname")]
@@ -456,7 +467,9 @@ impl MusicSource for QqSource {
                 album_id: item.album_mid.clone(),
                 hash: None,
                 str_media_mid: item.media_mid.or(item.str_media_mid),
-                copyright_id: None,
+                song_id: item.song_id.map(|value| value.to_string()),
+                msg_id: item.msg_id.map(|value| value.to_string()),
+                copyright_id: item.song_id.map(|value| value.to_string()),
                 interval: format_duration_seconds(item.interval),
                 album_name: item.album_name,
                 types: {
@@ -701,7 +714,9 @@ impl MusicSource for QqSource {
             .await?;
         let payload: QqPlaylistSearchResponse = response.json().await?;
         if payload.code != 0 || payload.req.code != 0 {
-            return Err(MusicSourceError::Unknown("QQ playlist search failed".to_string()));
+            return Err(MusicSourceError::Unknown(
+                "QQ playlist search failed".to_string(),
+            ));
         }
 
         Ok(payload

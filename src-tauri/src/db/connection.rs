@@ -35,6 +35,22 @@ impl Database {
         Ok(())
     }
 
+    /// Ensure the global pool reference exists.
+    /// Repeated initialization within the same app process should be a no-op.
+    pub fn ensure_global_pool(&self) -> Result<(), sqlx::Error> {
+        if GLOBAL_POOL.get().is_some() {
+            return Ok(());
+        }
+
+        match GLOBAL_POOL.set(Arc::new(self.pool.clone())) {
+            Ok(()) => Ok(()),
+            Err(_) if GLOBAL_POOL.get().is_some() => Ok(()),
+            Err(_) => Err(sqlx::Error::Configuration(
+                "Failed to initialize global pool".into(),
+            )),
+        }
+    }
+
     /// Run database migrations
     pub async fn migrate(&self) -> Result<(), sqlx::Error> {
         // Enable foreign keys

@@ -12,17 +12,14 @@
       <Header v-if="showHeader" class="app-layout-shell__header" />
 
       <RouterView v-slot="{ Component, route }">
-        <AnimatePresence mode="wait">
-          <motion.main
-            :key="route.fullPath"
-            class="app-layout-shell__content"
-            :initial="pageVariants.initial"
-            :animate="pageVariants.enter"
-            :exit="pageVariants.exit"
-          >
-            <component :is="Component" />
-          </motion.main>
-        </AnimatePresence>
+        <motion.main
+          :key="route.fullPath"
+          :class="['app-layout-shell__content', { 'app-layout-shell__content--immersive': isPlayerDetail }]"
+          :initial="pageMotion.initial"
+          :animate="pageMotion.enter"
+        >
+          <component :is="Component" :key="route.fullPath" />
+        </motion.main>
       </RouterView>
     </div>
 
@@ -34,15 +31,17 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AnimatePresence, motion } from 'motion-v'
+import { motion } from 'motion-v'
 import { RouterView, useRoute } from 'vue-router'
 import ContextRail from './ContextRail.vue'
 import Header from './Header.vue'
 import PlayerBar from './PlayerBar.vue'
 import Sidebar from './Sidebar.vue'
 import { pageVariants } from '../../lib/motion'
+import { useSettingsStore } from '../../store/settings'
 
 const route = useRoute()
+const settingsStore = useSettingsStore()
 
 const isPlayerDetail = computed(() => route.name === 'PlayerDetail')
 const isSongListPage = computed(() => route.name === 'SongList')
@@ -59,6 +58,17 @@ const showHeader = computed(
 )
 const showPlayerBar = computed(() => !isPlayerDetail.value)
 const showContextRail = computed(() => !isPlayerDetail.value)
+const pageMotion = computed(() => {
+  if (!settingsStore.settings.animation) {
+    return {
+      initial: false,
+      enter: { opacity: 1, y: 0, filter: 'blur(0px)' },
+      exit: { opacity: 1, y: 0, filter: 'blur(0px)' },
+    }
+  }
+
+  return pageVariants
+})
 </script>
 
 <style scoped lang="scss">
@@ -127,6 +137,11 @@ const showContextRail = computed(() => !isPlayerDetail.value)
   overflow: auto;
   overscroll-behavior: contain;
   padding-bottom: 10px;
+}
+
+.app-layout-shell__content--immersive {
+  overflow: hidden;
+  padding-bottom: 0;
 }
 
 .app-layout-shell__rail {

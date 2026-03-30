@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import type { Settings } from '../types/settings'
 import { DEFAULT_CHANNEL_CONFIGS, ChannelConfig, DEFAULT_SETTINGS } from '../types/settings'
 
+type ThemeSettingsSubset = Pick<Settings, 'themeColor' | 'themeMode' | 'customColor'>
+
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
   const channelConfigs = ref<ChannelConfig[]>([...DEFAULT_CHANNEL_CONFIGS])
@@ -10,10 +12,17 @@ export const useSettingsStore = defineStore('settings', () => {
   // Settings management
   function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
     settings.value[key] = value
+    if (key === 'sources' && Array.isArray(value)) {
+      channelConfigs.value = [...value] as ChannelConfig[]
+    }
   }
 
   function updateSettings(newSettings: Partial<Settings>) {
     settings.value = { ...settings.value, ...newSettings }
+    if (newSettings.sources) {
+      channelConfigs.value = [...newSettings.sources]
+      settings.value.sources = [...newSettings.sources]
+    }
   }
 
   function resetSettings() {
@@ -22,9 +31,18 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function loadSettings(savedSettings: Settings) {
-    settings.value = { ...savedSettings }
-    if (savedSettings.sources) {
-      channelConfigs.value = [...savedSettings.sources]
+    settings.value = { ...DEFAULT_SETTINGS, ...savedSettings }
+    const savedSources = savedSettings.sources?.length
+      ? savedSettings.sources
+      : DEFAULT_CHANNEL_CONFIGS
+    channelConfigs.value = [...savedSources]
+    settings.value.sources = [...savedSources]
+  }
+
+  function syncThemeSettings(themeSettings: ThemeSettingsSubset) {
+    settings.value = {
+      ...settings.value,
+      ...themeSettings,
     }
   }
 
@@ -51,6 +69,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSettings,
     resetSettings,
     loadSettings,
+    syncThemeSettings,
     updateChannelConfig,
     getEnabledChannelIds
   }

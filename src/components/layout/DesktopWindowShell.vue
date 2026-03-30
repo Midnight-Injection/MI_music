@@ -96,7 +96,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow, type ResizeDirection } from '@tauri-apps/api/window'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+
+type ResizeDirection =
+  | 'East'
+  | 'North'
+  | 'NorthEast'
+  | 'NorthWest'
+  | 'South'
+  | 'SouthEast'
+  | 'SouthWest'
+  | 'West'
 
 const props = withDefaults(
   defineProps<{

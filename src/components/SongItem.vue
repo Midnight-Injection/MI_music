@@ -29,8 +29,8 @@
     <div class="song-info">
       <div class="song-name-row">
         <div class="song-name" :title="music.name">{{ music.name }}</div>
-        <span v-if="sourceLabel" class="song-source">{{ sourceLabel }}</span>
-        <span v-if="displayQualityLabel" class="song-quality">{{ displayQualityLabel }}</span>
+        <span v-if="sourceLabel" class="song-source app-pill secondary compact">{{ sourceLabel }}</span>
+        <span v-if="displayQualityLabel" class="song-quality app-pill accent compact">{{ displayQualityLabel }}</span>
       </div>
       <div class="song-artist" :title="music.artist">{{ music.artist }}</div>
     </div>
@@ -40,17 +40,17 @@
     <div class="song-duration">{{ formatDuration(music.duration) }}</div>
 
     <div class="song-actions">
-      <button class="action-btn" type="button" @click.stop="handlePlay" title="播放">
+      <button class="action-btn app-icon-button accent compact" type="button" @click.stop="handlePlay" title="播放">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5v14l11-7z"/>
         </svg>
       </button>
-      <button class="action-btn" type="button" @click.stop="handleAddToPlaylist" title="添加到歌单" aria-label="添加到歌单">
+      <button class="action-btn app-icon-button warning compact" type="button" @click.stop="handleAddToPlaylist" title="添加到歌单" aria-label="添加到歌单">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
       </button>
-      <button class="action-btn" type="button" @click.stop="handleAddToList" title="添加到播放列表" aria-label="添加到播放列表">
+      <button class="action-btn app-icon-button secondary compact" type="button" @click.stop="handleAddToList" title="添加到播放列表" aria-label="添加到播放列表">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
         </svg>
@@ -224,23 +224,13 @@ function formatDuration(seconds: number): string {
 
     .song-quality {
       flex-shrink: 0;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.16);
-      color: #fff6ff;
       font-size: 10px;
-      font-weight: 700;
       letter-spacing: 0.04em;
     }
 
     .song-source {
       flex-shrink: 0;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.78);
       font-size: 10px;
-      font-weight: 700;
       letter-spacing: 0.02em;
     }
   }
@@ -272,30 +262,9 @@ function formatDuration(seconds: number): string {
     transition: opacity 0.2s;
 
     .action-btn {
-      width: 34px;
-      height: 34px;
-      border: none;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.12);
-      color: var(--text-primary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s, transform 0.1s;
-
       svg {
         width: 15px;
         height: 15px;
-      }
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-      }
-
-      &:active {
-        transform: scale(0.95);
       }
     }
   }

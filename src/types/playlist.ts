@@ -6,6 +6,10 @@ export interface Playlist {
   cover?: string | null
   description?: string | null
   systemKey?: string | null
+  importSource?: PlaylistSearchChannel | null
+  importSourcePlaylistId?: string | null
+  importSourcePlaylistUrl?: string | null
+  lastSyncedAt?: string | null
   musics: MusicInfo[]
   createdAt: string
   updatedAt: string
@@ -16,6 +20,10 @@ export interface PlaylistInfo {
   name: string
   musicCount: number
   systemKey?: string | null
+  importSource?: PlaylistSearchChannel | null
+  importSourcePlaylistId?: string | null
+  importSourcePlaylistUrl?: string | null
+  lastSyncedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -46,4 +54,9 @@ export interface SourcePlaylistDetail {
   playCount?: number
   createdAt?: number
   updatedAt?: number
+}
+
+export interface ImportedPlaylistResult {
+  playlist: Playlist
+  created: boolean
 }

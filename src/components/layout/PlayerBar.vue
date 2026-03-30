@@ -21,6 +21,7 @@
         </div>
         <span>{{ player.currentMusic?.artist || '选择一首歌开始试听' }}</span>
         <span v-if="currentSourceLabel" class="player-bar__source">{{ currentSourceLabel }}</span>
+        <span v-if="player.playbackNotice" class="player-bar__notice">{{ player.playbackNotice }}</span>
       </div>
     </div>
 
@@ -333,6 +334,12 @@ onUnmounted(() => {
 .player-bar__source {
   color: var(--text-tertiary);
   font-size: 0.68rem;
+}
+
+.player-bar__notice {
+  color: var(--danger-color, #ff8d8d) !important;
+  font-size: 0.69rem !important;
+  font-weight: 700;
 }
 
 .player-bar__quality {

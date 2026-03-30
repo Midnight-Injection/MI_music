@@ -6,12 +6,13 @@
       prev: isPrev,
       next: isNext
     }"
+    :style="{ '--line-font-size': `${fontSize}px` }"
   >
     <div class="lyric-text">{{ line.text }}</div>
-    <div v-if="line.translation" class="lyric-translation">
+    <div v-if="showTranslation && line.translation" class="lyric-translation">
       {{ line.translation }}
     </div>
-    <div v-if="line.romanization" class="lyric-romanization">
+    <div v-if="showRomanization && line.romanization" class="lyric-romanization">
       {{ line.romanization }}
     </div>
     <div v-if="showWords && line.words" class="lyric-words">
@@ -37,6 +38,9 @@ defineProps<{
   isNext?: boolean
   currentWordIndex?: number
   showWords?: boolean
+  showTranslation?: boolean
+  showRomanization?: boolean
+  fontSize?: number
 }>()
 </script>
 
@@ -52,8 +56,8 @@ defineProps<{
   &.active {
     opacity: 1;
     transform: scale(1);
-    background: rgba(29, 185, 84, 0.1);
-    border-left: 3px solid #1db954;
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    border-left: 3px solid var(--primary-color);
 
     .lyric-text {
       color: #ffffff;
@@ -69,21 +73,21 @@ defineProps<{
 
   .lyric-text {
     color: rgba(255, 255, 255, 0.7);
-    font-size: 16px;
+    font-size: var(--line-font-size, 16px);
     line-height: 1.5;
     transition: all 0.3s ease;
   }
 
   .lyric-translation {
     color: rgba(255, 255, 255, 0.5);
-    font-size: 14px;
+    font-size: calc(var(--line-font-size, 16px) - 2px);
     margin-top: 4px;
     line-height: 1.4;
   }
 
   .lyric-romanization {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 13px;
+    font-size: calc(var(--line-font-size, 16px) - 3px);
     margin-top: 2px;
     line-height: 1.3;
     font-style: italic;
@@ -99,12 +103,12 @@ defineProps<{
       padding: 2px 6px;
       border-radius: 4px;
       color: rgba(255, 255, 255, 0.5);
-      font-size: 14px;
+      font-size: calc(var(--line-font-size, 16px) - 2px);
       transition: all 0.2s ease;
 
       &.active {
-        color: #1db954;
-        background: rgba(29, 185, 84, 0.15);
+        color: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 15%, transparent);
         font-weight: 500;
       }
     }
@@ -117,19 +121,7 @@ defineProps<{
     margin: 2px 0;
 
     &.active .lyric-text {
-      font-size: 16px;
-    }
-
-    .lyric-text {
-      font-size: 14px;
-    }
-
-    .lyric-translation {
-      font-size: 13px;
-    }
-
-    .lyric-romanization {
-      font-size: 12px;
+      font-size: calc(var(--line-font-size, 16px) + 1px);
     }
   }
 }

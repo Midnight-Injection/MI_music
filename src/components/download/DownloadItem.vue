@@ -40,7 +40,7 @@
       <button
         v-if="item.status === 'downloading'"
         @click="onPause"
-        class="btn-icon"
+        class="btn-icon app-icon-button secondary"
         title="暂停"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -51,7 +51,7 @@
       <button
         v-if="item.status === 'paused'"
         @click="onResume"
-        class="btn-icon"
+        class="btn-icon app-icon-button accent"
         title="继续"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -62,7 +62,7 @@
       <button
         v-if="item.status === 'failed'"
         @click="onRetry"
-        class="btn-icon btn-icon-warning"
+        class="btn-icon app-icon-button warning"
         title="重试"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -73,7 +73,7 @@
       <button
         v-if="item.status === 'completed'"
         @click="onOpenFolder"
-        class="btn-icon"
+        class="btn-icon app-icon-button success"
         title="打开文件夹"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -83,7 +83,7 @@
 
       <button
         @click="onCancel"
-        class="btn-icon btn-icon-danger"
+        class="btn-icon app-icon-button danger"
         title="删除"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -375,40 +375,9 @@ function getStatusText(status: string): string {
     transition: opacity 0.2s ease;
 
     .btn-icon {
-      width: 36px;
-      height: 36px;
-      border: none;
-      background: var(--bg-secondary);
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      color: var(--text-primary);
-
       svg {
         width: 18px;
         height: 18px;
-      }
-
-      &:hover {
-        background: var(--bg-tertiary);
-        transform: scale(1.05);
-      }
-
-      &.btn-icon-warning:hover {
-        background: var(--warning-color);
-        color: white;
-      }
-
-      &.btn-icon-danger:hover {
-        background: var(--error-color);
-        color: white;
-      }
-
-      &:active {
-        transform: scale(0.95);
       }
     }
   }

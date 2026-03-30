@@ -3,12 +3,17 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: i64,
     pub name: String,
     pub description: Option<String>,
     pub cover_url: Option<String>,
     pub system_key: Option<String>,
+    pub import_source: Option<String>,
+    pub import_source_playlist_id: Option<String>,
+    pub import_source_playlist_url: Option<String>,
+    pub last_synced_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -21,9 +26,20 @@ pub struct PlaylistSummary {
     pub description: Option<String>,
     pub cover_url: Option<String>,
     pub system_key: Option<String>,
+    pub import_source: Option<String>,
+    pub import_source_playlist_id: Option<String>,
+    pub import_source_playlist_url: Option<String>,
+    pub last_synced_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub music_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportPlaylistResult {
+    pub playlist: Playlist,
+    pub created: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +55,10 @@ pub struct CreatePlaylist {
     pub description: Option<String>,
     pub cover_url: Option<String>,
     pub system_key: Option<String>,
+    pub import_source: Option<String>,
+    pub import_source_playlist_id: Option<String>,
+    pub import_source_playlist_url: Option<String>,
+    pub last_synced_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,6 +66,8 @@ pub struct UpdatePlaylist {
     pub name: Option<String>,
     pub description: Option<String>,
     pub cover_url: Option<String>,
+    pub import_source_playlist_url: Option<String>,
+    pub last_synced_at: Option<String>,
 }
 
 impl Playlist {
@@ -92,8 +114,19 @@ impl Playlist {
 
         let result = sqlx::query_as::<_, Playlist>(
             r#"
-            INSERT INTO playlists (name, description, cover_url, system_key, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO playlists (
+                name,
+                description,
+                cover_url,
+                system_key,
+                import_source,
+                import_source_playlist_id,
+                import_source_playlist_url,
+                last_synced_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             "#,
         )
@@ -101,6 +134,10 @@ impl Playlist {
         .bind(&input.description)
         .bind(&input.cover_url)
         .bind(&input.system_key)
+        .bind(&input.import_source)
+        .bind(&input.import_source_playlist_id)
+        .bind(&input.import_source_playlist_url)
+        .bind(&input.last_synced_at)
         .bind(&now)
         .bind(&now)
         .fetch_one(pool)
@@ -130,6 +167,26 @@ impl Playlist {
         Ok(results)
     }
 
+    pub async fn get_by_import_source(
+        pool: &SqlitePool,
+        import_source: &str,
+        import_source_playlist_id: &str,
+    ) -> Result<Option<Self>, sqlx::Error> {
+        let result = sqlx::query_as::<_, Playlist>(
+            r#"
+            SELECT * FROM playlists
+            WHERE import_source = ? AND import_source_playlist_id = ?
+            LIMIT 1
+            "#,
+        )
+        .bind(import_source)
+        .bind(import_source_playlist_id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(result)
+    }
+
     pub async fn get_overviews(pool: &SqlitePool) -> Result<Vec<PlaylistSummary>, sqlx::Error> {
         let results = sqlx::query_as::<_, PlaylistSummary>(
             r#"
@@ -139,6 +196,10 @@ impl Playlist {
                 p.description,
                 p.cover_url,
                 p.system_key,
+                p.import_source,
+                p.import_source_playlist_id,
+                p.import_source_playlist_url,
+                p.last_synced_at,
                 p.created_at,
                 p.updated_at,
                 COUNT(ps.song_id) AS music_count
@@ -168,6 +229,8 @@ impl Playlist {
             SET name = COALESCE(?, name),
                 description = COALESCE(?, description),
                 cover_url = COALESCE(?, cover_url),
+                import_source_playlist_url = COALESCE(?, import_source_playlist_url),
+                last_synced_at = COALESCE(?, last_synced_at),
                 updated_at = ?
             WHERE id = ?
             RETURNING *
@@ -176,6 +239,8 @@ impl Playlist {
         .bind(&input.name)
         .bind(&input.description)
         .bind(&input.cover_url)
+        .bind(&input.import_source_playlist_url)
+        .bind(&input.last_synced_at)
         .bind(&now)
         .bind(id)
         .fetch_optional(pool)
@@ -344,6 +409,52 @@ impl Playlist {
             added,
         })
     }
+
+    pub async fn replace_tracks(
+        pool: &SqlitePool,
+        playlist_id: i64,
+        tracks: Vec<PlaylistTrackInput>,
+    ) -> Result<Vec<StoredTrack>, sqlx::Error> {
+        let mut stored_tracks = Vec::with_capacity(tracks.len());
+        let mut song_ids = Vec::with_capacity(tracks.len());
+
+        for track in tracks {
+            let song = Song::upsert(pool, Song::create_input_from_track(track)).await?;
+            song_ids.push(song.id);
+            stored_tracks.push(song.to_stored_track());
+        }
+
+        let mut tx = pool.begin().await?;
+
+        sqlx::query("DELETE FROM playlist_songs WHERE playlist_id = ?")
+            .bind(playlist_id)
+            .execute(&mut *tx)
+            .await?;
+
+        for (index, song_id) in song_ids.iter().enumerate() {
+            sqlx::query(
+                r#"
+                INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id, position)
+                VALUES (?, ?, ?)
+                "#,
+            )
+            .bind(playlist_id)
+            .bind(song_id)
+            .bind((index + 1) as i64)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        sqlx::query("UPDATE playlists SET updated_at = ? WHERE id = ?")
+            .bind(chrono::Utc::now().to_rfc3339())
+            .bind(playlist_id)
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+
+        Ok(stored_tracks)
+    }
 }
 
 #[cfg(test)]
@@ -364,6 +475,10 @@ mod tests {
             description: Some("A test playlist".to_string()),
             cover_url: None,
             system_key: None,
+            import_source: None,
+            import_source_playlist_id: None,
+            import_source_playlist_url: None,
+            last_synced_at: None,
         };
 
         let playlist = Playlist::create(&pool, input).await.unwrap();
@@ -378,6 +493,8 @@ mod tests {
             name: Some("Updated Playlist".to_string()),
             description: None,
             cover_url: None,
+            import_source_playlist_url: None,
+            last_synced_at: None,
         };
 
         let updated = Playlist::update(&pool, playlist.id, update).await.unwrap();
@@ -477,5 +594,83 @@ mod tests {
 
         db.close().await;
         let _ = std::fs::remove_file(db_path);
+    }
+
+    #[tokio::test]
+    async fn test_imported_playlist_metadata_and_track_replace() {
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
+        crate::db::migrations::run(&pool).await.unwrap();
+
+        let playlist = Playlist::create(
+            &pool,
+            CreatePlaylist {
+                name: "远程歌单".to_string(),
+                description: Some("同步歌单".to_string()),
+                cover_url: Some("https://example.com/cover.jpg".to_string()),
+                system_key: None,
+                import_source: Some("wy".to_string()),
+                import_source_playlist_id: Some("playlist_1".to_string()),
+                import_source_playlist_url: Some(
+                    "https://music.163.com/#/playlist?id=playlist_1".to_string(),
+                ),
+                last_synced_at: Some("2026-03-30T00:00:00Z".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        let imported = Playlist::get_by_import_source(&pool, "wy", "playlist_1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(imported.id, playlist.id);
+
+        let tracks = Playlist::replace_tracks(
+            &pool,
+            playlist.id,
+            vec![
+                PlaylistTrackInput {
+                    id: "song_1".to_string(),
+                    name: "第一首".to_string(),
+                    artist: "歌手A".to_string(),
+                    album: Some("专辑A".to_string()),
+                    duration: Some(120),
+                    cover: None,
+                    source: "wy".to_string(),
+                    source_id: "song_1".to_string(),
+                    songmid: Some("song_1".to_string()),
+                    hash: None,
+                    str_media_mid: None,
+                    copyright_id: None,
+                    album_id: None,
+                },
+                PlaylistTrackInput {
+                    id: "song_2".to_string(),
+                    name: "第二首".to_string(),
+                    artist: "歌手B".to_string(),
+                    album: Some("专辑B".to_string()),
+                    duration: Some(180),
+                    cover: None,
+                    source: "wy".to_string(),
+                    source_id: "song_2".to_string(),
+                    songmid: Some("song_2".to_string()),
+                    hash: None,
+                    str_media_mid: None,
+                    copyright_id: None,
+                    album_id: None,
+                },
+            ],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(
+            Playlist::get_tracks(&pool, playlist.id)
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

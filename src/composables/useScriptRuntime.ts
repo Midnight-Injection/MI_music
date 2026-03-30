@@ -24,7 +24,14 @@ export interface ScriptMusicInfo {
   name: string
   singer: string
   songmid?: string
+  mid?: string
+  songId?: string
+  songid?: string
+  msgId?: string
+  msgid?: string
   hash?: string
+  mediaMid?: string
+  media_mid?: string
   strMediaMid?: string
   copyrightId?: string
   albumId?: string

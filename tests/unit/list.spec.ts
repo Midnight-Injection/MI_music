@@ -136,4 +136,41 @@ describe('Playlist view playback interactions', () => {
     })
     expect(wrapper.text()).toContain('已开始下载：测试歌手 - 第一首.mp3')
   })
+
+  it('shows sync action for imported playlists and triggers manual sync', async () => {
+    const { usePlaylistStore } = await import('../../src/store/playlist')
+    const playlistStore = usePlaylistStore()
+    const importedPlaylist = {
+      id: 88,
+      name: '远程收藏歌单',
+      systemKey: null,
+      importSource: 'wy' as const,
+      importSourcePlaylistId: 'wy_998',
+      importSourcePlaylistUrl: 'https://example.com/wy/wy_998',
+      lastSyncedAt: '2026-03-30T10:00:00.000Z',
+      musics: [createTrack('song_9', '同步歌曲')],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    playlistStore.playlists = [importedPlaylist]
+    playlistStore.currentPlaylistId = importedPlaylist.id
+
+    const syncSpy = vi.spyOn(playlistStore, 'syncImportedPlaylist').mockResolvedValue(importedPlaylist)
+    const List = (await import('../../src/views/List.vue')).default
+
+    const wrapper = mount(List, {
+      global: {
+        plugins: [pinia],
+      },
+    })
+
+    expect(wrapper.text()).toContain('同步刷新')
+    expect(wrapper.text()).toContain('https://example.com/wy/wy_998')
+
+    await wrapper.find('.hero-action--sync').trigger('click')
+    await flushPromises()
+
+    expect(syncSpy).toHaveBeenCalledWith(88)
+    expect(wrapper.text()).toContain('已同步歌单：远程收藏歌单')
+  })
 })
