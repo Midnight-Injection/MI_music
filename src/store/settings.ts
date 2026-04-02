@@ -3,7 +3,24 @@ import { ref } from 'vue'
 import type { Settings } from '../types/settings'
 import { DEFAULT_CHANNEL_CONFIGS, ChannelConfig, DEFAULT_SETTINGS } from '../types/settings'
 
-type ThemeSettingsSubset = Pick<Settings, 'themeColor' | 'themeMode' | 'customColor'>
+type ThemeSettingsSubset = Pick<
+  Settings,
+  | 'themeColor'
+  | 'themeMode'
+  | 'customColor'
+  | 'fontFamilyPreset'
+  | 'textColorPrimary'
+  | 'textColorSecondary'
+  | 'baseplateStyle'
+  | 'baseplateColorA'
+  | 'baseplateColorB'
+  | 'baseplateAngle'
+  | 'baseplateIntensity'
+  | 'baseplateUseThemeAccent'
+  | 'baseplateImagePath'
+  | 'baseplateImageOpacity'
+  | 'baseplateImageBlur'
+>
 
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<Settings>({ ...DEFAULT_SETTINGS })

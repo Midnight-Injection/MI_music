@@ -44,7 +44,7 @@ export const useSearchStore = defineStore('search', () => {
   const searchResults = ref<MusicInfo[]>([])
   const isSearching = ref(false)
   const currentKeyword = ref('')
-  const currentChannel = ref<SearchChannel>('kw')
+  const currentChannel = ref<SearchChannel>('all')
   const currentPage = ref(1)
   const totalCount = ref(0)
   const hasNextPage = ref(false)
@@ -196,7 +196,7 @@ export const useSearchStore = defineStore('search', () => {
   function setResults(results: SearchResult) {
     searchResults.value = Array.from(results.data)
     totalCount.value = results.total ?? results.data.length
-    currentChannel.value = isSearchChannel(results.channel) ? results.channel : 'kw'
+    currentChannel.value = isSearchChannel(results.channel) ? results.channel : 'all'
     currentPage.value = results.page ?? 1
     hasNextPage.value = results.hasMore ?? false
   }

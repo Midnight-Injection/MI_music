@@ -53,7 +53,7 @@ pub use search::{
     get_source_playlist_detail, load_cached_media_blob, probe_media_url, search_all_music_sources,
     search_music_sources, search_source_playlists,
 };
-pub use theme::{get_theme, reset_theme, set_theme};
+pub use theme::{get_theme, import_theme_baseplate_image, reset_theme, set_theme};
 pub use user_source::{
     delete_user_source, export_user_source, get_user_source, get_user_sources,
     import_user_source_from_file, update_user_source,

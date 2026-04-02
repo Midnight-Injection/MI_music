@@ -6,18 +6,43 @@
 import { invoke } from '@tauri-apps/api/core'
 import { ref } from 'vue'
 import type { ThemeColorType, ThemeMode } from '../themes'
+import type { BaseplateStyle, FontFamilyPreset } from '../types/settings'
 
 export interface ThemeSettings {
   theme_color: ThemeColorType
   theme_mode: ThemeMode
   custom_color: string
+  font_family_preset: FontFamilyPreset
+  text_color_primary: string
+  text_color_secondary: string
+  baseplate_style: BaseplateStyle
+  baseplate_color_a: string
+  baseplate_color_b: string
+  baseplate_angle: number
+  baseplate_intensity: number
+  baseplate_use_theme_accent: boolean
+  baseplate_image_path: string
+  baseplate_image_opacity: number
+  baseplate_image_blur: number
 }
 
 export function useTheme() {
   const settings = ref<ThemeSettings>({
     theme_color: 'green',
     theme_mode: 'auto',
-    custom_color: '#1db954'
+    custom_color: '#1db954',
+    font_family_preset: 'system',
+    text_color_primary: '#f7fbff',
+    text_color_secondary: '#dbe5f3',
+    baseplate_style: 'linear-gradient',
+    baseplate_color_a: '#102038',
+    baseplate_color_b: '#415b86',
+    baseplate_angle: 140,
+    baseplate_intensity: 78,
+    baseplate_use_theme_accent: false,
+    baseplate_image_path: '',
+    baseplate_image_opacity: 72,
+    baseplate_image_blur: 10,
   })
 
   const isLoading = ref(false)

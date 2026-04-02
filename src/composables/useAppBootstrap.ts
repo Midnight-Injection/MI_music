@@ -87,6 +87,13 @@ export function useAppBootstrap() {
       const errors: string[] = []
 
       try {
+        await ensureDatabaseInitialized()
+      } catch (error) {
+        console.error('Failed to initialize database:', error)
+        errors.push(`数据库初始化失败：${getErrorMessage(error)}`)
+      }
+
+      try {
         await themeStore.init()
       } catch (error) {
         console.error('Failed to initialize theme:', error)
@@ -96,11 +103,10 @@ export function useAppBootstrap() {
       appliedSettings.init()
 
       try {
-        await ensureDatabaseInitialized()
         await playlistStore.init()
       } catch (error) {
-        console.error('Failed to initialize database and playlists:', error)
-        errors.push(`数据库初始化失败：${getErrorMessage(error)}`)
+        console.error('Failed to initialize playlists:', error)
+        errors.push(`歌单初始化失败：${getErrorMessage(error)}`)
       }
 
       try {

@@ -474,7 +474,7 @@ export const usePlayerStore = defineStore('player', () => {
       currentTime.value = 0
       const excludedSourceIds = new Set<string>()
 
-      while (true) {
+      for (;;) {
         const resolution = await playbackResolver.resolve(music, {
           excludedSourceIds: [...excludedSourceIds],
         })

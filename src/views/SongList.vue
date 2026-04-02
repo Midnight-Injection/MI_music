@@ -352,7 +352,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { NButton, NInput, NEmpty, NModal, NCard, useMessage } from 'naive-ui'
+import { NButton, NEmpty, NModal } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import SongItem from '../components/SongItem.vue'
@@ -405,7 +405,6 @@ const playerStore = usePlayerStore()
 const playlistStore = usePlaylistStore()
 const playlistSearchStore = usePlaylistSearchStore()
 const { downloadTrack } = useTrackDownload()
-const message = useMessage()
 const {
   searchKeyword,
   selectedSort,
@@ -1074,10 +1073,8 @@ onUnmounted(() => {
   gap: 10px;
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 24%),
-    radial-gradient(circle at bottom left, rgba(231, 215, 255, 0.18), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  background: var(--panel-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .search-home__hero {
@@ -1128,6 +1125,29 @@ onUnmounted(() => {
 
 .search-home__search-shell {
   position: relative;
+  min-height: 48px;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  background: var(--input-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+
+  :deep(.n-input) {
+    width: 100%;
+    height: 100%;
+    background: var(--input-surface);
+    border-radius: 18px;
+  }
+
+  :deep(.n-input:hover),
+  :deep(.n-input.n-input--focus) {
+    background: var(--input-surface-focus);
+  }
+
+  :deep(.n-input-wrapper) {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
 }
 
 .search-home__icon {
@@ -1147,14 +1167,15 @@ onUnmounted(() => {
   padding: 0 44px 0 44px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(101, 76, 157, 0.32);
+  background: var(--input-surface);
   color: var(--text-primary);
   font-size: 0.86rem;
   outline: none;
 
   &:focus {
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+    border-color: color-mix(in srgb, var(--primary-color) 42%, var(--border-light));
+    background: var(--input-surface-focus);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 14%, transparent);
   }
 }
 
@@ -1271,7 +1292,7 @@ onUnmounted(() => {
   gap: 6px;
   padding: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--button-secondary-bg);
 }
 
 .playlist-sort__item {
@@ -1304,8 +1325,8 @@ onUnmounted(() => {
   min-height: 180px;
   margin-top: 14px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--panel-muted);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -1325,8 +1346,8 @@ onUnmounted(() => {
 .playlist-group {
   padding: 16px;
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--panel-muted);
+  border: 1px solid var(--border-color);
 
   p {
     margin-top: 4px;
@@ -1367,21 +1388,21 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 26px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--liquid-content-surface);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-light);
+    background: var(--panel-gradient);
   }
 }
 
 .playlist-card__cover-shell {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--panel-gradient);
 }
 
 .playlist-card__cover,
@@ -1396,7 +1417,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(242, 220, 255, 0.3), rgba(215, 193, 255, 0.15));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--secondary-color) 34%, rgba(255, 255, 255, 0.12)),
+    color-mix(in srgb, var(--accent-color) 24%, rgba(255, 255, 255, 0.08))
+  );
   color: rgba(255, 255, 255, 0.86);
   font-weight: 700;
 }
@@ -1473,8 +1498,8 @@ onUnmounted(() => {
   aspect-ratio: 1 / 1;
   border-radius: 32px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(21, 14, 53, 0.2);
+  background: var(--panel-gradient);
+  box-shadow: var(--shadow-lg);
 }
 
 .playlist-detail__meta {
@@ -1508,8 +1533,8 @@ onUnmounted(() => {
 .playlist-detail__stats span {
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--pill-secondary-bg);
+  color: var(--text-primary);
   font-size: 0.78rem;
 }
 
@@ -1548,7 +1573,7 @@ onUnmounted(() => {
   min-height: 48px;
   margin-top: 10px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--panel-muted);
   color: var(--text-secondary);
   font-size: 0.78rem;
 }
@@ -1569,7 +1594,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(16, 10, 36, 0.46);
+  background: var(--bg-overlay);
   backdrop-filter: blur(14px);
 }
 
@@ -1615,7 +1640,8 @@ onUnmounted(() => {
   min-height: 64px;
   padding: 14px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--panel-muted);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
 
   &.is-error {

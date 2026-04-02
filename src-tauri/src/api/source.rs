@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Common error types for music source operations
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum MusicSourceError {
     #[error("Network error: {0}")]

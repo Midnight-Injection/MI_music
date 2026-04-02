@@ -1000,9 +1000,8 @@ onUnmounted(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: var(--panel-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-md);
 }
 
 .playlist-sidebar__header {
@@ -1053,11 +1052,11 @@ onUnmounted(() => {
   gap: 6px;
   padding: 8px 9px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary-color), #ff7aac);
+  background: var(--button-primary-gradient);
   color: white;
   font-weight: 700;
   font-size: 0.7rem;
-  box-shadow: 0 16px 30px color-mix(in srgb, var(--primary-color) 26%, transparent);
+  box-shadow: var(--button-primary-shadow);
 
   span:first-child {
     font-size: 0.92rem;
@@ -1095,9 +1094,9 @@ onUnmounted(() => {
   }
 
   &.is-active {
-    background: linear-gradient(135deg, rgba(255, 79, 139, 0.18), rgba(124, 82, 255, 0.14));
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: var(--glow-secondary);
+    background: color-mix(in srgb, var(--primary-color) 16%, rgba(255, 255, 255, 0.06));
+    border-color: var(--pill-primary-border);
+    box-shadow: var(--glow-primary);
   }
 }
 
@@ -1143,7 +1142,7 @@ onUnmounted(() => {
 .playlist-main {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 0;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -1164,6 +1163,7 @@ onUnmounted(() => {
 
 .playlist-notice {
   flex: 0 0 auto;
+  margin-bottom: 10px;
   padding: 10px 14px;
   border-radius: 18px;
   font-size: 0.8rem;
@@ -1224,9 +1224,9 @@ onUnmounted(() => {
   }
 
   &.is-active {
-    border-color: rgba(255, 255, 255, 0.18);
-    background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.14));
-    box-shadow: var(--glow-secondary);
+    border-color: var(--pill-primary-border);
+    background: color-mix(in srgb, var(--primary-color) 16%, rgba(255, 255, 255, 0.06));
+    box-shadow: var(--glow-primary);
   }
 
   &.is-disabled {
@@ -1257,7 +1257,7 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(255, 79, 139, 0.18), transparent 24%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-color) 14%, transparent), transparent 24%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
 
   &::before {
@@ -1267,7 +1267,7 @@ onUnmounted(() => {
     width: 220px;
     height: 220px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(84, 230, 255, 0.16), transparent 70%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-color) 14%, transparent), transparent 70%);
     pointer-events: none;
   }
 }
@@ -1276,10 +1276,14 @@ onUnmounted(() => {
   width: clamp(88px, 10vw, 108px);
   height: clamp(88px, 10vw, 108px);
   border-radius: 18px;
-  background: linear-gradient(145deg, rgba(255, 79, 139, 0.22), rgba(124, 82, 255, 0.22));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--secondary-color) 30%, rgba(255, 255, 255, 0.12)),
+    color-mix(in srgb, var(--accent-color) 24%, rgba(255, 255, 255, 0.06))
+  );
   display: grid;
   place-items: center;
-  box-shadow: 0 24px 48px rgba(7, 3, 17, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .playlist-hero__icon {
@@ -1381,18 +1385,18 @@ onUnmounted(() => {
   white-space: nowrap;
 
   &--primary {
-    background: linear-gradient(135deg, var(--primary-color), #ff7aac);
+    background: var(--button-primary-gradient);
     color: white;
-    box-shadow: 0 16px 32px color-mix(in srgb, var(--primary-color) 24%, transparent);
+    box-shadow: var(--button-primary-shadow);
   }
 
   &--danger {
-    background: rgba(255, 107, 129, 0.14);
-    color: #ffc5cf;
+    background: var(--pill-danger-bg);
+    color: #ffd2db;
   }
 
   &--sync {
-    background: rgba(87, 198, 255, 0.14);
+    background: var(--pill-accent-bg);
     color: #d7f4ff;
   }
 
@@ -1439,7 +1443,7 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   padding: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  background: var(--liquid-content-surface);
 }
 
 .playlist-library__header {
@@ -1525,13 +1529,13 @@ onUnmounted(() => {
   }
 
   &.is-selected {
-    background: rgba(255, 79, 139, 0.1);
+    background: color-mix(in srgb, var(--primary-color) 12%, rgba(255, 255, 255, 0.04));
   }
 
   &.is-playing {
-    background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.12));
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: var(--glow-secondary);
+    background: color-mix(in srgb, var(--primary-color) 16%, rgba(255, 255, 255, 0.06));
+    border-color: var(--pill-primary-border);
+    box-shadow: var(--glow-primary);
   }
 
   &.is-drop-target {
@@ -1564,7 +1568,7 @@ onUnmounted(() => {
   width: 30px;
   height: 30px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary-color), #ff7aac);
+  background: var(--button-primary-gradient);
   color: white;
   font-size: 0.74rem;
   box-shadow: 0 10px 20px color-mix(in srgb, var(--primary-color) 18%, transparent);
@@ -1642,7 +1646,7 @@ onUnmounted(() => {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(8, 4, 16, 0.56);
+  background: var(--bg-overlay);
   z-index: 50;
   padding: 20px;
 }
@@ -1670,7 +1674,7 @@ onUnmounted(() => {
   width: 100%;
   padding: 11px 13px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--input-surface);
   color: var(--text-primary);
 }
 
@@ -1692,7 +1696,7 @@ onUnmounted(() => {
   }
 
   &.confirm {
-    background: linear-gradient(135deg, var(--primary-color), #ff7aac);
+    background: var(--button-primary-gradient);
     color: white;
   }
 }

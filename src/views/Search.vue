@@ -18,6 +18,7 @@
             placeholder="搜索歌曲、歌手、专辑..."
             round
             clearable
+            @clear="handleClear"
             @keyup.enter="handleSearchSubmit"
           >
             <template #prefix>
@@ -201,7 +202,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { motion } from 'motion-v'
 import { useRoute } from 'vue-router'
-import { NInput, NButton, NModal, NCard, NSpin, NAlert, useMessage, type InputInst } from 'naive-ui'
+import { NInput, NButton, NModal, NCard, NSpin, NAlert, type InputInst } from 'naive-ui'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import SongItem from '../components/SongItem.vue'
 import { useTrackDownload } from '../composables/useTrackDownload'
@@ -215,8 +216,6 @@ import type { ContextMenuItem } from '../types/context-menu'
 import type { Playlist } from '../types/playlist'
 import type { MusicInfo, SearchChannel } from '../types/music'
 import type { AggregateChannelProgress } from '../modules/search/types'
-
-const message = useMessage()
 
 const PLATFORM_SOURCE_OPTIONS = [
   { value: 'all', label: '综合' },
@@ -633,7 +632,9 @@ watch(
   availableChannelSet,
   (channels) => {
     if (!channels.has(selectedChannel.value)) {
-      selectedChannel.value = (Array.from(channels)[0] as ChannelId | undefined) || 'kw'
+      selectedChannel.value = channels.has('all')
+        ? 'all'
+        : (Array.from(channels)[0] as ChannelId | undefined) || 'all'
     }
   },
   { immediate: true }
@@ -688,10 +689,8 @@ onUnmounted(() => {
   gap: 10px;
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 24%),
-    radial-gradient(circle at bottom left, rgba(231, 215, 255, 0.18), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  background: var(--panel-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .search-home__hero {
@@ -729,6 +728,34 @@ onUnmounted(() => {
 
 .search-home__search-shell {
   position: relative;
+  min-height: 48px;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  background: var(--input-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+
+  :deep(.n-input) {
+    width: 100%;
+    height: 100%;
+    background: var(--input-surface);
+    border-radius: 18px;
+  }
+
+  :deep(.n-input:hover),
+  :deep(.n-input.n-input--focus) {
+    background: var(--input-surface-focus);
+  }
+
+  :deep(.n-input-wrapper) {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  :deep(.n-input__input-el),
+  :deep(.n-input__placeholder) {
+    font-size: 0.86rem;
+  }
 }
 
 .search-home__icon {
@@ -748,14 +775,15 @@ onUnmounted(() => {
   padding: 0 44px 0 44px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(101, 76, 157, 0.32);
+  background: var(--input-surface);
   color: var(--text-primary);
   font-size: 0.86rem;
   outline: none;
 
   &:focus {
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+    border-color: color-mix(in srgb, var(--primary-color) 42%, var(--border-light));
+    background: var(--input-surface-focus);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 14%, transparent);
   }
 }
 
@@ -868,7 +896,7 @@ onUnmounted(() => {
   gap: 12px;
   align-items: center;
   padding: 10px 14px 8px;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--text-tertiary);
   font-size: 0.66rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -935,7 +963,7 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(25, 15, 46, 0.34);
+  background: var(--bg-overlay);
   backdrop-filter: blur(10px);
   z-index: 30;
 }
@@ -979,7 +1007,8 @@ onUnmounted(() => {
 .playlist-dialog__state {
   padding: 16px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--panel-muted);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-size: 0.78rem;
 

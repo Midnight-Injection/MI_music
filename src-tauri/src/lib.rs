@@ -24,7 +24,7 @@ pub use commands::{
     get_reverb_presets, get_setting, get_song_url, get_source_playlist, get_source_playlist_detail,
     get_theme, get_user_source, get_user_sources, has_default_sources_been_imported,
     import_default_sources, import_user_source_from_file, init_database,
-    list_available_default_sources, load_cached_media_blob, load_lyrics, lock_lyrics_window,
+    import_theme_baseplate_image, list_available_default_sources, load_cached_media_blob, load_lyrics, lock_lyrics_window,
     open_download_folder, parse_lyrics, pause_download, pause_music, play_music, play_next,
     play_previous, play_song_by_id, probe_media_url, remove_from_queue, remove_song_from_playlist,
     remove_tracks_from_playlist, reorder_playlist_songs, reset_equalizer, reset_lyrics,

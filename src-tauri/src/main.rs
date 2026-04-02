@@ -141,6 +141,7 @@ fn main() {
             jiyu_music::script_http_request,
             // Theme commands
             jiyu_music::get_theme,
+            jiyu_music::import_theme_baseplate_image,
             jiyu_music::set_theme,
             jiyu_music::reset_theme,
         ])

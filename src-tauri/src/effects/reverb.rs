@@ -9,6 +9,7 @@ pub struct Reverb {
     damping: f32,    // 0.0 to 1.0
 }
 
+#[allow(dead_code)]
 impl Reverb {
     /// Create a new reverb effect
     pub fn new() -> Self {

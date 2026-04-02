@@ -377,7 +377,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .desktop-window-shell {
-  --window-frame-radius: 18px;
+  --window-frame-radius: 24px;
   --window-frame-border-color: var(--shell-border);
   --window-frame-border-width: 1px;
   --window-resize-hit-size: 8px;
@@ -400,7 +400,8 @@ onUnmounted(() => {
   border-radius: inherit;
   box-shadow:
     inset 0 0 0 var(--window-frame-border-width) var(--window-frame-border-color),
-    0 28px 88px rgba(4, 1, 14, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 34px 110px var(--liquid-deep-shadow);
   z-index: 1;
 }
 
@@ -411,8 +412,8 @@ onUnmounted(() => {
   pointer-events: none;
   background:
     var(--app-gradient),
-    radial-gradient(circle at 14% 16%, rgba(173, 140, 255, 0.08), transparent 18%),
-    radial-gradient(circle at 82% 10%, rgba(255, 173, 214, 0.06), transparent 16%),
+    radial-gradient(circle at 14% 16%, rgba(255, 255, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.06), transparent 16%),
     var(--shell-surface);
   z-index: 0;
 }
@@ -451,22 +452,42 @@ onUnmounted(() => {
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 6px 12px 12px;
+  gap: 10px;
+  padding: 10px;
   min-height: 0;
   overflow: hidden;
   border-radius: inherit;
 }
 
+.desktop-window-shell__frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--app-baseplate-image) center / cover no-repeat;
+  opacity: var(--app-baseplate-image-opacity);
+  filter: blur(var(--app-baseplate-image-blur));
+  transform: scale(1.06);
+}
+
 .desktop-window-shell__titlebar {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-width: 0;
-  min-height: 42px;
-  padding: 2px 0 0;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--panel-muted);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 28px rgba(10, 16, 30, 0.1);
   user-select: none;
   cursor: grab;
 }
@@ -481,8 +502,8 @@ onUnmounted(() => {
 }
 
 .desktop-window-shell__control {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -535,7 +556,7 @@ onUnmounted(() => {
 }
 
 .desktop-window-shell__eyebrow {
-  font-size: 0.56rem;
+  font-size: 0.54rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-tertiary);
@@ -546,8 +567,8 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 2px;
-  font-size: 0.88rem;
+  margin-top: 3px;
+  font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -567,18 +588,23 @@ onUnmounted(() => {
   min-height: 24px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-secondary);
   font-size: 0.64rem;
   letter-spacing: 0.04em;
 }
 
 .desktop-window-shell__content {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: max(0px, calc(var(--window-frame-radius) - 6px));
+  border-radius: max(0px, calc(var(--window-frame-radius) - 10px));
+  background: var(--liquid-content-surface);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .desktop-window-shell__resize-handle {
@@ -665,7 +691,7 @@ onUnmounted(() => {
 
 @media (max-width: 720px) {
   .desktop-window-shell__frame {
-    padding: 6px 10px 10px;
+    padding: 8px;
   }
 
   .desktop-window-shell__status {

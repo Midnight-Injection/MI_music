@@ -8,7 +8,6 @@ import {
 } from './normalize'
 import type {
   AggregateChannelProgress,
-  AggregateChannelStatus,
   AggregateSearchHandlers,
   SearchExecutionStrategy,
   SearchRequest,

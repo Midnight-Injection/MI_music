@@ -4,7 +4,16 @@ export type PlayMode = 'loop' | 'single' | 'random'
 export type AudioQuality = 'standard' | 'high' | 'lossless'
 export type ThemeColorType = 'green' | 'blue' | 'red' | 'pink' | 'purple' | 'orange' | 'black' | 'grey' | 'custom'
 export type ThemeMode = 'light' | 'dark' | 'auto'
+export type BaseplateStyle = 'solid' | 'linear-gradient' | 'radial-gradient' | 'image'
 export type ControlPosition = 'left' | 'right'
+export type FontFamilyPreset = 'system' | 'apple' | 'windows' | 'serif'
+
+export const FONT_FAMILY_STACKS: Record<FontFamilyPreset, string> = {
+  system: '"Avenir Next", "SF Pro Display", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  apple: '"SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif',
+  windows: '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif',
+  serif: '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif',
+}
 
 export interface ChannelConfig {
   id: string
@@ -65,6 +74,18 @@ export interface Settings {
   themeColor: ThemeColorType
   themeMode: ThemeMode
   customColor: string
+  fontFamilyPreset: FontFamilyPreset
+  textColorPrimary: string
+  textColorSecondary: string
+  baseplateStyle: BaseplateStyle
+  baseplateColorA: string
+  baseplateColorB: string
+  baseplateAngle: number
+  baseplateIntensity: number
+  baseplateUseThemeAccent: boolean
+  baseplateImagePath: string
+  baseplateImageOpacity: number
+  baseplateImageBlur: number
 
   // Network
   proxyEnabled: boolean
@@ -115,6 +136,18 @@ export const DEFAULT_SETTINGS: Settings = {
   themeColor: 'green',
   themeMode: 'auto',
   customColor: '#1db954',
+  fontFamilyPreset: 'system',
+  textColorPrimary: '#f7fbff',
+  textColorSecondary: '#dbe5f3',
+  baseplateStyle: 'linear-gradient',
+  baseplateColorA: '#102038',
+  baseplateColorB: '#415b86',
+  baseplateAngle: 140,
+  baseplateIntensity: 78,
+  baseplateUseThemeAccent: false,
+  baseplateImagePath: '',
+  baseplateImageOpacity: 72,
+  baseplateImageBlur: 10,
 
   // Network
   proxyEnabled: false,

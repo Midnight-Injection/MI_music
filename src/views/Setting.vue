@@ -213,15 +213,6 @@
             @update:model-value="updateSetting('windowSize', $event)"
           />
           <SettingItem
-            label="字体大小"
-            type="range"
-            :model-value="settingsStore.settings.fontSize"
-            :min="12"
-            :max="20"
-            suffix="px"
-            @update:model-value="updateSetting('fontSize', $event)"
-          />
-          <SettingItem
             label="启用动画"
             type="checkbox"
             :model-value="settingsStore.settings.animation"
@@ -530,6 +521,133 @@
             :model-value="themeStore.settings.customColor"
             @update:model-value="updateCustomThemeColor"
           />
+          <SettingItem
+            label="字体风格"
+            type="select"
+            :model-value="themeStore.settings.fontFamilyPreset"
+            :options="fontFamilyPresetOptions"
+            @update:model-value="updateFontFamilyPreset"
+          />
+          <SettingItem
+            label="全局字号"
+            description="影响绝大多数页面正文和卡片内容，歌词字号仍单独控制。"
+            type="range"
+            :model-value="settingsStore.settings.fontSize"
+            :min="12"
+            :max="20"
+            suffix="px"
+            @update:model-value="updateSetting('fontSize', $event)"
+          />
+          <SettingItem
+            label="主文字颜色"
+            type="color"
+            :model-value="themeStore.settings.textColorPrimary"
+            @update:model-value="updateTextColorPrimary"
+          />
+          <SettingItem
+            label="次文字颜色"
+            description="用于说明文案、次要信息和辅助文案。"
+            type="color"
+            :model-value="themeStore.settings.textColorSecondary"
+            @update:model-value="updateTextColorSecondary"
+          />
+        </SettingGroup>
+
+        <SettingGroup title="底板">
+          <SettingItem
+            label="底板类型"
+            type="select"
+            :model-value="themeStore.settings.baseplateStyle"
+            :options="baseplateStyleOptions"
+            @update:model-value="updateBaseplateStyle"
+          />
+          <SettingItem
+            v-if="themeStore.settings.baseplateStyle === 'image'"
+            label="底板图片"
+            description="选择本地图片后会复制到应用目录，后续即使原图移动也能继续使用。"
+            type="path"
+            :model-value="themeStore.settings.baseplateImagePath"
+            placeholder="未选择图片"
+            @browse="selectBaseplateImage"
+          />
+          <div
+            v-if="themeStore.settings.baseplateStyle === 'image'"
+            class="baseplate-image-actions"
+          >
+            <NButton size="small" secondary @click="selectBaseplateImage">重新选择</NButton>
+            <NButton
+              size="small"
+              quaternary
+              :disabled="!themeStore.settings.baseplateImagePath"
+              @click="clearBaseplateImage"
+            >
+              清除图片
+            </NButton>
+          </div>
+          <SettingItem
+            label="主色"
+            type="color"
+            :model-value="themeStore.settings.baseplateColorA"
+            @update:model-value="updateBaseplateColorA"
+          />
+          <SettingItem
+            v-if="themeStore.settings.baseplateStyle !== 'solid'"
+            label="副色"
+            type="color"
+            :model-value="themeStore.settings.baseplateColorB"
+            @update:model-value="updateBaseplateColorB"
+          />
+          <SettingItem
+            v-if="themeStore.settings.baseplateStyle === 'linear-gradient'"
+            label="渐变角度"
+            type="range"
+            :model-value="themeStore.settings.baseplateAngle"
+            :min="0"
+            :max="360"
+            :step="1"
+            suffix="°"
+            @update:model-value="updateBaseplateAngle"
+          />
+          <SettingItem
+            label="底板强度"
+            type="range"
+            :model-value="themeStore.settings.baseplateIntensity"
+            :min="30"
+            :max="100"
+            :step="1"
+            suffix="%"
+            @update:model-value="updateBaseplateIntensity"
+          />
+          <SettingItem
+            v-if="themeStore.settings.baseplateStyle === 'image'"
+            label="图片透明度"
+            type="range"
+            :model-value="themeStore.settings.baseplateImageOpacity"
+            :min="12"
+            :max="100"
+            :step="1"
+            suffix="%"
+            @update:model-value="updateBaseplateImageOpacity"
+          />
+          <SettingItem
+            v-if="themeStore.settings.baseplateStyle === 'image'"
+            label="图片模糊度"
+            description="用于压住图片细节，避免背景抢正文。"
+            type="range"
+            :model-value="themeStore.settings.baseplateImageBlur"
+            :min="0"
+            :max="40"
+            :step="1"
+            suffix="px"
+            @update:model-value="updateBaseplateImageBlur"
+          />
+          <SettingItem
+            label="跟随主题高光"
+            description="让主题主色参与底板高光层，而不是直接染到底板本体。"
+            type="checkbox"
+            :model-value="themeStore.settings.baseplateUseThemeAccent"
+            @update:model-value="updateBaseplateUseThemeAccent"
+          />
         </SettingGroup>
       </SettingSection>
 
@@ -624,7 +742,9 @@ import SettingSection from '../components/settings/SettingSection.vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { save } from '@tauri-apps/plugin-dialog'
+import { invoke } from '@tauri-apps/api/core'
 import type { ThemeColorType, ThemeMode } from '../themes'
+import type { BaseplateStyle, FontFamilyPreset } from '../types/settings'
 import { getPlaybackSourceDisplayInfo, getChannelDisplayName } from '../lib/playbackSource'
 import {
   clearPlaybackSourceCache,
@@ -708,6 +828,13 @@ const syncModeOptions = [
   { value: 'client', label: '客户端模式' }
 ]
 
+const baseplateStyleOptions = [
+  { value: 'solid', label: '纯色' },
+  { value: 'linear-gradient', label: '线性渐变' },
+  { value: 'radial-gradient', label: '径向渐变' },
+  { value: 'image', label: '图片底板' },
+]
+
 const themeColors = [
   { value: 'green', label: '绿色', color: '#1db954' },
   { value: 'blue', label: '蓝色', color: '#42a5ff' },
@@ -718,6 +845,13 @@ const themeColors = [
   { value: 'black', label: '黑色', color: '#d4d7e1' },
   { value: 'grey', label: '灰色', color: '#9da8bd' },
   { value: 'custom', label: '自定义', color: '#ffffff' },
+]
+
+const fontFamilyPresetOptions = [
+  { value: 'system', label: '默认系统' },
+  { value: 'apple', label: '苹方 / SF' },
+  { value: 'windows', label: 'Segoe / YaHei' },
+  { value: 'serif', label: '衬线阅读' },
 ]
 
 const playbackSourceInfo = computed(() => {
@@ -855,6 +989,107 @@ async function updateCustomThemeColor(value: string) {
   message.success('自定义主题颜色已更新')
 }
 
+async function updateFontFamilyPreset(value: FontFamilyPreset) {
+  await themeStore.setFontFamilyPreset(value)
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('字体风格已更新')
+}
+
+async function updateTextColorPrimary(value: string) {
+  await themeStore.updateTextColors({ textColorPrimary: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('主文字颜色已更新')
+}
+
+async function updateTextColorSecondary(value: string) {
+  await themeStore.updateTextColors({ textColorSecondary: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('次文字颜色已更新')
+}
+
+async function updateBaseplateStyle(value: BaseplateStyle) {
+  await themeStore.updateBaseplateSettings({ baseplateStyle: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('底板类型已更新')
+}
+
+async function updateBaseplateColorA(value: string) {
+  await themeStore.updateBaseplateSettings({ baseplateColorA: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('底板主色已更新')
+}
+
+async function updateBaseplateColorB(value: string) {
+  await themeStore.updateBaseplateSettings({ baseplateColorB: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('底板副色已更新')
+}
+
+async function updateBaseplateAngle(value: number) {
+  await themeStore.updateBaseplateSettings({ baseplateAngle: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+}
+
+async function updateBaseplateIntensity(value: number) {
+  await themeStore.updateBaseplateSettings({ baseplateIntensity: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+}
+
+async function updateBaseplateImageOpacity(value: number) {
+  await themeStore.updateBaseplateSettings({ baseplateImageOpacity: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+}
+
+async function updateBaseplateImageBlur(value: number) {
+  await themeStore.updateBaseplateSettings({ baseplateImageBlur: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+}
+
+async function updateBaseplateUseThemeAccent(value: boolean) {
+  await themeStore.updateBaseplateSettings({ baseplateUseThemeAccent: value })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success(value ? '已启用主题高光联动' : '已关闭主题高光联动')
+}
+
+async function selectBaseplateImage() {
+  try {
+    const selected = await open({
+      multiple: false,
+      title: '选择底板图片',
+      filters: [{
+        name: 'Image',
+        extensions: ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif']
+      }]
+    })
+
+    if (!selected || typeof selected !== 'string') return
+
+    const importedPath = await invoke<string>('import_theme_baseplate_image', {
+      sourcePath: selected,
+      previousPath: themeStore.settings.baseplateImagePath || null,
+    })
+
+    await themeStore.updateBaseplateSettings({
+      baseplateStyle: 'image',
+      baseplateImagePath: importedPath,
+    })
+    settingsStore.syncThemeSettings(themeStore.settings)
+    message.success('底板图片已更新')
+  } catch (error) {
+    console.error('Failed to import baseplate image:', error)
+    message.error('导入底板图片失败')
+  }
+}
+
+async function clearBaseplateImage() {
+  await themeStore.updateBaseplateSettings({
+    baseplateStyle: 'linear-gradient',
+    baseplateImagePath: '',
+  })
+  settingsStore.syncThemeSettings(themeStore.settings)
+  message.success('已清除底板图片')
+}
+
 // Toggle channel
 function toggleChannel(id: string, enabled: boolean) {
   settingsStore.updateChannelConfig(id, enabled)
@@ -974,6 +1209,18 @@ async function exportSettings() {
       themeColor: themeStore.settings.themeColor,
       themeMode: themeStore.settings.themeMode,
       customColor: themeStore.settings.customColor,
+      fontFamilyPreset: themeStore.settings.fontFamilyPreset,
+      textColorPrimary: themeStore.settings.textColorPrimary,
+      textColorSecondary: themeStore.settings.textColorSecondary,
+      baseplateStyle: themeStore.settings.baseplateStyle,
+      baseplateColorA: themeStore.settings.baseplateColorA,
+      baseplateColorB: themeStore.settings.baseplateColorB,
+      baseplateAngle: themeStore.settings.baseplateAngle,
+      baseplateIntensity: themeStore.settings.baseplateIntensity,
+      baseplateUseThemeAccent: themeStore.settings.baseplateUseThemeAccent,
+      baseplateImagePath: themeStore.settings.baseplateImagePath,
+      baseplateImageOpacity: themeStore.settings.baseplateImageOpacity,
+      baseplateImageBlur: themeStore.settings.baseplateImageBlur,
     }, null, 2)
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const filename = `jiyu-music-settings-${timestamp}.json`
@@ -1016,6 +1263,18 @@ async function importSettings() {
         themeColor,
         themeMode,
         customColor,
+        fontFamilyPreset,
+        textColorPrimary,
+        textColorSecondary,
+        baseplateStyle,
+        baseplateColorA,
+        baseplateColorB,
+        baseplateAngle,
+        baseplateIntensity,
+        baseplateUseThemeAccent,
+        baseplateImagePath,
+        baseplateImageOpacity,
+        baseplateImageBlur,
         ...generalSettings
       } = importedSettings
 
@@ -1034,6 +1293,27 @@ async function importSettings() {
       if (themeColor === 'custom' && customColor) {
         await themeStore.setCustomColor(customColor)
       }
+
+      if (fontFamilyPreset) {
+        await themeStore.setFontFamilyPreset(fontFamilyPreset)
+      }
+
+      await themeStore.updateTextColors({
+        textColorPrimary,
+        textColorSecondary,
+      })
+
+      await themeStore.updateBaseplateSettings({
+        baseplateStyle,
+        baseplateColorA,
+        baseplateColorB,
+        baseplateAngle,
+        baseplateIntensity,
+        baseplateUseThemeAccent,
+        baseplateImagePath,
+        baseplateImageOpacity,
+        baseplateImageBlur,
+      })
 
       settingsStore.syncThemeSettings(themeStore.settings)
 
@@ -1086,17 +1366,70 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 12px;
+  padding: 4px 2px;
   border-radius: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(255, 79, 139, 0.1), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
+  background: transparent;
+  box-shadow: none;
+}
+
+.setting-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  :deep(.n-tabs-nav) {
+    width: 100%;
+    margin-bottom: 0;
+    padding: 4px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  :deep(.n-tabs-rail) {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  :deep(.n-tabs-capsule) {
+    background: color-mix(in srgb, var(--panel-muted) 74%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 10px 24px rgba(8, 14, 28, 0.08);
+    backdrop-filter: blur(18px);
+  }
+
+  :deep(.n-tabs-nav-scroll-content) {
+    width: 100%;
+    display: flex;
+    gap: 4px;
+  }
+
+  :deep(.n-tabs-tab) {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  :deep(.n-tabs-tab--active) {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--primary-color) 16%, rgba(255, 255, 255, 0.1));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
 }
 
 .setting-toolbar__actions {
   display: flex;
   gap: 8px;
   flex: 0 0 auto;
+
+  :deep(.n-button) {
+    background: var(--panel-muted);
+    border: 1px solid var(--border-color);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
 }
 
 .action-button {
@@ -1138,9 +1471,7 @@ onMounted(async () => {
   min-height: 400px;
   padding: 18px 18px 8px;
   border-radius: 22px;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  background: var(--panel-gradient);
 }
 
 .sync-placeholder {
@@ -1148,6 +1479,14 @@ onMounted(async () => {
   color: var(--text-secondary);
   line-height: 1.6;
   font-size: 0.9rem;
+}
+
+.baseplate-image-actions {
+  margin-top: -4px;
+  padding: 0 0 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .sources-section {

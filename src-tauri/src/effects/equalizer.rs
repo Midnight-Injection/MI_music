@@ -6,6 +6,7 @@ pub struct Equalizer {
     bands: [f32; 10],
 }
 
+#[allow(dead_code)]
 impl Equalizer {
     const FREQUENCIES: [f32; 10] = [
         31.0,    // Band 0: 31 Hz (Sub-bass)

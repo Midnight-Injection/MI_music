@@ -24,14 +24,7 @@ body {
 }
 
 body {
-  font-family:
-    'Avenir Next',
-    'SF Pro Display',
-    'Segoe UI',
-    'PingFang SC',
-    'Hiragino Sans GB',
-    'Microsoft YaHei',
-    sans-serif;
+  font-family: var(--app-font-family);
   font-size: var(--app-font-size);
   color: var(--text-primary);
   background: transparent;
@@ -86,8 +79,10 @@ img {
 .glass-panel {
   background: var(--panel-gradient);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 24px 64px var(--liquid-deep-shadow);
 }
 
 .page-shell {
@@ -106,10 +101,9 @@ img {
   gap: 16px;
   padding: 22px 24px;
   border-radius: var(--radius-md);
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-color) 14%, transparent), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: var(--panel-strong);
   border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .page-title {
@@ -144,6 +138,7 @@ img {
   padding: 16px;
   background: var(--panel-gradient);
   border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .page-kicker {
@@ -176,7 +171,7 @@ img {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--panel-muted);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-size: 0.76rem;
