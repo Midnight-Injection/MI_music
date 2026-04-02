@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import {
   buildSourcePlaylistUrl,
+  ensureTencentPlaylistAuth,
   getSourcePlaylistDetail,
   getSourcePlaylistTracks,
 } from '../modules/playlistSearch/service'
@@ -170,6 +171,19 @@ export interface ImportSourcePlaylistResult {
 
 function isImportedPlaylist(playlist: Pick<Playlist, 'importSource' | 'importSourcePlaylistId'>): boolean {
   return Boolean(playlist.importSource && playlist.importSourcePlaylistId)
+}
+
+function shouldRetryTencentPlaylistFetch(source: PlaylistSearchChannel, error: unknown): boolean {
+  if (source !== 'tx') return false
+
+  const message = String(error instanceof Error ? error.message : error).trim()
+  if (!message) return true
+
+  if (/network error|timeout|timed out|dns|fetch failed/i.test(message)) {
+    return false
+  }
+
+  return true
 }
 
 export const usePlaylistStore = defineStore('playlist', () => {
@@ -472,12 +486,38 @@ export const usePlaylistStore = defineStore('playlist', () => {
   ): Promise<ImportSourcePlaylistResult> {
     await ensureReady()
 
-    const detail = await getSourcePlaylistDetail(playlistSummary.source, playlistSummary.id)
-    const tracks = await getSourcePlaylistTracks(
-      playlistSummary.source,
-      playlistSummary.id,
-      detail.trackCount ?? playlistSummary.trackCount,
-    )
+    const loadRemotePlaylist = async () => {
+      const detail = await getSourcePlaylistDetail(playlistSummary.source, playlistSummary.id)
+      const tracks = await getSourcePlaylistTracks(
+        playlistSummary.source,
+        playlistSummary.id,
+        detail.trackCount ?? playlistSummary.trackCount,
+      )
+
+      return {
+        detail,
+        tracks,
+      }
+    }
+
+    let detail: Awaited<ReturnType<typeof loadRemotePlaylist>>['detail']
+    let tracks: Awaited<ReturnType<typeof loadRemotePlaylist>>['tracks']
+
+    try {
+      ({ detail, tracks } = await loadRemotePlaylist())
+    } catch (error) {
+      if (!shouldRetryTencentPlaylistFetch(playlistSummary.source, error)) {
+        throw error
+      }
+
+      const authorized = await ensureTencentPlaylistAuth()
+      if (!authorized) {
+        throw new Error('已取消腾讯歌单导入')
+      }
+
+      ({ detail, tracks } = await loadRemotePlaylist())
+    }
+
     const sourcePlaylistUrl = buildSourcePlaylistUrl(playlistSummary.source, playlistSummary.id) || null
 
     if (!isTauriContext()) {
@@ -553,12 +593,38 @@ export const usePlaylistStore = defineStore('playlist', () => {
       throw new Error('当前歌单不是可同步的导入歌单')
     }
 
-    const detail = await getSourcePlaylistDetail(playlist.importSource!, playlist.importSourcePlaylistId!)
-    const tracks = await getSourcePlaylistTracks(
-      playlist.importSource!,
-      playlist.importSourcePlaylistId!,
-      detail.trackCount,
-    )
+    const loadRemotePlaylist = async () => {
+      const detail = await getSourcePlaylistDetail(playlist.importSource!, playlist.importSourcePlaylistId!)
+      const tracks = await getSourcePlaylistTracks(
+        playlist.importSource!,
+        playlist.importSourcePlaylistId!,
+        detail.trackCount,
+      )
+
+      return {
+        detail,
+        tracks,
+      }
+    }
+
+    let detail: Awaited<ReturnType<typeof loadRemotePlaylist>>['detail']
+    let tracks: Awaited<ReturnType<typeof loadRemotePlaylist>>['tracks']
+
+    try {
+      ({ detail, tracks } = await loadRemotePlaylist())
+    } catch (error) {
+      if (!shouldRetryTencentPlaylistFetch(playlist.importSource!, error)) {
+        throw error
+      }
+
+      const authorized = await ensureTencentPlaylistAuth()
+      if (!authorized) {
+        throw new Error('已取消腾讯歌单同步')
+      }
+
+      ({ detail, tracks } = await loadRemotePlaylist())
+    }
+
     const sourcePlaylistUrl =
       buildSourcePlaylistUrl(playlist.importSource!, playlist.importSourcePlaylistId!) || null
 

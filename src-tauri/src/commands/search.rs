@@ -1,11 +1,13 @@
 use crate::api::helpers::{apply_media_request_headers, build_client, build_media_client};
 use crate::api::kugou::KugouSource;
+use crate::api::qq::QqSource;
 use crate::api::SourceRegistry;
 use crate::api::{LyricInfo, MusicInfo, Quality, SourcePlaylistDetail, SourcePlaylistSummary};
+use crate::qq_auth::{clear_cookie_header, get_cookie_header, SharedQqAuthState};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{path::Path, path::PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinSet;
@@ -215,7 +217,24 @@ pub async fn get_source_playlist(
     source: String,
     page: u32,
     page_size: u32,
+    qq_auth_state: State<'_, SharedQqAuthState>,
 ) -> Result<Vec<MusicInfoWrapper>, String> {
+    if source == "tx" {
+        let qq_source = QqSource::new();
+        let cookie_header = get_cookie_header(qq_auth_state.inner()).await;
+        let result = qq_source
+            .get_playlist_with_cookie(&playlist_id, page, page_size, cookie_header.as_deref())
+            .await;
+
+        if result.is_err() && cookie_header.is_some() {
+            clear_cookie_header(qq_auth_state.inner()).await;
+        }
+
+        return result
+            .map(|items| items.into_iter().map(MusicInfoWrapper::from).collect())
+            .map_err(|error| error.to_string());
+    }
+
     let registry = SourceRegistry::new();
 
     let music_source = require_source(&registry, &source)?;
@@ -253,7 +272,22 @@ pub async fn search_source_playlists(
 pub async fn get_source_playlist_detail(
     playlist_id: String,
     source: String,
+    qq_auth_state: State<'_, SharedQqAuthState>,
 ) -> Result<SourcePlaylistDetail, String> {
+    if source == "tx" {
+        let qq_source = QqSource::new();
+        let cookie_header = get_cookie_header(qq_auth_state.inner()).await;
+        let result = qq_source
+            .get_playlist_detail_with_cookie(&playlist_id, cookie_header.as_deref())
+            .await;
+
+        if result.is_err() && cookie_header.is_some() {
+            clear_cookie_header(qq_auth_state.inner()).await;
+        }
+
+        return result.map_err(|error| error.to_string());
+    }
+
     let registry = SourceRegistry::new();
 
     let music_source = require_source(&registry, &source)?;

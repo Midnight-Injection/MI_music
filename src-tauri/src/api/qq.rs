@@ -4,6 +4,7 @@ use super::source::{
     SourcePlaylistDetail, SourcePlaylistSummary,
 };
 use async_trait::async_trait;
+use reqwest::header::{COOKIE, REFERER};
 use reqwest::Client;
 use serde::Deserialize;
 
@@ -143,6 +144,103 @@ impl QqSource {
             return Err(MusicSourceError::SongNotFound(songmid.to_string()));
         }
         Ok(Self::map_song(payload.req.data.track_info))
+    }
+
+    fn build_playlist_request(
+        &self,
+        playlist_id: &str,
+        cookie_header: Option<&str>,
+    ) -> reqwest::RequestBuilder {
+        let url = format!(
+            "https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&utf8=1&onlysong=0&disstid={}&format=json",
+            playlist_id
+        );
+        let mut request = self.client.get(url).header(REFERER, "https://y.qq.com/");
+
+        if let Some(cookie_header) = cookie_header.filter(|value| !value.trim().is_empty()) {
+            request = request.header(COOKIE, cookie_header.trim());
+        }
+
+        request
+    }
+
+    async fn fetch_playlist_payload(
+        &self,
+        playlist_id: &str,
+        cookie_header: Option<&str>,
+    ) -> Result<QqPlaylistResponse> {
+        let payload: QqPlaylistResponse = self
+            .build_playlist_request(playlist_id, cookie_header)
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        if payload.code != 0 || payload.cdlist.is_empty() {
+            return Err(MusicSourceError::PlaylistNotFound(playlist_id.to_string()));
+        }
+
+        Ok(payload)
+    }
+
+    pub async fn get_playlist_with_cookie(
+        &self,
+        playlist_id: &str,
+        page: u32,
+        page_size: u32,
+        cookie_header: Option<&str>,
+    ) -> Result<Vec<MusicInfo>> {
+        let payload = self
+            .fetch_playlist_payload(playlist_id, cookie_header)
+            .await?;
+        let songs = &payload.cdlist[0].songlist;
+        let start = ((page.saturating_sub(1)) * page_size) as usize;
+        let end = (start + page_size as usize).min(songs.len());
+        if start >= songs.len() {
+            return Ok(Vec::new());
+        }
+
+        Ok(songs[start..end]
+            .iter()
+            .cloned()
+            .map(Self::map_song)
+            .collect())
+    }
+
+    pub async fn get_playlist_detail_with_cookie(
+        &self,
+        playlist_id: &str,
+        cookie_header: Option<&str>,
+    ) -> Result<SourcePlaylistDetail> {
+        let payload = self
+            .fetch_playlist_payload(playlist_id, cookie_header)
+            .await?;
+        let playlist = &payload.cdlist[0];
+        let id = playlist
+            .dissid
+            .as_ref()
+            .map(|value| match value {
+                serde_json::Value::String(value) => value.clone(),
+                serde_json::Value::Number(value) => value.to_string(),
+                _ => playlist_id.to_string(),
+            })
+            .unwrap_or_else(|| playlist_id.to_string());
+
+        Ok(SourcePlaylistDetail {
+            id,
+            source: QQ_SOURCE.to_string(),
+            name: playlist
+                .dissname
+                .clone()
+                .unwrap_or_else(|| "QQ 音乐歌单".to_string()),
+            cover: playlist.logo.clone(),
+            creator: playlist.nickname.clone(),
+            description: playlist.desc.clone(),
+            track_count: playlist.songnum,
+            play_count: playlist.visitnum,
+            created_at: parse_qq_datetime(playlist.createtime.as_deref()),
+            updated_at: parse_qq_datetime(playlist.modifytime.as_deref()),
+        })
     }
 }
 
@@ -652,31 +750,8 @@ impl MusicSource for QqSource {
         page: u32,
         page_size: u32,
     ) -> Result<Vec<MusicInfo>> {
-        let url = format!(
-            "https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&utf8=1&onlysong=0&disstid={}&format=json",
-            playlist_id
-        );
-        let response = self
-            .client
-            .get(url)
-            .header("Referer", "https://y.qq.com/")
-            .send()
-            .await?;
-        let payload: QqPlaylistResponse = response.json().await?;
-        if payload.code != 0 || payload.cdlist.is_empty() {
-            return Err(MusicSourceError::PlaylistNotFound(playlist_id.to_string()));
-        }
-        let songs = &payload.cdlist[0].songlist;
-        let start = ((page.saturating_sub(1)) * page_size) as usize;
-        let end = (start + page_size as usize).min(songs.len());
-        if start >= songs.len() {
-            return Ok(Vec::new());
-        }
-        Ok(songs[start..end]
-            .iter()
-            .cloned()
-            .map(Self::map_song)
-            .collect())
+        self.get_playlist_with_cookie(playlist_id, page, page_size, None)
+            .await
     }
 
     async fn search_playlists(
@@ -742,47 +817,7 @@ impl MusicSource for QqSource {
     }
 
     async fn get_playlist_detail(&self, playlist_id: &str) -> Result<SourcePlaylistDetail> {
-        let url = format!(
-            "https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&utf8=1&onlysong=0&disstid={}&format=json",
-            playlist_id
-        );
-        let response = self
-            .client
-            .get(url)
-            .header("Referer", "https://y.qq.com/")
-            .send()
-            .await?;
-        let payload: QqPlaylistResponse = response.json().await?;
-        if payload.code != 0 || payload.cdlist.is_empty() {
-            return Err(MusicSourceError::PlaylistNotFound(playlist_id.to_string()));
-        }
-
-        let playlist = &payload.cdlist[0];
-        let id = playlist
-            .dissid
-            .as_ref()
-            .map(|value| match value {
-                serde_json::Value::String(value) => value.clone(),
-                serde_json::Value::Number(value) => value.to_string(),
-                _ => playlist_id.to_string(),
-            })
-            .unwrap_or_else(|| playlist_id.to_string());
-
-        Ok(SourcePlaylistDetail {
-            id,
-            source: QQ_SOURCE.to_string(),
-            name: playlist
-                .dissname
-                .clone()
-                .unwrap_or_else(|| "QQ 音乐歌单".to_string()),
-            cover: playlist.logo.clone(),
-            creator: playlist.nickname.clone(),
-            description: playlist.desc.clone(),
-            track_count: playlist.songnum,
-            play_count: playlist.visitnum,
-            created_at: parse_qq_datetime(playlist.createtime.as_deref()),
-            updated_at: parse_qq_datetime(playlist.modifytime.as_deref()),
-        })
+        self.get_playlist_detail_with_cookie(playlist_id, None).await
     }
 
     fn source_name(&self) -> &'static str {

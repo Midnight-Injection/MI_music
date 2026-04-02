@@ -7,6 +7,7 @@ mod effects;
 pub mod lyrics;
 pub mod lyrics_window;
 mod player;
+mod qq_auth;
 pub mod script_runtime;
 pub mod types;
 mod utils;
@@ -38,3 +39,4 @@ pub use commands::{
 };
 pub use db::Database;
 pub use player::Player;
+pub use qq_auth::{ensure_qq_auth_session, QqAuthState, SharedQqAuthState};

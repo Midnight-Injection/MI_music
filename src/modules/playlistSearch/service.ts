@@ -237,3 +237,8 @@ export async function getSourcePlaylistTracks(
 
   return Number.isFinite(targetCount) ? tracks.slice(0, targetCount) : tracks
 }
+
+export async function ensureTencentPlaylistAuth(): Promise<boolean> {
+  if (!isTauriContext()) return false
+  return invoke<boolean>('ensure_qq_auth_session')
+}

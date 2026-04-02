@@ -15,6 +15,10 @@ fn main() {
     let player = jiyu_music::Player::new().expect("Failed to initialize audio player");
     let player_state = Arc::new(AsyncMutex::new(player));
 
+    // QQ auth state, in-memory only for current app run.
+    let qq_auth_state: jiyu_music::SharedQqAuthState =
+        Arc::new(AsyncMutex::new(jiyu_music::QqAuthState::default()));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -23,9 +27,11 @@ fn main() {
         .manage(db_state)
         .manage(lyrics_state)
         .manage(player_state)
+        .manage(qq_auth_state)
         .invoke_handler(tauri::generate_handler![
             jiyu_music::exit_app,
             jiyu_music::set_network_proxy,
+            jiyu_music::ensure_qq_auth_session,
             // Database commands
             jiyu_music::init_database,
             // Playlist commands
