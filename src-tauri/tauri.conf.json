@@ -23,6 +23,7 @@
         "resizable": true,
         "acceptFirstMouse": true,
         "decorations": false,
+        "transparent": true,
         "shadow": false,
         "fullscreen": false,
         "devtools": true

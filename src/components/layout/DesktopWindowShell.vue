@@ -379,6 +379,7 @@ onUnmounted(() => {
 .desktop-window-shell {
   --window-frame-radius: 18px;
   --window-frame-border-color: var(--shell-border);
+  --window-frame-border-width: 1px;
   --window-resize-hit-size: 8px;
   --window-resize-corner-size: 14px;
   width: 100%;
@@ -388,8 +389,19 @@ onUnmounted(() => {
   overflow: hidden;
   border-radius: var(--window-frame-radius);
   clip-path: inset(0 round var(--window-frame-radius));
-  background: var(--shell-surface);
-  box-shadow: inset 0 0 0 1px var(--window-frame-border-color);
+  background: transparent;
+}
+
+.desktop-window-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 var(--window-frame-border-width) var(--window-frame-border-color),
+    0 28px 88px rgba(4, 1, 14, 0.34);
+  z-index: 1;
 }
 
 .desktop-window-shell::before {
@@ -398,8 +410,11 @@ onUnmounted(() => {
   inset: 0;
   pointer-events: none;
   background:
+    var(--app-gradient),
     radial-gradient(circle at 14% 16%, rgba(173, 140, 255, 0.08), transparent 18%),
-    radial-gradient(circle at 82% 10%, rgba(255, 173, 214, 0.06), transparent 16%);
+    radial-gradient(circle at 82% 10%, rgba(255, 173, 214, 0.06), transparent 16%),
+    var(--shell-surface);
+  z-index: 0;
 }
 
 .desktop-window-shell--focused {
@@ -424,12 +439,14 @@ onUnmounted(() => {
 }
 
 .desktop-window-shell__frame,
-.desktop-window-shell::before {
+.desktop-window-shell::before,
+.desktop-window-shell::after {
   border-radius: inherit;
 }
 
 .desktop-window-shell__frame {
   position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
   display: grid;

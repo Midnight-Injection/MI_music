@@ -9,6 +9,12 @@ import type {
 
 const SUPPORTED_PLAYLIST_CHANNELS: PlaylistSearchChannel[] = ['wy', 'tx']
 export const PLAYLIST_TRACK_PAGE_SIZE = 50
+export const IMPORTABLE_PLAYLIST_CHANNELS: PlaylistSearchChannel[] = ['wy', 'tx']
+
+export interface ParsedSourcePlaylistLink {
+  playlistId: string
+  normalizedUrl: string
+}
 
 export function buildSourcePlaylistUrl(source: PlaylistSearchChannel, playlistId: string): string {
   switch (source) {
@@ -35,12 +41,117 @@ export function isPlaylistSearchSupported(channel: PlaylistSearchChannel): boole
   return SUPPORTED_PLAYLIST_CHANNELS.includes(channel)
 }
 
+export function isPlaylistImportSupported(channel: PlaylistSearchChannel): boolean {
+  return IMPORTABLE_PLAYLIST_CHANNELS.includes(channel)
+}
+
 export function getPlaylistUnsupportedMessage(channel: PlaylistSearchChannel): string {
   if (channel === 'kw' || channel === 'kg' || channel === 'mg') {
     return '第一版暂不支持该渠道的歌单搜索。'
   }
 
   return '当前渠道暂不支持歌单搜索。'
+}
+
+function getHashQueryParams(hash: string): URLSearchParams {
+  const normalizedHash = hash.startsWith('#') ? hash.slice(1) : hash
+  const queryIndex = normalizedHash.indexOf('?')
+  if (queryIndex === -1) return new URLSearchParams()
+  return new URLSearchParams(normalizedHash.slice(queryIndex + 1))
+}
+
+function sanitizePlaylistId(value?: string | null): string {
+  const normalized = String(value || '').trim()
+  return /^\d+$/.test(normalized) ? normalized : ''
+}
+
+function parseNeteasePlaylistId(url: URL): string {
+  const candidates = [
+    url.searchParams.get('id'),
+    getHashQueryParams(url.hash).get('id'),
+  ]
+
+  for (const candidate of candidates) {
+    const playlistId = sanitizePlaylistId(candidate)
+    if (playlistId) return playlistId
+  }
+
+  const pathMatch = url.pathname.match(/\/playlist\/(\d+)/)
+  return sanitizePlaylistId(pathMatch?.[1])
+}
+
+function parseTencentPlaylistId(url: URL): string {
+  const pathMatch = url.pathname.match(/\/playlist\/(\d+)/)
+  if (pathMatch?.[1]) {
+    const playlistId = sanitizePlaylistId(pathMatch[1])
+    if (playlistId) return playlistId
+  }
+
+  const candidates = [
+    url.searchParams.get('id'),
+    url.searchParams.get('disstid'),
+    url.searchParams.get('tid'),
+    getHashQueryParams(url.hash).get('id'),
+    getHashQueryParams(url.hash).get('disstid'),
+    getHashQueryParams(url.hash).get('tid'),
+  ]
+
+  for (const candidate of candidates) {
+    const playlistId = sanitizePlaylistId(candidate)
+    if (playlistId) return playlistId
+  }
+
+  return ''
+}
+
+export function parseSourcePlaylistLink(
+  source: PlaylistSearchChannel,
+  rawInput: string,
+): ParsedSourcePlaylistLink {
+  if (!isPlaylistImportSupported(source)) {
+    throw new Error('当前渠道暂不支持链接导入歌单')
+  }
+
+  const normalizedInput = rawInput.trim()
+  if (!normalizedInput) {
+    throw new Error('请先粘贴歌单分享链接')
+  }
+
+  const extractedUrl = normalizedInput.match(/https?:\/\/[^\s]+/)?.[0] || normalizedInput
+
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(extractedUrl)
+  } catch {
+    throw new Error('分享链接格式不正确，请粘贴完整链接')
+  }
+
+  let playlistId = ''
+  switch (source) {
+    case 'wy':
+      if (!parsedUrl.hostname.includes('music.163.com')) {
+        throw new Error('当前选择的是网易云，请粘贴网易云歌单链接')
+      }
+      playlistId = parseNeteasePlaylistId(parsedUrl)
+      break
+    case 'tx':
+      if (!parsedUrl.hostname.includes('qq.com')) {
+        throw new Error('当前选择的是腾讯，请粘贴 QQ 音乐歌单链接')
+      }
+      playlistId = parseTencentPlaylistId(parsedUrl)
+      break
+    default:
+      throw new Error('当前渠道暂不支持链接导入歌单')
+  }
+
+  if (!playlistId) {
+    throw new Error('未能从分享链接中解析出歌单 ID')
+  }
+
+  return {
+    playlistId,
+    normalizedUrl: buildSourcePlaylistUrl(source, playlistId),
+  }
 }
 
 export async function searchSourcePlaylists(

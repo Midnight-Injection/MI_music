@@ -11,10 +11,16 @@
           <h1>我的歌单</h1>
           <p>{{ playlistStore.playlists.length }} 个歌单，{{ totalTrackCount }} 首歌曲</p>
         </div>
-        <NButton type="primary" size="small" round @click="showCreateDialog = true" title="创建新歌单">
-          <span>+</span>
-          <span>新建</span>
-        </NButton>
+        <div class="playlist-sidebar__actions">
+          <NButton size="small" round secondary @click="openImportDialog" title="导入外部歌单">
+            <span>↳</span>
+            <span>导入</span>
+          </NButton>
+          <NButton type="primary" size="small" round @click="showCreateDialog = true" title="创建新歌单">
+            <span>+</span>
+            <span>新建</span>
+          </NButton>
+        </div>
       </div>
 
       <div class="playlist-sidebar__list">
@@ -237,6 +243,49 @@
       </template>
     </NModal>
 
+    <NModal v-model:show="showImportDialog" preset="card" title="导入歌单" style="width: 520px">
+      <div class="import-dialog">
+        <p class="import-dialog__copy">
+          先选择渠道，再粘贴分享链接。第一版优先支持网易云和腾讯歌单导入。
+        </p>
+
+        <div class="import-dialog__channels">
+          <button
+            v-for="option in IMPORT_CHANNEL_OPTIONS"
+            :key="option.value"
+            type="button"
+            class="import-dialog__channel"
+            :class="{
+              'is-active': importChannel === option.value,
+              'is-disabled': !option.supported,
+            }"
+            :disabled="!option.supported || isImportingPlaylist"
+            @click="importChannel = option.value"
+          >
+            <span>{{ option.label }}</span>
+            <small>{{ option.supported ? '可导入' : '暂不支持' }}</small>
+          </button>
+        </div>
+
+        <NInput
+          v-model:value="importPlaylistLink"
+          type="textarea"
+          :autosize="{ minRows: 3, maxRows: 5 }"
+          placeholder="粘贴歌单分享链接，例如：https://music.163.com/m/playlist?id=7441862553&creatorId=49312745&sharedId=49312745"
+          :disabled="isImportingPlaylist"
+        />
+
+        <p v-if="importDialogError" class="import-dialog__error">{{ importDialogError }}</p>
+      </div>
+
+      <template #action>
+        <NButton :disabled="isImportingPlaylist" @click="closeImportDialog">取消</NButton>
+        <NButton type="primary" :loading="isImportingPlaylist" @click="submitImportPlaylist">
+          {{ isImportingPlaylist ? '导入中...' : '开始导入' }}
+        </NButton>
+      </template>
+    </NModal>
+
     <FloatingMenu
       :show="contextMenu.show"
       :x="contextMenu.x"
@@ -262,11 +311,15 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { NModal, NInput, NButton, useDialog, useMessage } from 'naive-ui'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import { useTrackDownload } from '../composables/useTrackDownload'
+import {
+  isPlaylistImportSupported,
+  parseSourcePlaylistLink,
+} from '../modules/playlistSearch/service'
 import { usePlayerStore } from '../store/player'
 import { usePlaylistStore } from '../store/playlist'
 import type { ContextMenuItem } from '../types/context-menu'
 import type { MusicInfo } from '../types/music'
-import type { Playlist } from '../types/playlist'
+import type { Playlist, PlaylistSearchChannel, SourcePlaylistSummary } from '../types/playlist'
 
 const playlistStore = usePlaylistStore()
 const playerStore = usePlayerStore()
@@ -274,8 +327,25 @@ const { downloadTrack } = useTrackDownload()
 const dialog = useDialog()
 const message = useMessage()
 
+const IMPORT_CHANNEL_OPTIONS: Array<{
+  value: PlaylistSearchChannel
+  label: string
+  supported: boolean
+}> = [
+  { value: 'wy', label: '网易', supported: isPlaylistImportSupported('wy') },
+  { value: 'tx', label: '腾讯', supported: isPlaylistImportSupported('tx') },
+  { value: 'kw', label: '酷我', supported: isPlaylistImportSupported('kw') },
+  { value: 'kg', label: '酷狗', supported: isPlaylistImportSupported('kg') },
+  { value: 'mg', label: '咪咕', supported: isPlaylistImportSupported('mg') },
+]
+
 const showCreateDialog = ref(false)
+const showImportDialog = ref(false)
 const newPlaylistName = ref('')
+const importChannel = ref<PlaylistSearchChannel>('wy')
+const importPlaylistLink = ref('')
+const importDialogError = ref('')
+const isImportingPlaylist = ref(false)
 const draggedIndex = ref<number | null>(null)
 const draggedOverIndex = ref<number | null>(null)
 const pageRoot = ref<HTMLElement | null>(null)
@@ -478,12 +548,80 @@ function selectPlaylist(id: number) {
   playlistStore.clearSelection()
 }
 
+function openImportDialog() {
+  importChannel.value = 'wy'
+  importPlaylistLink.value = ''
+  importDialogError.value = ''
+  showImportDialog.value = true
+}
+
+function closeImportDialog() {
+  if (isImportingPlaylist.value) return
+  showImportDialog.value = false
+  importDialogError.value = ''
+}
+
 async function handleCreate() {
   const name = newPlaylistName.value.trim()
   if (!name) return
   await playlistStore.createPlaylist(name)
   newPlaylistName.value = ''
   showCreateDialog.value = false
+}
+
+async function submitImportPlaylist() {
+  if (isImportingPlaylist.value) return
+
+  importDialogError.value = ''
+  const selectedChannel = importChannel.value
+
+  if (!isPlaylistImportSupported(selectedChannel)) {
+    importDialogError.value = '当前渠道暂不支持导入歌单'
+    return
+  }
+
+  let parsedLink: ReturnType<typeof parseSourcePlaylistLink>
+  try {
+    parsedLink = parseSourcePlaylistLink(selectedChannel, importPlaylistLink.value)
+  } catch (error) {
+    importDialogError.value = error instanceof Error ? error.message : '歌单链接解析失败'
+    return
+  }
+
+  isImportingPlaylist.value = true
+  setOperationNotice('info', '正在导入外部歌单...')
+
+  try {
+    const playlistSummary: SourcePlaylistSummary = {
+      id: parsedLink.playlistId,
+      source: selectedChannel,
+      name: '',
+    }
+    const result = await playlistStore.importSourcePlaylist(playlistSummary)
+
+    const importedPlaylist = result.playlist
+    if (parsedLink.normalizedUrl && importedPlaylist.importSourcePlaylistUrl !== parsedLink.normalizedUrl) {
+      importedPlaylist.importSourcePlaylistUrl = parsedLink.normalizedUrl
+    }
+
+    playlistStore.setCurrentPlaylist(importedPlaylist.id)
+    playlistStore.clearSelection()
+    setOperationNotice(
+      'success',
+      result.status === 'created'
+        ? `已导入歌单：${importedPlaylist.name}`
+        : `已更新导入歌单：${importedPlaylist.name}`,
+    )
+    showImportDialog.value = false
+    importPlaylistLink.value = ''
+    importDialogError.value = ''
+  } catch (error) {
+    console.error('[List] Failed to import playlist:', error)
+    importDialogError.value = error instanceof Error ? error.message : '导入歌单失败，请重试'
+    setOperationNotice('error', importDialogError.value)
+  } finally {
+    isImportingPlaylist.value = false
+  }
 }
 
 async function deletePlaylist(id: number) {
@@ -888,6 +1026,12 @@ onUnmounted(() => {
   }
 }
 
+.playlist-sidebar__actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .playlist-sidebar__kicker,
 .playlist-hero__kicker,
 .playlist-library__eyebrow {
@@ -1041,6 +1185,65 @@ onUnmounted(() => {
     background: rgba(196, 70, 90, 0.22);
     color: #ffd6de;
   }
+}
+
+.import-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.import-dialog__copy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.import-dialog__channels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.import-dialog__channel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+
+  small {
+    color: var(--text-secondary);
+    font-size: 0.62rem;
+  }
+
+  &.is-active {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: linear-gradient(135deg, rgba(255, 79, 139, 0.16), rgba(124, 82, 255, 0.14));
+    box-shadow: var(--glow-secondary);
+  }
+
+  &.is-disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.import-dialog__error {
+  margin: 0;
+  color: #ffd6de;
+  font-size: 0.74rem;
 }
 
 .playlist-hero {
@@ -1591,6 +1794,10 @@ onUnmounted(() => {
     flex-direction: row;
     flex-wrap: wrap;
   }
+
+  .import-dialog__channels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @container (max-width: 760px) {
@@ -1602,9 +1809,22 @@ onUnmounted(() => {
     padding: 14px 10px;
   }
 
+  .playlist-sidebar__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .playlist-sidebar__actions {
+    justify-content: flex-start;
+  }
+
   .playlist-hero {
     grid-template-columns: 1fr;
     padding: 16px;
+  }
+
+  .import-dialog__channels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .playlist-hero__cover {
@@ -1650,6 +1870,12 @@ onUnmounted(() => {
   .song-row__action {
     min-height: 34px;
     padding: 7px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .import-dialog__channels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

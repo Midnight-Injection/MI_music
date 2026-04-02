@@ -74,6 +74,8 @@ export type ScriptSearchResultItem = Partial<ChannelSearchResultItem> & {
   albumName?: string
   album_name?: string
   interval?: string | number
+  duration?: string | number
+  dt?: string | number
   img?: string
   pic?: string
   cover?: string

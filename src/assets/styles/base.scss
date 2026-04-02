@@ -11,6 +11,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: transparent;
 }
 
 #app {
@@ -33,20 +34,14 @@ body {
     sans-serif;
   font-size: var(--app-font-size);
   color: var(--text-primary);
-  background: var(--app-gradient);
+  background: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100%;
 }
 
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 14% 16%, rgba(173, 140, 255, 0.08), transparent 18%),
-    radial-gradient(circle at 82% 10%, rgba(255, 173, 214, 0.06), transparent 16%);
+  display: none;
 }
 
 body::after {

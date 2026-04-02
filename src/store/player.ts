@@ -710,6 +710,32 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
+  async function playFromQueueContext(music: MusicInfo): Promise<void> {
+    const trackKey = getTrackPlaybackKey(music)
+    const nextPlaylist = [...playlist.value]
+    let targetIndex = nextPlaylist.findIndex((item) => getTrackPlaybackKey(item) === trackKey)
+
+    if (targetIndex === -1) {
+      if (!nextPlaylist.length) {
+        nextPlaylist.push(music)
+        targetIndex = 0
+      } else if (currentMusic.value) {
+        const safeCurrentIndex = Math.max(0, Math.min(currentIndex.value, nextPlaylist.length - 1))
+        targetIndex = safeCurrentIndex + 1
+        nextPlaylist.splice(targetIndex, 0, music)
+      } else {
+        nextPlaylist.push(music)
+        targetIndex = nextPlaylist.length - 1
+      }
+    }
+
+    playlist.value = nextPlaylist
+    currentIndex.value = targetIndex
+
+    const targetTrack = playlist.value[targetIndex] || music
+    await playMusic(targetTrack)
+  }
+
   function appendToPlaylist(items: MusicInfo[]): number {
     if (!items.length) return 0
 
@@ -866,6 +892,7 @@ export const usePlayerStore = defineStore('player', () => {
     setPlaybackRate,
     setPlayMode,
     setPlaylist,
+    playFromQueueContext,
     appendToPlaylist,
     enqueueMusic,
     playNext,

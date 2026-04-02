@@ -9,11 +9,24 @@ import type { ScriptSearchResultItem } from './types'
 
 const SEARCH_CHANNEL_TIEBREAK_ORDER: BuiltInSearchChannel[] = ['tx', 'wy', 'kg', 'kw', 'mg']
 
+function normalizeDurationNumber(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0
+  if (value >= 1000) return Math.round(value / 1000)
+  return Math.round(value)
+}
+
 export function parseDuration(interval?: string | number): number {
-  if (typeof interval === 'number') return interval
+  if (typeof interval === 'number') return normalizeDurationNumber(interval)
   if (!interval) return 0
 
-  const parts = String(interval).split(':').map((value) => Number(value) || 0)
+  const normalized = String(interval).trim()
+  if (!normalized) return 0
+
+  if (/^\d+(\.\d+)?$/.test(normalized)) {
+    return normalizeDurationNumber(Number(normalized))
+  }
+
+  const parts = normalized.split(':').map((value) => Number(value) || 0)
   if (parts.length === 2) return parts[0] * 60 + parts[1]
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
   return 0
@@ -94,7 +107,7 @@ export function normalizeScriptSearchResult(
     name: String(item.name || ''),
     artist: String(item.singer || item.artist || ''),
     album: String(item.album_name || item.albumName || item.album || ''),
-    duration: parseDuration(item.interval),
+    duration: parseDuration(item.interval ?? item.duration ?? item.dt),
     url: '',
     cover: item.img || item.pic || item.cover || undefined,
     source,

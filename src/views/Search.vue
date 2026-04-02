@@ -466,7 +466,7 @@ function handleChannelChange(channel: SearchChannel) {
 
 async function handlePlay(music: MusicInfo) {
   try {
-    await playerStore.playMusic(music)
+    await playerStore.playFromQueueContext(music)
   } catch (error) {
     console.error('[Search] Failed to play music:', error)
     searchStore.setError(error instanceof Error ? error.message : '播放失败，请重试')
