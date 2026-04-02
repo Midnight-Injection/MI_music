@@ -1,28 +1,37 @@
 <template>
   <div class="setting-page page-shell">
     <div class="setting-toolbar glass-panel">
-      <div class="tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          :class="['tab-button', 'app-pill', activeTab === tab.key ? 'accent' : 'ghost', { active: activeTab === tab.key }]"
-          @click="activeTab = tab.key"
-        >
+      <NTabs v-model:value="activeTab" type="segment" size="small" class="setting-tabs">
+        <NTab v-for="tab in tabs" :key="tab.key" :name="tab.key">
           {{ tab.label }}
-        </button>
-      </div>
+        </NTab>
+      </NTabs>
 
       <div class="setting-toolbar__actions">
-        <button class="action-button app-icon-button accent" @click="exportSettings" title="导出设置">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-          </svg>
-        </button>
-        <button class="action-button app-icon-button secondary" @click="importSettings" title="导入设置">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
-          </svg>
-        </button>
+        <NTooltip trigger="hover">
+          <template #trigger>
+            <NButton quaternary circle size="small" @click="exportSettings">
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px">
+                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+              </template>
+            </NButton>
+          </template>
+          导出设置
+        </NTooltip>
+        <NTooltip trigger="hover">
+          <template #trigger>
+            <NButton quaternary circle size="small" @click="importSettings">
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px">
+                  <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                </svg>
+              </template>
+            </NButton>
+          </template>
+          导入设置
+        </NTooltip>
       </div>
     </div>
 
@@ -60,15 +69,17 @@
           <div class="section-header">
             <div class="section-title">
               <h2>自定义音源</h2>
-              <span class="section-badge app-pill warning compact">扩展</span>
+              <NTag type="warning" size="small" :bordered="false">扩展</NTag>
             </div>
             <div class="header-buttons">
-              <button class="import-btn app-button accent" @click="importUserSource">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
+              <NButton type="primary" size="small" @click="importUserSource">
+                <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                </template>
                 导入音源
-              </button>
+              </NButton>
             </div>
           </div>
           <p class="section-description">导入 JS 自定义音源脚本。数字越小优先级越高；当前音源仍会优先参与对应歌曲的解析。播放器里的音频质量设置会直接影响这里的解析档位选择。</p>
@@ -136,39 +147,48 @@
                 <span class="card-priority__hint">数字越小越优先</span>
               </div>
               <div class="card-actions">
-                <button
-                  :class="['action-btn', 'app-button', settingsStore.settings.activeUserSourceId === source.id ? 'accent' : 'secondary', { active: settingsStore.settings.activeUserSourceId === source.id }]"
+                <NButton
+                  size="small"
+                  :type="settingsStore.settings.activeUserSourceId === source.id ? 'primary' : 'default'"
                   :disabled="!source.enabled"
                   @click="setActiveUserSource(source.id)"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 12l2 2 4-4"/>
-                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
-                  </svg>
+                  <template #icon>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                      <path d="M9 12l2 2 4-4"/>
+                      <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                    </svg>
+                  </template>
                   {{ settingsStore.settings.activeUserSourceId === source.id ? '当前音源' : '设为当前' }}
-                </button>
-                <button
-                  :class="['action-btn', 'app-button', source.enabled ? 'warning' : 'success', { active: source.enabled }]"
+                </NButton>
+                <NButton
+                  size="small"
+                  :type="source.enabled ? 'warning' : 'success'"
                   @click="toggleUserSource(source.id, !source.enabled)"
                 >
-                  <svg v-if="source.enabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                  </svg>
+                  <template #icon>
+                    <svg v-if="source.enabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                      <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </template>
                   {{ source.enabled ? '禁用' : '启用' }}
-                </button>
-                <button
-                  class="action-btn app-button danger delete"
+                </NButton>
+                <NButton
+                  size="small"
+                  type="error"
                   @click="deleteUserSource(source.id)"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                  </svg>
+                  <template #icon>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </template>
                   删除
-                </button>
+                </NButton>
               </div>
             </div>
           </div>
@@ -258,16 +278,10 @@
               >
                 {{ diagnosticsOpen ? '收起诊断' : '展开诊断' }}
               </button>
-              <button class="app-button ghost" @click="refreshDiagnostics">刷新</button>
-              <button class="app-button secondary" @click="handleClearPlaybackSourceCache">
-                清空播放成功缓存
-              </button>
-              <button class="app-button warning" @click="handleClearSourceHealth">
-                清空健康记录
-              </button>
-              <button class="app-button danger" @click="handleClearBadSourceBlacklist">
-                清空失效音源黑名单
-              </button>
+              <NButton size="small" @click="refreshDiagnostics">刷新</NButton>
+              <NButton size="small" secondary @click="handleClearPlaybackSourceCache">清空播放成功缓存</NButton>
+              <NButton size="small" warning @click="handleClearSourceHealth">清空健康记录</NButton>
+              <NButton size="small" type="error" @click="handleClearBadSourceBlacklist">清空失效音源黑名单</NButton>
             </div>
 
             <div v-if="diagnosticsOpen" class="diagnostic-grid">
@@ -319,8 +333,8 @@
               <div class="diagnostic-card">
                 <div class="diagnostic-card__header">
                   <h3>成功缓存</h3>
-                  <span class="app-pill compact success" v-if="currentTrackCacheRecord">命中</span>
-                  <span class="app-pill compact secondary" v-else>空</span>
+                  <NTag v-if="currentTrackCacheRecord" type="success" size="small" :bordered="false">命中</NTag>
+                  <NTag v-else type="default" size="small" :bordered="false">空</NTag>
                 </div>
                 <template v-if="currentTrackCacheRecord">
                   <div class="diagnostic-kv">
@@ -342,7 +356,7 @@
               <div class="diagnostic-card">
                 <div class="diagnostic-card__header">
                   <h3>失效音源</h3>
-                  <span class="app-pill compact warning">{{ currentTrackBlockedRecords.length }}</span>
+                  <NTag type="warning" size="small" :bordered="false">{{ currentTrackBlockedRecords.length }}</NTag>
                 </div>
                 <div v-if="currentTrackBlockedRecords.length" class="diagnostic-list">
                   <div
@@ -580,32 +594,26 @@
           </div>
         </div>
         <div class="about-links">
-          <a href="#" class="about-link app-button secondary">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-            </svg>
-            GitHub
-          </a>
+          <NButton tag="a" href="https://github.com/yourusername/jiyu-music" text secondary size="small">
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+              </template>
+              GitHub
+            </NButton>
         </div>
         <div class="reset-section">
-          <button class="reset-btn app-button danger" @click="resetAllSettings">
-            重置所有设置
-          </button>
+          <NButton type="error" size="small" @click="resetAllSettings">重置所有设置</NButton>
         </div>
       </div>
     </div>
-
-    <!-- Toast Notification -->
-    <Transition name="toast">
-      <div v-if="toast.show" :class="['toast', `toast--${toast.type}`]">
-        {{ toast.message }}
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { NTabs, NTab, NButton, NTooltip, NTag, useMessage, useDialog } from 'naive-ui'
 import { useSettingsStore } from '../store/settings'
 import { useThemeStore } from '../store/theme'
 import { usePlayerStore } from '../store/player'
@@ -636,15 +644,12 @@ const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
 const player = usePlayerStore()
 const userSourceStore = useUserSourceStore()
+const message = useMessage()
+const dialog = useDialog()
 
 const activeTab = ref('general')
 const diagnosticsOpen = ref(false)
 const diagnosticTick = ref(0)
-const toast = ref({
-  show: false,
-  message: '',
-  type: 'success' as 'success' | 'error' | 'info'
-})
 
 // Tab definitions
 const tabs = [
@@ -778,17 +783,9 @@ const currentTrackHealthRows = computed(() => {
     }))
 })
 
-// Toast notification
-function showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
-  toast.value = { show: true, message, type }
-  setTimeout(() => {
-    toast.value.show = false
-  }, 3000)
-}
-
 function refreshDiagnostics() {
   diagnosticTick.value += 1
-  showToast('播放诊断已刷新', 'info')
+  message.info('播放诊断已刷新')
 }
 
 function getUserSourceName(sourceId?: string | null) {
@@ -815,31 +812,31 @@ function formatExpiry(expiresAt: number) {
 function handleClearPlaybackSourceCache() {
   clearPlaybackSourceCache()
   diagnosticTick.value += 1
-  showToast('播放成功缓存已清空', 'info')
+  message.info('播放成功缓存已清空')
 }
 
 function handleClearSourceHealth() {
   clearSourceHealthRecords()
   diagnosticTick.value += 1
-  showToast('音源健康记录已清空', 'info')
+  message.info('音源健康记录已清空')
 }
 
 function handleClearBadSourceBlacklist() {
   clearBlockedTrackSourceRecords()
   diagnosticTick.value += 1
-  showToast('失效音源黑名单已清空', 'info')
+  message.info('失效音源黑名单已清空')
 }
 
 // Update setting
 function updateSetting(key: string, value: any) {
   settingsStore.updateSetting(key as any, value)
-  showToast('设置已保存')
+  message.success('设置已保存')
 }
 
 async function updateThemeMode(value: ThemeMode) {
   await themeStore.setThemeMode(value)
   settingsStore.syncThemeSettings(themeStore.settings)
-  showToast('主题模式已更新')
+  message.success('主题模式已更新')
 }
 
 async function updateThemeColor(value: ThemeColorType) {
@@ -849,19 +846,19 @@ async function updateThemeColor(value: ThemeColorType) {
     await themeStore.setThemeColor(value)
   }
   settingsStore.syncThemeSettings(themeStore.settings)
-  showToast('主题颜色已更新')
+  message.success('主题颜色已更新')
 }
 
 async function updateCustomThemeColor(value: string) {
   await themeStore.setCustomColor(value)
   settingsStore.syncThemeSettings(themeStore.settings)
-  showToast('自定义主题颜色已更新')
+  message.success('自定义主题颜色已更新')
 }
 
 // Toggle channel
 function toggleChannel(id: string, enabled: boolean) {
   settingsStore.updateChannelConfig(id, enabled)
-  showToast(enabled ? '渠道已启用' : '渠道已禁用')
+  message.success(enabled ? '渠道已启用' : '渠道已禁用')
 }
 
 // Import user source
@@ -871,11 +868,11 @@ async function importUserSource() {
     if (source && !settingsStore.settings.activeUserSourceId) {
       settingsStore.updateSetting('activeUserSourceId', source.id)
     }
-    showToast('自定义音源导入成功')
+    message.success('自定义音源导入成功')
   } catch (error) {
     console.error('Failed to import user source:', error)
-    const message = error instanceof Error ? error.message : String(error)
-    showToast(`导入自定义音源失败: ${message}`, 'error')
+    const msgText = error instanceof Error ? error.message : String(error)
+    message.error(`导入自定义音源失败: ${msgText}`)
   }
 }
 
@@ -883,11 +880,11 @@ async function importUserSource() {
 async function setActiveUserSource(id: string) {
   const source = userSourceStore.userSources.find(item => item.id === id)
   if (!source || !source.enabled) {
-    showToast('请先启用该自定义音源', 'error')
+    message.error('请先启用该自定义音源')
     return
   }
   settingsStore.updateSetting('activeUserSourceId', id)
-  showToast('当前自定义音源已切换')
+  message.success('当前自定义音源已切换')
 }
 
 function getPreferredEnabledUserSource(excludeId?: string) {
@@ -907,28 +904,34 @@ async function toggleUserSource(id: string, enabled: boolean) {
       settingsStore.updateSetting('activeUserSourceId', fallback?.id || '')
     }
 
-    showToast(enabled ? '自定义音源已启用' : '自定义音源已禁用')
+    message.success(enabled ? '自定义音源已启用' : '自定义音源已禁用')
   } catch (error) {
     console.error('Failed to toggle user source:', error)
-    showToast('操作失败', 'error')
+    message.error('操作失败')
   }
 }
 
 // Delete user source
 async function deleteUserSource(id: string) {
-  if (confirm('确定要删除这个自定义音源吗？')) {
-    try {
-      await userSourceStore.deleteSource(id)
-      if (settingsStore.settings.activeUserSourceId === id) {
-        const fallback = getPreferredEnabledUserSource(id)
-        settingsStore.updateSetting('activeUserSourceId', fallback?.id || '')
+  dialog.warning({
+    title: '确认删除',
+    content: '确定要删除这个自定义音源吗？',
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await userSourceStore.deleteSource(id)
+        if (settingsStore.settings.activeUserSourceId === id) {
+          const fallback = getPreferredEnabledUserSource(id)
+          settingsStore.updateSetting('activeUserSourceId', fallback?.id || '')
+        }
+        message.success('自定义音源已删除')
+      } catch (error) {
+        console.error('Failed to delete user source:', error)
+        message.error('删除失败')
       }
-      showToast('自定义音源已删除')
-    } catch (error) {
-      console.error('Failed to delete user source:', error)
-      showToast('删除失败', 'error')
     }
-  }
+  })
 }
 
 async function handlePriorityChange(id: string, event: Event) {
@@ -937,10 +940,10 @@ async function handlePriorityChange(id: string, event: Event) {
 
   try {
     await userSourceStore.updateSourcePriority(id, nextPriority)
-    showToast('优先级已更新')
+    message.success('优先级已更新')
   } catch (error) {
     console.error('Failed to update source priority:', error)
-    showToast('更新优先级失败', 'error')
+    message.error('更新优先级失败')
   }
 }
 
@@ -955,11 +958,11 @@ async function selectDownloadPath() {
 
     if (selected && typeof selected === 'string') {
       settingsStore.updateSetting('downloadPath', selected)
-      showToast('下载路径已更新')
+      message.success('下载路径已更新')
     }
   } catch (error) {
     console.error('Failed to select directory:', error)
-    showToast('选择路径失败', 'error')
+    message.error('选择路径失败')
   }
 }
 
@@ -985,11 +988,11 @@ async function exportSettings() {
 
     if (savePath && typeof savePath === 'string') {
       await writeTextFile(savePath, settings)
-      showToast('设置已成功导出')
+      message.success('设置已成功导出')
     }
   } catch (error) {
     console.error('Failed to export settings:', error)
-    showToast('导出设置失败', 'error')
+    message.error('导出设置失败')
   }
 }
 
@@ -1034,22 +1037,28 @@ async function importSettings() {
 
       settingsStore.syncThemeSettings(themeStore.settings)
 
-      showToast('设置已成功导入')
+      message.success('设置已成功导入')
     }
   } catch (error) {
     console.error('Failed to import settings:', error)
-    showToast('导入设置失败', 'error')
+    message.error('导入设置失败')
   }
 }
 
 // Reset all settings to default
 async function resetAllSettings() {
-  if (confirm('确定要重置所有设置吗？此操作无法撤销。')) {
-    settingsStore.resetSettings()
-    await themeStore.resetTheme()
-    settingsStore.syncThemeSettings(themeStore.settings)
-    showToast('设置已重置为默认值', 'info')
-  }
+  dialog.warning({
+    title: '确认重置',
+    content: '确定要重置所有设置吗？此操作无法撤销。',
+    positiveText: '确定重置',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      settingsStore.resetSettings()
+      await themeStore.resetTheme()
+      settingsStore.syncThemeSettings(themeStore.settings)
+      message.info('设置已重置为默认值')
+    }
+  })
 }
 
 onMounted(async () => {
@@ -1684,55 +1693,7 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-.toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  padding: 16px 24px;
-  border-radius: 18px;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
 
-  &--success {
-    background: linear-gradient(135deg, #22c55e, #4ade80);
-    color: white;
-  }
-
-  &--error {
-    background: linear-gradient(135deg, #ff5c77, #ff7c92);
-    color: white;
-  }
-
-  &--info {
-    background: linear-gradient(135deg, #4da5ff, #60a5fa);
-    color: white;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.3s ease;
-}
-
-.toast-enter-from,
-.toast-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
 
 @media (max-width: 768px) {
   .setting-page {

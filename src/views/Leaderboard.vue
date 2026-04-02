@@ -21,9 +21,9 @@
           <strong>{{ item.title }}</strong>
           <span>{{ item.artist }}</span>
         </div>
-        <div class="leader-row__delta" :class="{ up: item.delta > 0 }">
+        <NTag :type="item.delta > 0 ? 'success' : 'default'" size="small" round>
           {{ item.delta > 0 ? `+${item.delta}` : item.delta }}
-        </div>
+        </NTag>
       </motion.div>
     </section>
   </div>
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import { motion } from 'motion-v'
+import { NTag } from 'naive-ui'
 import { staggeredEnter } from '../lib/motion'
 
 const leaders = [

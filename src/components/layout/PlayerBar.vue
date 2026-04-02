@@ -268,9 +268,10 @@ onUnmounted(() => {
   gap: 14px;
   width: 100%;
   min-width: 0;
+  height: 100%;
   min-height: 64px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--player-bar-radius, 14px);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));

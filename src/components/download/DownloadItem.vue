@@ -11,9 +11,15 @@
       <div v-if="item.album" class="item-album" :title="item.album">{{ item.album }}</div>
 
       <div v-if="item.status === 'downloading'" class="item-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: item.progress + '%' }"></div>
-        </div>
+        <NProgress
+          type="line"
+          :percentage="item.progress"
+          :show-indicator="false"
+          :color="statusColor"
+          rail-color="rgba(255,255,255,0.1)"
+          :height="4"
+          :border-radius="2"
+        />
         <div class="progress-details">
           <span class="progress-text">{{ item.progress.toFixed(1) }}%</span>
           <span v-if="item.speed > 0" class="progress-speed">{{ formatSpeed(item.speed) }}</span>
@@ -21,81 +27,112 @@
       </div>
 
       <div v-else-if="item.status === 'failed'" class="item-error">
-        <span class="error-icon">⚠</span>
-        <span class="error-text">{{ item.error || '下载失败' }}</span>
+        <NTag round size="small" type="error">
+          <template #icon>⚠</template>
+          {{ item.error || '下载失败' }}
+        </NTag>
       </div>
 
       <div v-else-if="item.status === 'completed'" class="item-completed">
-        <span class="success-icon">✓</span>
-        <span class="completed-text">已完成 · {{ formatFileSize(item.filePath) }}</span>
+        <NTag round size="small" type="success">
+          <template #icon>✓</template>
+          已完成 · {{ formatFileSize(item.filePath) }}
+        </NTag>
       </div>
 
       <div v-else class="item-status">
-        <span class="status-icon">{{ getStatusIcon(item.status) }}</span>
-        <span class="status-text">{{ getStatusText(item.status) }}</span>
+        <NTag round size="small" :type="getTagType(item.status)">
+          {{ getStatusIcon(item.status) }} {{ getStatusText(item.status) }}
+        </NTag>
       </div>
     </div>
 
     <div class="item-actions">
-      <button
+      <NButton
         v-if="item.status === 'downloading'"
+        size="tiny"
+        quaternary
+        circle
+        type="info"
         @click="onPause"
-        class="btn-icon app-icon-button secondary"
         title="暂停"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-      </button>
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </template>
+      </NButton>
 
-      <button
+      <NButton
         v-if="item.status === 'paused'"
+        size="tiny"
+        quaternary
+        circle
+        type="primary"
         @click="onResume"
-        class="btn-icon app-icon-button accent"
         title="继续"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-      </button>
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </template>
+      </NButton>
 
-      <button
+      <NButton
         v-if="item.status === 'failed'"
+        size="tiny"
+        quaternary
+        circle
+        type="warning"
         @click="onRetry"
-        class="btn-icon app-icon-button warning"
         title="重试"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-        </svg>
-      </button>
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </template>
+      </NButton>
 
-      <button
+      <NButton
         v-if="item.status === 'completed'"
+        size="tiny"
+        quaternary
+        circle
+        type="success"
         @click="onOpenFolder"
-        class="btn-icon app-icon-button success"
         title="打开文件夹"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-        </svg>
-      </button>
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+            <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+          </svg>
+        </template>
+      </NButton>
 
-      <button
+      <NButton
+        size="tiny"
+        quaternary
+        circle
+        type="error"
         @click="onCancel"
-        class="btn-icon app-icon-button danger"
         title="删除"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-        </svg>
-      </button>
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </template>
+      </NButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { NProgress, NButton, NTag } from 'naive-ui'
 import type { DownloadItem } from '../../types/download'
 
 interface Props {
@@ -114,6 +151,17 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const isHover = ref(false)
+
+const statusColor = computed(() => {
+  const colorMap: Record<string, string> = {
+    downloading: '#18a058',
+    completed: '#18a058',
+    failed: '#d03050',
+    paused: '#f0a020',
+    pending: '#2080f0'
+  }
+  return colorMap[props.item.status] || '#2080f0'
+})
 
 function onPause() {
   emit('pause', props.item.id)
@@ -168,11 +216,23 @@ function getStatusText(status: string): string {
   }
   return textMap[status] || status
 }
+
+function getTagType(status: string): 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error' {
+  const typeMap: Record<string, 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'> = {
+    pending: 'default',
+    downloading: 'info',
+    paused: 'warning',
+    completed: 'success',
+    failed: 'error'
+  }
+  return typeMap[status] || 'default'
+}
 </script>
 
 <style scoped lang="scss">
 .download-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   padding: 14px;
   background: rgba(255, 255, 255, 0.05);
@@ -369,6 +429,7 @@ function getStatusText(status: string): string {
 
   .item-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
     opacity: 0;
@@ -384,6 +445,47 @@ function getStatusText(status: string): string {
 
   &:hover .item-actions {
     opacity: 1;
+  }
+}
+
+@container (max-width: 960px) {
+  .download-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+
+    .item-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      opacity: 1;
+      padding-left: 68px;
+    }
+  }
+}
+
+@container (max-width: 640px) {
+  .download-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+
+    .item-cover {
+      width: 52px;
+      height: 52px;
+    }
+
+    .item-info {
+      .item-title {
+        font-size: 14px;
+      }
+    }
+
+    .item-actions {
+      grid-column: auto;
+      padding-left: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(40px, auto));
+      justify-content: flex-start;
+    }
   }
 }
 

@@ -384,8 +384,10 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border-radius: var(--window-frame-radius);
+  clip-path: inset(0 round var(--window-frame-radius));
   background: var(--shell-surface);
   box-shadow: inset 0 0 0 1px var(--window-frame-border-color);
 }
@@ -409,6 +411,7 @@ onUnmounted(() => {
 }
 
 .desktop-window-shell--maximized {
+  --window-frame-radius: 0px;
   border-radius: 0;
 }
 
@@ -434,6 +437,8 @@ onUnmounted(() => {
   gap: 6px;
   padding: 6px 12px 12px;
   min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .desktop-window-shell__titlebar {
@@ -556,6 +561,7 @@ onUnmounted(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border-radius: max(0px, calc(var(--window-frame-radius) - 6px));
 }
 
 .desktop-window-shell__resize-handle {

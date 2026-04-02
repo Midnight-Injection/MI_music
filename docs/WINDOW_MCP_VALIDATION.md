@@ -21,20 +21,22 @@ This grants access to:
 1. Launch the desktop app with `pnpm tauri dev`.
 2. Connect an MCP client to the running Tauri MCP Bridge instance.
 3. Run `node scripts/validate_window_resize.mjs` for the automated smoke check.
-4. Verify the generated summary includes:
+4. Read the generated outputs from `artifacts/window-validation/`.
+5. Legacy screenshots and one-off validation notes are archived under `docs/archive/validation/`.
+6. Verify the generated summary includes:
    - window info before and after each resize
    - document responsiveness after each resize
    - sidebar navigation still changes routes
    - search page controls remain clickable
-5. Verify only the expected windows are present:
+7. Verify only the expected windows are present:
    - `main`
    - `lyrics`
-6. Read the `main` window info before and after dragging to confirm position updates are stable.
-7. Inject a small script into `main` to:
+8. Read the `main` window info before and after dragging to confirm position updates are stable.
+9. Inject a small script into `main` to:
    - click a sidebar item
    - click a search action
    - verify the document still receives pointer events after dragging
-8. Capture screenshots before and after the drag-and-click sequence.
+10. Capture screenshots before and after the drag-and-click sequence.
 
 ## Suggested Assertions
 

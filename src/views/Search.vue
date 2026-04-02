@@ -11,55 +11,62 @@
 
       <div class="search-home__toolbar">
         <div class="search-home__search-shell">
-          <svg class="search-home__icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-          </svg>
-          <input
+          <NInput
             ref="searchInputRef"
-            v-model="searchKeyword"
+            v-model:value="searchKeyword"
             type="text"
             placeholder="搜索歌曲、歌手、专辑..."
-            class="search-home__input"
+            round
+            clearable
             @keyup.enter="handleSearchSubmit"
-          />
-          <button v-if="searchKeyword" type="button" class="search-home__clear app-icon-button ghost compact" @click="handleClear">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </button>
+          >
+            <template #prefix>
+              <svg
+                style="width: 18px; height: 18px; color: var(--text-secondary)"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                />
+              </svg>
+            </template>
+          </NInput>
         </div>
 
-        <button type="button" class="search-home__submit app-button accent" @click="handleSearchSubmit">开始搜索</button>
+        <NButton type="primary" round @click="handleSearchSubmit">开始搜索</NButton>
       </div>
 
       <section class="channel-tabs">
-        <button
+        <NButton
           v-for="option in PLATFORM_SOURCE_OPTIONS"
           :key="option.value"
-          type="button"
-          :class="[
-            'channel-tabs__item',
-            'app-pill',
-            selectedChannel === option.value ? 'accent' : 'secondary',
-            { 'is-active': selectedChannel === option.value, 'is-disabled': !availableChannelSet.has(option.value) },
-          ]"
+          size="small"
+          round
+          :type="selectedChannel === option.value ? 'primary' : 'default'"
           :disabled="!availableChannelSet.has(option.value)"
           @click="handleChannelChange(option.value)"
         >
           {{ option.label }}
-        </button>
+        </NButton>
       </section>
     </section>
 
     <section class="search-results">
-      <div v-if="searchError" class="search-error">{{ searchError }}</div>
-      <div
+      <NAlert v-if="searchError" type="error" :show-icon="false">{{ searchError }}</NAlert>
+      <NAlert
         v-if="playlistNotice.message"
-        class="playlist-notice"
-        :class="`is-${playlistNotice.type}`"
+        :type="
+          playlistNotice.type === 'success'
+            ? 'success'
+            : playlistNotice.type === 'error'
+              ? 'error'
+              : 'info'
+        "
+        :show-icon="false"
       >
         {{ playlistNotice.message }}
-      </div>
+      </NAlert>
 
       <div class="results-container glass-panel section-card">
         <div class="results-header">
@@ -79,12 +86,12 @@
         </div>
 
         <div v-if="isSearching" class="loading-state">
-          <div class="spinner"></div>
+          <NSpin size="medium" />
           <p>搜索中...</p>
         </div>
 
         <template v-else-if="hasResults">
-          <div class="song-list" v-auto-animate>
+          <div class="song-list">
             <motion.div
               v-for="(music, index) in searchResults"
               :key="music.id"
@@ -103,68 +110,82 @@
           </div>
 
           <div class="pagination-bar">
-            <button
-              class="pagination-btn app-button secondary compact"
+            <NButton
+              size="small"
+              secondary
               :disabled="isLoadingMore || !canGoPrev"
               @click="handlePageChange(currentPage - 1)"
             >
               上一页
-            </button>
+            </NButton>
             <span class="pagination-status" :class="{ 'is-loading': isLoadingMore }">
               {{ isLoadingMore ? '切换中...' : `第 ${currentPage} 页` }}
             </span>
-            <button
-              class="pagination-btn app-button secondary compact"
+            <NButton
+              size="small"
+              secondary
               :disabled="isLoadingMore || !canGoNext"
               @click="handlePageChange(currentPage + 1)"
             >
               下一页
-            </button>
+            </NButton>
           </div>
         </template>
       </div>
     </section>
-
-    <div
-      v-if="addToPlaylistDialog.show"
-      class="playlist-dialog-overlay"
-      @click.self="closeAddToPlaylistDialog"
+    <NModal
+      v-model:show="addToPlaylistDialog.show"
+      :mask-closable="true"
+      @after-leave="closeAddToPlaylistDialog"
     >
-      <div class="playlist-dialog glass-panel">
-        <div class="playlist-dialog__header">
-          <div>
-            <h3>添加到歌单</h3>
-            <p v-if="addToPlaylistDialog.music">
-              {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
-            </p>
-          </div>
-          <button class="playlist-dialog__close app-icon-button secondary compact" @click="closeAddToPlaylistDialog">×</button>
-        </div>
+      <NCard
+        class="playlist-dialog"
+        :title="'添加到歌单'"
+        :bordered="false"
+        size="small"
+        style="width: min(420px, 100%); border-radius: 26px"
+      >
+        <template #header-extra>
+          <NButton text @click="closeAddToPlaylistDialog">×</NButton>
+        </template>
+        <p
+          v-if="addToPlaylistDialog.music"
+          style="margin-top: 6px; color: var(--text-secondary); font-size: 0.76rem"
+        >
+          {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
+        </p>
         <div class="playlist-dialog__list">
-          <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
+          <div
+            v-if="playlistStore.isSyncing && !playlistStore.isReady"
+            class="playlist-dialog__state"
+          >
             正在加载歌单...
           </div>
           <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
             <span>{{ playlistStore.initError }}</span>
-            <button type="button" class="playlist-dialog__retry app-button warning compact" @click="retryPlaylistInit">重试</button>
+            <NButton size="small" warning type="warning" @click="retryPlaylistInit">重试</NButton>
           </div>
           <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
-            暂无可用歌单，请先去“我的歌单”创建一个歌单。
+            暂无可用歌单，请先去"我的歌单"创建一个歌单。
           </div>
-          <button
+          <NButton
             v-else
             v-for="playlist in playlistStore.playlists"
             :key="playlist.id"
-            type="button"
-            class="playlist-dialog__item app-button secondary"
+            size="medium"
+            secondary
+            block
             @click="confirmAddToPlaylist(playlist.id)"
+            style="margin-bottom: 8px"
           >
-            <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
-            <span>{{ playlist.name }} · {{ playlist.musics.length }} 首</span>
-          </button>
+            <span style="display: flex; justify-content: space-between; width: 100%">
+              <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
+              <span>{{ playlist.name }} · {{ playlist.musics.length }} 首</span>
+            </span>
+          </NButton>
         </div>
-      </div>
-    </div>
+      </NCard>
+    </NModal>
 
     <FloatingMenu
       :show="contextMenu.show"
@@ -180,6 +201,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { motion } from 'motion-v'
 import { useRoute } from 'vue-router'
+import { NInput, NButton, NModal, NCard, NSpin, NAlert, useMessage, type InputInst } from 'naive-ui'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import SongItem from '../components/SongItem.vue'
 import { useTrackDownload } from '../composables/useTrackDownload'
@@ -194,6 +216,8 @@ import type { Playlist } from '../types/playlist'
 import type { MusicInfo, SearchChannel } from '../types/music'
 import type { AggregateChannelProgress } from '../modules/search/types'
 
+const message = useMessage()
+
 const PLATFORM_SOURCE_OPTIONS = [
   { value: 'all', label: '综合' },
   { value: 'kw', label: '酷我' },
@@ -203,7 +227,7 @@ const PLATFORM_SOURCE_OPTIONS = [
   { value: 'mg', label: '咪咕' },
 ] as const
 
-type ChannelOption = typeof PLATFORM_SOURCE_OPTIONS[number]
+type ChannelOption = (typeof PLATFORM_SOURCE_OPTIONS)[number]
 type ChannelId = ChannelOption['value']
 
 const route = useRoute()
@@ -213,7 +237,7 @@ const playlistStore = usePlaylistStore()
 const searchService = useSearchService()
 const { downloadTrack } = useTrackDownload()
 
-const searchInputRef = ref<HTMLInputElement>()
+const searchInputRef = ref<InputInst>()
 const isLoadingMore = ref(false)
 const isSearchingLocal = ref(false)
 const debounceTimer = ref<number>()
@@ -268,12 +292,10 @@ const searchError = computed(() => searchStore.currentError)
 const aggregateSummary = computed(() => searchStore.aggregateSummary)
 const isAggregateSettling = computed(() => searchStore.isSettling)
 const availableChannelSet = computed(() =>
-  searchService.getAvailableChannelSet(
-    {
-      builtInChannelIds: builtInChannelIds.value,
-      scriptCapabilities: scriptCapabilities.value,
-    },
-  ),
+  searchService.getAvailableChannelSet({
+    builtInChannelIds: builtInChannelIds.value,
+    scriptCapabilities: scriptCapabilities.value,
+  })
 )
 const resultsSubtitle = computed(() => {
   if (selectedChannel.value !== 'all') {
@@ -347,39 +369,43 @@ async function handleSearch(page = 1) {
       isLoadingMore.value = true
     }
     searchStore.isSearching = true
-    const result = await searchService.runSearch({
-      keyword,
-      channel,
-      page,
-      limit: searchStore.pageSize,
-    }, channel === 'all' ? {
-      onStart(channels) {
-        searchStore.beginAggregateSearch(requestId, channels, {
-          clearResults: page === 1,
-        })
+    const result = await searchService.runSearch(
+      {
+        keyword,
+        channel,
+        page,
+        limit: searchStore.pageSize,
       },
-      onPartial(partialChannel, tracks) {
-        searchStore.mergeAggregateResults(
-          requestId,
-          partialChannel,
-          tracks,
-          keyword,
-          page,
-        )
-      },
-      onChannelSettled(progress: AggregateChannelProgress) {
-        searchStore.markAggregateChannel(requestId, progress)
-      },
-      onComplete(aggregateResult) {
-        searchStore.finalizeAggregateSearch(requestId, aggregateResult)
-      },
-    } : undefined)
+      channel === 'all'
+        ? {
+            onStart(channels) {
+              searchStore.beginAggregateSearch(requestId, channels, {
+                clearResults: page === 1,
+              })
+            },
+            onPartial(partialChannel, tracks) {
+              searchStore.mergeAggregateResults(requestId, partialChannel, tracks, keyword, page)
+            },
+            onChannelSettled(progress: AggregateChannelProgress) {
+              searchStore.markAggregateChannel(requestId, progress)
+            },
+            onComplete(aggregateResult) {
+              searchStore.finalizeAggregateSearch(requestId, aggregateResult)
+            },
+          }
+        : undefined
+    )
 
     if (!isActiveSearchRequest(requestId)) return
 
     if (page > 1 && result.data.length === 0) {
       searchStore.setResults({
-        ...buildSearchResultPayload(searchStore.searchResults, channel, page - 1, searchStore.pageSize),
+        ...buildSearchResultPayload(
+          searchStore.searchResults,
+          channel,
+          page - 1,
+          searchStore.pageSize
+        ),
         hasMore: false,
       })
       return
@@ -492,10 +518,7 @@ async function handleAddToPlaylist(music: MusicInfo) {
       await playlistStore.init()
     } catch (error) {
       console.error('[Search] Playlist store init failed while opening dialog:', error)
-      setPlaylistNotice(
-        'error',
-        playlistStore.initError || '歌单尚未初始化完成，请稍后重试',
-      )
+      setPlaylistNotice('error', playlistStore.initError || '歌单尚未初始化完成，请稍后重试')
     }
   }
 }
@@ -564,13 +587,16 @@ async function confirmAddToPlaylist(playlistId: number) {
   try {
     await playlistStore.ensureReady()
     const playlist = playlistStore.playlists.find((item) => item.id === playlistId)
-    const result = await playlistStore.addMusicToPlaylist(playlistId, addToPlaylistDialog.value.music)
+    const result = await playlistStore.addMusicToPlaylist(
+      playlistId,
+      addToPlaylistDialog.value.music
+    )
     closeAddToPlaylistDialog()
     setPlaylistNotice(
       result.status === 'added' ? 'success' : 'info',
       result.status === 'added'
         ? `已添加到${playlist?.name || '歌单'}`
-        : `${playlist?.name || '该歌单'}中已存在这首歌`,
+        : `${playlist?.name || '该歌单'}中已存在这首歌`
     )
   } catch (error) {
     console.error('[Search] Failed to add music to playlist:', error)
@@ -583,10 +609,7 @@ async function retryPlaylistInit() {
     await playlistStore.init()
   } catch (error) {
     console.error('[Search] Retry playlist init failed:', error)
-    setPlaylistNotice(
-      'error',
-      playlistStore.initError || '歌单初始化失败，请稍后重试',
-    )
+    setPlaylistNotice('error', playlistStore.initError || '歌单初始化失败，请稍后重试')
   }
 }
 
@@ -613,7 +636,7 @@ watch(
       selectedChannel.value = (Array.from(channels)[0] as ChannelId | undefined) || 'kw'
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 watch(
@@ -630,7 +653,7 @@ watch(
 
     await handleSearch()
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 onMounted(async () => {

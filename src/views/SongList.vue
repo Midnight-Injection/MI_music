@@ -93,9 +93,7 @@
 
       <div v-if="searchError" class="playlist-results__error">{{ searchError }}</div>
 
-      <div v-if="!hasSearched && !isSearching" class="playlist-results__empty">
-        输入关键词后会按渠道分组展示歌单结果。
-      </div>
+      <NEmpty v-if="!hasSearched && !isSearching" description="输入关键词后会按渠道分组展示歌单结果。" />
 
       <div v-else-if="isSearching" class="playlist-results__loading">
         <div class="spinner"></div>
@@ -197,12 +195,10 @@
           </div>
         </section>
 
-        <div
+        <NEmpty
           v-if="hasSearched && !visibleChannelOptions.length && !searchError"
-          class="playlist-results__empty"
-        >
-          没有匹配到可展示的歌单结果。
-        </div>
+          description="没有匹配到可展示的歌单结果。"
+        />
       </div>
     </section>
 
@@ -305,51 +301,44 @@
             {{ isDetailLoadingMore ? '正在加载更多歌曲...' : '继续下滑加载更多歌曲' }}
           </div>
 
-          <div v-if="!playlistTracks.length" class="playlist-group__empty">这个歌单暂时没有可展示的歌曲。</div>
+          <NEmpty v-if="!playlistTracks.length" description="这个歌单暂时没有可展示的歌曲。" />
         </section>
       </template>
     </section>
 
-    <div
-      v-if="addToPlaylistDialog.show"
-      class="playlist-dialog-overlay"
-      @click.self="closeAddToPlaylistDialog"
+    <NModal
+      v-model:show="addToPlaylistDialog.show"
+      preset="card"
+      title="添加到歌单"
+      style="width: 520px"
+      @click-outside="closeAddToPlaylistDialog"
     >
-      <div class="playlist-dialog glass-panel">
-        <div class="playlist-dialog__header">
-          <div>
-            <h3>添加到歌单</h3>
-            <p v-if="addToPlaylistDialog.music">
-              {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
-            </p>
-          </div>
-          <button class="playlist-dialog__close app-icon-button secondary compact" @click="closeAddToPlaylistDialog">×</button>
-        </div>
-        <div class="playlist-dialog__list">
-          <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
-            正在加载歌单...
-          </div>
-          <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
-            <span>{{ playlistStore.initError }}</span>
-            <button type="button" class="playlist-dialog__retry app-button warning compact" @click="retryPlaylistInit">重试</button>
-          </div>
-          <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
-            暂无可用歌单，请先去“我的歌单”创建一个歌单。
-          </div>
-          <button
-            v-else
-            v-for="playlist in playlistStore.playlists"
-            :key="playlist.id"
-            type="button"
-            class="playlist-dialog__item app-button secondary"
-            @click="confirmAddToPlaylist(playlist.id)"
-          >
-            <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
-            <span>{{ playlist.name }} · {{ playlist.musics.length }} 首</span>
-          </button>
-        </div>
+      <p v-if="addToPlaylistDialog.music">
+        {{ addToPlaylistDialog.music.name }} · {{ addToPlaylistDialog.music.artist }}
+      </p>
+      <div v-if="playlistStore.isSyncing && !playlistStore.isReady" class="playlist-dialog__state">
+        正在加载歌单...
       </div>
-    </div>
+      <div v-else-if="playlistStore.initError" class="playlist-dialog__state is-error">
+        <span>{{ playlistStore.initError }}</span>
+        <NButton type="warning" size="small" @click="retryPlaylistInit">重试</NButton>
+      </div>
+      <div v-else-if="playlistStore.playlists.length === 0" class="playlist-dialog__state">
+        暂无可用歌单，请先去"我的歌单"创建一个歌单。
+      </div>
+      <div v-else class="playlist-dialog__list">
+        <NButton
+          v-for="playlist in playlistStore.playlists"
+          :key="playlist.id"
+          secondary
+          block
+          @click="confirmAddToPlaylist(playlist.id)"
+        >
+          <span>{{ getPlaylistLabel(playlist.systemKey) }}</span>
+          <span>{{ playlist.name }} · {{ playlist.musics.length }} 首</span>
+        </NButton>
+      </div>
+    </NModal>
 
     <FloatingMenu
       :show="contextMenu.show"
@@ -363,6 +352,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { NButton, NInput, NEmpty, NModal, NCard, useMessage } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import SongItem from '../components/SongItem.vue'
@@ -415,6 +405,7 @@ const playerStore = usePlayerStore()
 const playlistStore = usePlaylistStore()
 const playlistSearchStore = usePlaylistSearchStore()
 const { downloadTrack } = useTrackDownload()
+const message = useMessage()
 const {
   searchKeyword,
   selectedSort,

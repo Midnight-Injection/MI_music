@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import naive from 'naive-ui'
 import App from './App.vue'
 import router from './router'
 
@@ -9,6 +9,6 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
-app.use(autoAnimatePlugin)
+app.use(naive)
 
 app.mount('#app')

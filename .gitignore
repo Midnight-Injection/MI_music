@@ -31,8 +31,11 @@ src-tauri/target
 .omc
 .planning
 --status
+.bg-shell
 src-tauri/.omc
 src-tauri/*.db
+artifacts/
+*.bak
 
 # Reference repositories
 lx-music-desktop

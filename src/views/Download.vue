@@ -1,66 +1,103 @@
 <template>
   <div class="download-page page-shell">
-    <div class="download-content">
+    <div class="download-content glass-panel">
       <div class="queue-panel">
         <div class="queue-panel__head">
-          <h1>下载管理</h1>
+          <div class="queue-panel__title">
+            <span class="queue-panel__eyebrow app-pill accent compact">Download Center</span>
+            <h1>下载管理</h1>
+            <p>集中管理当前任务、等待队列和失败重试，窗口缩小时会自动切换紧凑布局。</p>
+          </div>
           <div class="batch-actions">
-            <button @click="pauseAll" class="btn app-button secondary compact" :disabled="!hasActiveDownloads">
+            <NButton size="small" :disabled="!hasActiveDownloads" @click="pauseAll">
               暂停全部
-            </button>
-            <button @click="resumeAll" class="btn app-button accent compact" :disabled="!hasPausedDownloads">
+            </NButton>
+            <NButton size="small" type="primary" :disabled="!hasPausedDownloads" @click="resumeAll">
               继续全部
-            </button>
-            <button @click="clearCompleted" class="btn app-button success compact" :disabled="!hasCompletedDownloads">
+            </NButton>
+            <NButton
+              size="small"
+              type="success"
+              :disabled="!hasCompletedDownloads"
+              @click="clearCompleted"
+            >
               清除已完成
-            </button>
-            <button @click="clearAll" class="btn app-button danger compact" :disabled="queue.length === 0">
+            </NButton>
+            <NButton size="small" type="error" :disabled="queue.length === 0" @click="clearAll">
               清空全部
-            </button>
+            </NButton>
           </div>
         </div>
 
-        <div class="queue-tabs">
-          <button
-            @click="activeTab = 'downloading'"
-            :class="['tab', 'app-pill', activeTab === 'downloading' ? 'accent' : 'secondary', { active: activeTab === 'downloading' }]"
-          >
-            下载中 ({{ downloadQueue.active.length }})
-          </button>
-          <button
-            @click="activeTab = 'pending'"
-            :class="['tab', 'app-pill', activeTab === 'pending' ? 'warning' : 'secondary', { active: activeTab === 'pending' }]"
-          >
-            等待中 ({{ downloadQueue.pending.length }})
-          </button>
-          <button
-            @click="activeTab = 'completed'"
-            :class="['tab', 'app-pill', activeTab === 'completed' ? 'success' : 'secondary', { active: activeTab === 'completed' }]"
-          >
-            已完成 ({{ downloadQueue.completed.length }})
-          </button>
-          <button
-            @click="activeTab = 'failed'"
-            :class="['tab', 'app-pill', activeTab === 'failed' ? 'danger' : 'secondary', { active: activeTab === 'failed' }]"
-          >
-            失败 ({{ downloadQueue.failed.length }})
-          </button>
-        </div>
+        <NTabs v-model:value="activeTab" type="segment" size="small">
+          <NTabPane name="downloading" :tab="`下载中 (${downloadQueue.active.length})`">
+            <div class="queue-list">
+              <DownloadItem
+                v-for="item in currentList"
+                :key="item.id"
+                :item="item"
+                @pause="pauseDownload"
+                @resume="resumeDownload"
+                @cancel="cancelDownload"
+                @retry="retryDownload"
+                @openFolder="openFolder"
+              />
+              <NEmpty v-if="currentList.length === 0" description="暂无下载中的任务" />
+            </div>
+          </NTabPane>
+          <NTabPane name="pending" :tab="`等待中 (${downloadQueue.pending.length})`">
+            <div class="queue-list">
+              <DownloadItem
+                v-for="item in currentList"
+                :key="item.id"
+                :item="item"
+                @pause="pauseDownload"
+                @resume="resumeDownload"
+                @cancel="cancelDownload"
+                @retry="retryDownload"
+                @openFolder="openFolder"
+              />
+              <NEmpty v-if="currentList.length === 0" description="暂无等待中的任务" />
+            </div>
+          </NTabPane>
+          <NTabPane name="completed" :tab="`已完成 (${downloadQueue.completed.length})`">
+            <div class="queue-list">
+              <DownloadItem
+                v-for="item in currentList"
+                :key="item.id"
+                :item="item"
+                @pause="pauseDownload"
+                @resume="resumeDownload"
+                @cancel="cancelDownload"
+                @retry="retryDownload"
+                @openFolder="openFolder"
+              />
+              <NEmpty v-if="currentList.length === 0" description="暂无已完成的下载" />
+            </div>
+          </NTabPane>
+          <NTabPane name="failed" :tab="`失败 (${downloadQueue.failed.length})`">
+            <div class="queue-list">
+              <DownloadItem
+                v-for="item in currentList"
+                :key="item.id"
+                :item="item"
+                @pause="pauseDownload"
+                @resume="resumeDownload"
+                @cancel="cancelDownload"
+                @retry="retryDownload"
+                @openFolder="openFolder"
+              />
+              <NEmpty v-if="currentList.length === 0" description="暂无失败的下载" />
+            </div>
+          </NTabPane>
+        </NTabs>
 
-        <div class="queue-list" v-auto-animate>
-          <DownloadItem
-            v-for="item in currentList"
-            :key="item.id"
-            :item="item"
-            @pause="pauseDownload"
-            @resume="resumeDownload"
-            @cancel="cancelDownload"
-            @retry="retryDownload"
-            @openFolder="openFolder"
-          />
-          <div v-if="currentList.length === 0" class="empty-state">
-            {{ getEmptyText() }}
-          </div>
+        <div class="queue-summary">
+          <NTag round size="small" type="default">总任务 {{ queue.length }}</NTag>
+          <NTag round size="small" type="primary">下载中 {{ downloadQueue.active.length }}</NTag>
+          <NTag round size="small" type="warning">等待 {{ downloadQueue.pending.length }}</NTag>
+          <NTag round size="small" type="success">完成 {{ downloadQueue.completed.length }}</NTag>
+          <NTag round size="small" type="error">失败 {{ downloadQueue.failed.length }}</NTag>
         </div>
       </div>
     </div>
@@ -69,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { NTabs, NTabPane, NButton, NTag, NEmpty } from 'naive-ui'
 import { useDownloadStore } from '../store/download'
 import { useSettingsStore } from '../store/settings'
 import { invoke } from '@tauri-apps/api/core'
@@ -122,18 +160,23 @@ async function markTaskPending(id: number) {
 async function drainPendingDownloads() {
   if (!downloadPath.value) return
 
-  const availableSlots = Math.max(0, maxConcurrentDownloads.value - downloadQueue.value.active.length)
+  const availableSlots = Math.max(
+    0,
+    maxConcurrentDownloads.value - downloadQueue.value.active.length
+  )
   if (availableSlots === 0) return
 
   const pendingTasks = downloadQueue.value.pending.slice(0, availableSlots)
-  await Promise.all(pendingTasks.map(async (item) => {
-    try {
-      await invoke('resume_download', { id: item.id, savePath: downloadPath.value })
-      downloadStore.updateDownloadItem(item.id, { status: 'downloading' })
-    } catch (error) {
-      console.error('Failed to start pending download:', error)
-    }
-  }))
+  await Promise.all(
+    pendingTasks.map(async (item) => {
+      try {
+        await invoke('resume_download', { id: item.id, savePath: downloadPath.value })
+        downloadStore.updateDownloadItem(item.id, { status: 'downloading' })
+      } catch (error) {
+        console.error('Failed to start pending download:', error)
+      }
+    })
+  )
 }
 
 async function loadTasks() {
@@ -172,7 +215,7 @@ async function loadTasks() {
       error: task.error,
       filePath: task.file_path,
       createdAt: task.created_at,
-      updatedAt: task.updated_at
+      updatedAt: task.updated_at,
     }))
 
     await drainPendingDownloads()
@@ -187,7 +230,7 @@ function showNotification(title: string, message: string, type: 'success' | 'err
     const icon = type === 'success' ? '✓' : '✕'
     new Notification(`${icon} ${title}`, {
       body: message,
-      icon: type === 'success' ? '/icons/success.png' : '/icons/error.png'
+      icon: type === 'success' ? '/icons/success.png' : '/icons/error.png',
     })
   } else if ('Notification' in window && Notification.permission !== 'denied') {
     Notification.requestPermission().then((permission) => {
@@ -281,16 +324,6 @@ function clearAll() {
   downloadStore.clearAll()
 }
 
-function getEmptyText(): string {
-  const textMap: Record<string, string> = {
-    downloading: '暂无下载中的任务',
-    pending: '暂无等待中的任务',
-    completed: '暂无已完成的下载',
-    failed: '暂无失败的下载'
-  }
-  return textMap[activeTab.value] || '暂无数据'
-}
-
 onMounted(() => {
   loadTasks()
   refreshInterval = window.setInterval(loadTasks, 1000)
@@ -310,51 +343,84 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .download-page {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  padding-top: 0;
+
+  &.page-shell {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+  }
 
   .download-content {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
     overflow: hidden;
+    border-radius: var(--radius-md);
   }
 
   .queue-panel {
-    height: 100%;
-    background: var(--panel-gradient);
-    backdrop-filter: var(--glass-blur);
+    flex: 1 1 auto;
+    min-height: 0;
     border-radius: var(--radius-md);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: var(--shadow-md);
 
     .queue-panel__head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 16px;
+      align-items: flex-start;
+      gap: 18px;
       padding: 22px 24px 16px;
       border-bottom: 1px solid var(--border-color);
+    }
 
-      h1 {
+    .queue-panel__title {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+
+      p {
         margin: 0;
-        font-size: 24px;
-        color: var(--text-primary);
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        line-height: 1.6;
+        max-width: 640px;
       }
     }
 
-    .batch-actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px;
+    .queue-panel__eyebrow {
+      align-self: flex-start;
     }
 
-      .queue-tabs {
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2vw, 1.6rem);
+      color: var(--text-primary);
+      line-height: 1.05;
+    }
+
+    .batch-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, auto));
+      justify-content: end;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .queue-tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -362,6 +428,7 @@ onUnmounted(() => {
 
       .tab {
         font-size: 14px;
+        flex: 0 0 auto;
 
         &.active {
           box-shadow: var(--button-accent-shadow);
@@ -369,12 +436,23 @@ onUnmounted(() => {
       }
     }
 
+    .queue-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 18px 0;
+    }
+
     .queue-list {
       flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
       overflow-y: auto;
       padding: 12px;
 
       .empty-state {
+        flex: 1;
         text-align: center;
         padding: 60px 20px;
         color: var(--text-secondary);
@@ -382,6 +460,7 @@ onUnmounted(() => {
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 12px;
 
         &::before {
@@ -400,21 +479,75 @@ onUnmounted(() => {
     gap: 6px;
   }
 
-  @media (max-width: 960px) {
+  @container (max-width: 1180px) {
     .queue-panel {
       .queue-panel__head {
         flex-direction: column;
-        align-items: flex-start;
       }
 
       .batch-actions {
         width: 100%;
         justify-content: flex-start;
       }
+    }
+  }
+
+  @container (max-width: 960px) {
+    .queue-panel {
+      .queue-panel__head {
+        padding: 18px 18px 14px;
+      }
+
+      .queue-tabs,
+      .queue-summary {
+        padding-inline: 14px;
+      }
+
+      .batch-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  }
+
+  @container (max-width: 720px) {
+    .queue-panel {
+      .queue-panel__title p {
+        font-size: 0.78rem;
+      }
+
+      .batch-actions {
+        grid-template-columns: 1fr;
+      }
 
       .queue-tabs {
+        flex-wrap: nowrap;
         overflow-x: auto;
-        scrollbar-width: none;
+        padding-bottom: 2px;
+      }
+
+      .queue-list {
+        padding: 10px;
+      }
+    }
+  }
+
+  @container (max-width: 560px) {
+    .queue-panel {
+      .queue-panel__head {
+        padding: 16px 14px 12px;
+      }
+
+      .queue-tabs,
+      .queue-summary {
+        padding-inline: 10px;
+      }
+
+      .queue-summary {
+        gap: 6px;
+      }
+
+      .btn {
+        width: 100%;
       }
     }
   }

@@ -1,5 +1,9 @@
 <template>
-  <div class="playlist-page page-shell">
+  <div
+    ref="pageRoot"
+    class="playlist-page page-shell"
+    :class="{ 'playlist-page--mobile-tracks': isMobileTrackLayout }"
+  >
     <aside class="playlist-sidebar glass-panel">
       <div class="playlist-sidebar__header">
         <div>
@@ -7,10 +11,10 @@
           <h1>我的歌单</h1>
           <p>{{ playlistStore.playlists.length }} 个歌单，{{ totalTrackCount }} 首歌曲</p>
         </div>
-        <button type="button" class="playlist-sidebar__create" @click="showCreateDialog = true" title="创建新歌单">
+        <NButton type="primary" size="small" round @click="showCreateDialog = true" title="创建新歌单">
           <span>+</span>
           <span>新建</span>
-        </button>
+        </NButton>
       </div>
 
       <div class="playlist-sidebar__list">
@@ -49,188 +53,189 @@
         {{ operationNotice.message }}
       </div>
 
-      <div v-if="currentPlaylist" class="playlist-hero glass-panel">
-        <div class="playlist-hero__cover">
-          <div class="playlist-hero__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
-        </div>
-
-        <div class="playlist-hero__meta">
-          <span class="playlist-hero__kicker">{{ getPlaylistTypeLabel(currentPlaylist) }}</span>
-          <h2>{{ currentPlaylist.name }}</h2>
-          <p>{{ getPlaylistDescription(currentPlaylist) }}</p>
-
-          <div v-if="isImportedPlaylist(currentPlaylist)" class="playlist-hero__source">
-            <span class="playlist-hero__source-pill">{{ getImportSourceLabel(currentPlaylist) }}</span>
-            <span v-if="currentPlaylist.importSourcePlaylistUrl" class="playlist-hero__source-url">
-              {{ currentPlaylist.importSourcePlaylistUrl }}
-            </span>
-            <span class="playlist-hero__source-time">
-              {{ currentPlaylist.lastSyncedAt ? `上次同步：${formatSyncTime(currentPlaylist.lastSyncedAt)}` : '尚未同步' }}
-            </span>
+      <section v-if="currentPlaylist" class="playlist-workbench glass-panel">
+        <div class="playlist-hero">
+          <div class="playlist-hero__cover">
+            <div class="playlist-hero__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
           </div>
 
-          <div class="playlist-hero__stats">
-            <span class="playlist-stat">
-              <strong>{{ currentPlaylist.musics.length }}</strong>
-              <span>歌曲</span>
-            </span>
-            <span class="playlist-stat">
-              <strong>{{ formatTotalDuration(currentPlaylist.musics) }}</strong>
-              <span>总时长</span>
-            </span>
-            <span class="playlist-stat">
-              <strong>{{ playlistStore.selectedMusicIds.size }}</strong>
-              <span>已选中</span>
-            </span>
-          </div>
-        </div>
+          <div class="playlist-hero__meta">
+            <span class="playlist-hero__kicker">{{ getPlaylistTypeLabel(currentPlaylist) }}</span>
+            <h2 :title="currentPlaylist.name">{{ currentPlaylist.name }}</h2>
+            <p :title="getPlaylistDescription(currentPlaylist)">{{ getPlaylistDescription(currentPlaylist) }}</p>
 
-        <div class="playlist-hero__actions">
-          <button
-            type="button"
-            class="hero-action hero-action--primary"
-            :disabled="currentPlaylist.musics.length === 0"
-            @click="playAll"
-          >
-            ▶ 播放全部
-          </button>
-          <button
-            v-if="isImportedPlaylist(currentPlaylist)"
-            type="button"
-            class="hero-action hero-action--sync"
-            :disabled="syncingPlaylistId === currentPlaylist.id"
-            @click="syncCurrentPlaylist"
-          >
-            {{ syncingPlaylistId === currentPlaylist.id ? '同步中...' : '同步刷新' }}
-          </button>
-          <button
-            v-if="playlistStore.selectedMusicIds.size > 0"
-            type="button"
-            class="hero-action hero-action--danger"
-            @click="removeSelected"
-          >
-            删除选中 ({{ playlistStore.selectedMusicIds.size }})
-          </button>
-        </div>
-      </div>
-
-      <div v-if="currentPlaylist && currentPlaylist.musics.length === 0" class="playlist-empty glass-panel">
-        <div class="playlist-empty__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
-        <h3>这个歌单还是空的</h3>
-        <p>去搜索页添加歌曲，或者先创建更多自定义歌单整理音乐。</p>
-      </div>
-
-      <section v-else-if="currentPlaylist" class="playlist-library glass-panel">
-        <header class="playlist-library__header">
-          <div class="playlist-library__heading">
-            <span class="playlist-library__eyebrow">Queue</span>
-            <h3>歌曲列表</h3>
-          </div>
-
-          <div class="playlist-library__summary">
-            <span>{{ currentPlaylist.musics.length }} 首</span>
-            <span>{{ formatTotalDuration(currentPlaylist.musics) }}</span>
-          </div>
-        </header>
-
-        <div class="playlist-table__head">
-          <label class="playlist-table__check">
-            <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-          </label>
-          <div>歌曲</div>
-          <div>歌手</div>
-          <div>专辑</div>
-          <div class="playlist-table__duration">时长</div>
-          <div class="playlist-table__actions">操作</div>
-        </div>
-
-        <div class="playlist-table">
-          <div
-            v-for="(music, index) in currentPlaylist.musics"
-            :key="getMusicSelectionKey(music)"
-            class="song-row"
-            :class="{
-              'is-selected': playlistStore.selectedMusicIds.has(getMusicSelectionKey(music)),
-              'is-playing': isCurrentPlaying(music),
-              'is-drop-target': draggedOverIndex === index,
-            }"
-            draggable="true"
-            @dblclick="playMusic(music, index)"
-            @dragstart="handleDragStart($event, index)"
-            @dragover.prevent="handleDragOver($event, index)"
-            @drop="handleDrop($event, index)"
-            @contextmenu.prevent="showSongMenu($event, music, index)"
-          >
-            <div class="song-row__left">
-              <span class="song-row__drag" title="拖拽排序">⋮⋮</span>
-              <label class="song-row__check">
-                <input
-                  type="checkbox"
-                  :checked="playlistStore.selectedMusicIds.has(getMusicSelectionKey(music))"
-                  @change="playlistStore.toggleMusicSelection(getMusicSelectionKey(music))"
-                />
-              </label>
+            <div v-if="isImportedPlaylist(currentPlaylist)" class="playlist-hero__source">
+              <span class="playlist-hero__source-pill">{{ getImportSourceLabel(currentPlaylist) }}</span>
+              <span v-if="currentPlaylist.importSourcePlaylistUrl" class="playlist-hero__source-url">
+                {{ currentPlaylist.importSourcePlaylistUrl }}
+              </span>
+              <span class="playlist-hero__source-time">
+                {{ currentPlaylist.lastSyncedAt ? `上次同步：${formatSyncTime(currentPlaylist.lastSyncedAt)}` : '尚未同步' }}
+              </span>
             </div>
 
-            <div class="song-row__title">
-              <button
-                type="button"
-                class="song-row__play"
-                title="播放"
-                @click.stop="playMusic(music, index)"
-              >
-                {{ isCurrentPlaying(music) ? '❚❚' : '▶' }}
-              </button>
-              <div class="song-row__title-meta">
-                <span class="song-row__name">{{ music.name }}</span>
-                <span class="song-row__hint">双击可直接播放</span>
+            <div class="playlist-hero__stats">
+              <span class="playlist-stat">
+                <strong>{{ currentPlaylist.musics.length }}</strong>
+                <span>歌曲</span>
+              </span>
+              <span class="playlist-stat">
+                <strong>{{ formatTotalDuration(currentPlaylist.musics) }}</strong>
+                <span>总时长</span>
+              </span>
+              <span class="playlist-stat">
+                <strong>{{ playlistStore.selectedMusicIds.size }}</strong>
+                <span>已选中</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="playlist-hero__actions">
+            <button
+              type="button"
+              class="hero-action hero-action--primary"
+              :disabled="currentPlaylist.musics.length === 0"
+              @click="playAll"
+            >
+              ▶ 播放全部
+            </button>
+            <button
+              v-if="isImportedPlaylist(currentPlaylist)"
+              type="button"
+              class="hero-action hero-action--sync"
+              :disabled="syncingPlaylistId === currentPlaylist.id"
+              @click="syncCurrentPlaylist"
+            >
+              {{ syncingPlaylistId === currentPlaylist.id ? '同步中...' : '同步刷新' }}
+            </button>
+            <button
+              v-if="playlistStore.selectedMusicIds.size > 0"
+              type="button"
+              class="hero-action hero-action--danger"
+              @click="removeSelected"
+            >
+              删除选中 ({{ playlistStore.selectedMusicIds.size }})
+            </button>
+          </div>
+        </div>
+
+        <div v-if="currentPlaylist.musics.length === 0" class="playlist-empty">
+          <div class="playlist-empty__icon">{{ getPlaylistIcon(currentPlaylist) }}</div>
+          <h3>这个歌单还是空的</h3>
+          <p>去搜索页添加歌曲，或者先创建更多自定义歌单整理音乐。</p>
+        </div>
+
+        <section v-else class="playlist-library">
+          <header class="playlist-library__header">
+            <div class="playlist-library__heading">
+              <span class="playlist-library__eyebrow">Queue</span>
+              <h3>歌曲列表</h3>
+            </div>
+
+            <div class="playlist-library__summary">
+              <span>{{ currentPlaylist.musics.length }} 首</span>
+              <span>{{ formatTotalDuration(currentPlaylist.musics) }}</span>
+            </div>
+          </header>
+
+          <div class="playlist-table__head">
+            <label class="playlist-table__check">
+              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+            </label>
+            <div>歌曲</div>
+            <div>歌手</div>
+            <div>专辑</div>
+            <div class="playlist-table__duration">时长</div>
+            <div class="playlist-table__actions">操作</div>
+          </div>
+
+          <div class="playlist-table">
+            <div
+              v-for="(music, index) in currentPlaylist.musics"
+              :key="getMusicSelectionKey(music)"
+              class="song-row"
+              :data-layout="isMobileTrackLayout ? 'card' : 'table'"
+              :class="{
+                'is-selected': playlistStore.selectedMusicIds.has(getMusicSelectionKey(music)),
+                'is-playing': isCurrentPlaying(music),
+                'is-drop-target': draggedOverIndex === index,
+              }"
+              draggable="true"
+              @dblclick="playMusic(music, index)"
+              @dragstart="handleDragStart($event, index)"
+              @dragover.prevent="handleDragOver($event, index)"
+              @drop="handleDrop($event, index)"
+              @contextmenu.prevent="showSongMenu($event, music, index)"
+            >
+              <div class="song-row__left">
+                <span class="song-row__drag" title="拖拽排序">⋮⋮</span>
+                <label class="song-row__check">
+                  <input
+                    type="checkbox"
+                    :checked="playlistStore.selectedMusicIds.has(getMusicSelectionKey(music))"
+                    @change="playlistStore.toggleMusicSelection(getMusicSelectionKey(music))"
+                  />
+                </label>
+              </div>
+
+              <div class="song-row__title">
+                <button
+                  type="button"
+                  class="song-row__play"
+                  title="播放"
+                  @click.stop="playMusic(music, index)"
+                >
+                  {{ isCurrentPlaying(music) ? '❚❚' : '▶' }}
+                </button>
+                <div class="song-row__title-meta">
+                  <span class="song-row__name">{{ music.name }}</span>
+                  <span class="song-row__hint">双击可直接播放</span>
+                  <span v-if="isMobileTrackLayout" class="song-row__submeta">
+                    {{ music.artist }}<template v-if="music.album"> · {{ music.album }}</template>
+                  </span>
+                </div>
+              </div>
+
+              <div class="song-row__artist">{{ music.artist }}</div>
+              <div class="song-row__album">{{ music.album || '未知专辑' }}</div>
+              <div class="song-row__duration">{{ formatDuration(music.duration) }}</div>
+
+              <div class="song-row__actions">
+                <button
+                  type="button"
+                  class="song-row__action"
+                  title="添加到歌单"
+                  @click.stop="showAddToMenu($event, music)"
+                >
+                  + 收藏到
+                </button>
+                <button
+                  type="button"
+                  class="song-row__action song-row__action--danger"
+                  title="移除"
+                  @click.stop="removeMusic(music.storageSongId)"
+                >
+                  移除
+                </button>
               </div>
             </div>
-
-            <div class="song-row__artist">{{ music.artist }}</div>
-            <div class="song-row__album">{{ music.album || '未知专辑' }}</div>
-            <div class="song-row__duration">{{ formatDuration(music.duration) }}</div>
-
-            <div class="song-row__actions">
-              <button
-                type="button"
-                class="song-row__action"
-                title="添加到歌单"
-                @click.stop="showAddToMenu($event, music)"
-              >
-                + 收藏到
-              </button>
-              <button
-                type="button"
-                class="song-row__action song-row__action--danger"
-                title="移除"
-                @click.stop="removeMusic(music.storageSongId)"
-              >
-                移除
-              </button>
-            </div>
           </div>
-        </div>
+        </section>
       </section>
     </section>
 
-    <div v-if="showCreateDialog" class="dialog-overlay" @click.self="showCreateDialog = false">
-      <div class="dialog glass-panel">
-        <h2>创建歌单</h2>
-        <p>起一个清晰的名字，后续从搜索结果里就能直接添加进去。</p>
-        <input
-          v-model="newPlaylistName"
-          type="text"
-          placeholder="例如：深夜循环 / 通勤精选"
-          class="input"
-          @keyup.enter="handleCreate"
-        />
-        <div class="dialog-actions">
-          <button type="button" class="btn cancel" @click="showCreateDialog = false">取消</button>
-          <button type="button" class="btn confirm" @click="handleCreate">创建</button>
-        </div>
-      </div>
-    </div>
+    <NModal v-model:show="showCreateDialog" preset="card" title="创建歌单" style="width: 440px">
+      <p>起一个清晰的名字，后续从搜索结果里就能直接添加进去。</p>
+      <NInput
+        v-model:value="newPlaylistName"
+        placeholder="例如：深夜循环 / 通勤精选"
+        @keyup.enter="handleCreate"
+      />
+      <template #action>
+        <NButton @click="showCreateDialog = false">取消</NButton>
+        <NButton type="primary" @click="handleCreate">创建</NButton>
+      </template>
+    </NModal>
 
     <FloatingMenu
       :show="contextMenu.show"
@@ -254,6 +259,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { NModal, NInput, NButton, useDialog, useMessage } from 'naive-ui'
 import FloatingMenu from '../components/context/FloatingMenu.vue'
 import { useTrackDownload } from '../composables/useTrackDownload'
 import { usePlayerStore } from '../store/player'
@@ -265,11 +271,16 @@ import type { Playlist } from '../types/playlist'
 const playlistStore = usePlaylistStore()
 const playerStore = usePlayerStore()
 const { downloadTrack } = useTrackDownload()
+const dialog = useDialog()
+const message = useMessage()
 
 const showCreateDialog = ref(false)
 const newPlaylistName = ref('')
 const draggedIndex = ref<number | null>(null)
 const draggedOverIndex = ref<number | null>(null)
+const pageRoot = ref<HTMLElement | null>(null)
+const layoutWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440)
+let pageResizeObserver: ResizeObserver | null = null
 
 type ContextMenuType = 'song' | 'playlist'
 
@@ -312,6 +323,7 @@ let operationNoticeTimer: number | null = null
 const currentPlaylist = computed(() =>
   playlistStore.playlists.find((playlist) => playlist.id === playlistStore.currentPlaylistId),
 )
+const isMobileTrackLayout = computed(() => layoutWidth.value <= 760)
 
 const totalTrackCount = computed(() =>
   playlistStore.playlists.reduce((count, playlist) => count + playlist.musics.length, 0),
@@ -475,16 +487,22 @@ async function handleCreate() {
 }
 
 async function deletePlaylist(id: number) {
-  if (!confirm('确定要删除这个歌单吗？')) return
-
-  await playlistStore.deletePlaylist(id)
-  if (playlistStore.currentPlaylistId === id) {
-    playlistStore.setCurrentPlaylist(
-      playlistStore.playlists.find((playlist) => playlist.systemKey === 'default')?.id
-      ?? playlistStore.playlists[0]?.id
-      ?? null,
-    )
-  }
+  dialog.warning({
+    title: '确认',
+    content: '确定要删除这个歌单吗？',
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await playlistStore.deletePlaylist(id)
+      if (playlistStore.currentPlaylistId === id) {
+        playlistStore.setCurrentPlaylist(
+          playlistStore.playlists.find((playlist) => playlist.systemKey === 'default')?.id
+          ?? playlistStore.playlists[0]?.id
+          ?? null,
+        )
+      }
+    }
+  })
 }
 
 async function syncCurrentPlaylist() {
@@ -691,7 +709,7 @@ async function removeMusicFromContext() {
 
 function viewArtist() {
   if (contextMenu.value.music) {
-    alert(`查看歌手: ${contextMenu.value.music.artist}`)
+    message.info(`查看歌手: ${contextMenu.value.music.artist}`)
   }
   hideContextMenu()
 }
@@ -775,12 +793,30 @@ function handleClickOutside() {
   if (addToMenu.value.show) hideAddToMenu()
 }
 
+function syncLayoutWidth() {
+  layoutWidth.value = pageRoot.value?.getBoundingClientRect().width || window.innerWidth
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  if (typeof ResizeObserver !== 'undefined') {
+    pageResizeObserver = new ResizeObserver(() => {
+      syncLayoutWidth()
+    })
+    if (pageRoot.value) {
+      pageResizeObserver.observe(pageRoot.value)
+    }
+  } else {
+    window.addEventListener('resize', syncLayoutWidth)
+  }
+  syncLayoutWidth()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  pageResizeObserver?.disconnect()
+  pageResizeObserver = null
+  window.removeEventListener('resize', syncLayoutWidth)
   if (operationNoticeTimer !== null) {
     window.clearTimeout(operationNoticeTimer)
   }
@@ -789,20 +825,29 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .playlist-page {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
   display: grid;
-  grid-template-columns: clamp(178px, 15vw, 194px) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: clamp(236px, 22vw, 284px) minmax(0, 1fr);
+  gap: 10px;
   height: 100%;
   min-height: 0;
-  padding: 0 12px 0;
   align-items: stretch;
-  overflow: visible;
+  overflow: hidden;
+
+  &.page-shell {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 .playlist-sidebar,
-.playlist-hero,
-.playlist-library,
-.playlist-empty,
+.playlist-workbench,
 .dialog,
 .floating-menu {
   backdrop-filter: blur(22px);
@@ -814,7 +859,9 @@ onUnmounted(() => {
   flex-direction: column;
   padding: 16px 10px;
   border-radius: var(--radius-md);
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
@@ -875,6 +922,7 @@ onUnmounted(() => {
 }
 
 .playlist-sidebar__list {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -949,15 +997,29 @@ onUnmounted(() => {
 }
 
 .playlist-main {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+
+.playlist-workbench {
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: var(--radius-md);
 }
 
 .playlist-notice {
+  flex: 0 0 auto;
   padding: 10px 14px;
   border-radius: 18px;
   font-size: 0.8rem;
@@ -982,12 +1044,13 @@ onUnmounted(() => {
 }
 
 .playlist-hero {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: clamp(88px, 10vw, 108px) minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
-  padding: 16px;
-  border-radius: var(--radius-md);
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--border-color);
   position: relative;
   overflow: hidden;
   background:
@@ -1028,6 +1091,10 @@ onUnmounted(() => {
     font-size: clamp(1.16rem, 1.9vw, 1.52rem);
     line-height: 1;
     color: var(--text-primary);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   p {
@@ -1036,6 +1103,10 @@ onUnmounted(() => {
     color: var(--text-secondary);
     font-size: 0.76rem;
     line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 }
 
@@ -1130,10 +1201,16 @@ onUnmounted(() => {
 }
 
 .playlist-empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: auto;
   padding: 40px 20px;
-  border-radius: var(--radius-md);
   text-align: center;
-  background: rgba(255, 255, 255, 0.05);
+  background:
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.04), transparent 34%);
 
   h3 {
     margin: 14px 0 8px;
@@ -1153,13 +1230,13 @@ onUnmounted(() => {
 }
 
 .playlist-library {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   padding: 14px;
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
 }
 
 .playlist-library__header {
@@ -1206,11 +1283,15 @@ onUnmounted(() => {
 }
 
 .playlist-table {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 2px;
 }
 
@@ -1306,6 +1387,14 @@ onUnmounted(() => {
   margin-top: 3px;
   color: var(--text-secondary);
   font-size: 0.62rem;
+}
+
+.song-row__submeta {
+  display: none;
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.5;
 }
 
 .song-row__artist,
@@ -1405,15 +1494,15 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1320px) {
+@container (max-width: 1320px) {
   .playlist-page {
-    grid-template-columns: clamp(218px, 24vw, 244px) minmax(0, 1fr);
+    grid-template-columns: clamp(224px, 25vw, 260px) minmax(0, 1fr);
     gap: 14px;
-    padding-inline: 12px;
   }
 
   .playlist-hero {
     grid-template-columns: 128px minmax(0, 1fr);
+    padding: 18px 18px 16px;
   }
 
   .playlist-hero__actions {
@@ -1428,10 +1517,9 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1180px) {
+@container (max-width: 1180px) {
   .playlist-page {
-    grid-template-columns: clamp(204px, 28vw, 228px) minmax(0, 1fr);
-    padding-inline: 10px;
+    grid-template-columns: clamp(212px, 28vw, 240px) minmax(0, 1fr);
   }
 
   .playlist-sidebar {
@@ -1444,7 +1532,7 @@ onUnmounted(() => {
 
   .playlist-hero {
     grid-template-columns: 116px minmax(0, 1fr);
-    padding: 18px;
+    padding: 18px 18px 16px;
   }
 
   .playlist-hero__cover {
@@ -1466,7 +1554,7 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1080px) {
+@container (max-width: 1080px) {
   .playlist-table__head,
   .song-row {
     grid-template-columns: 42px minmax(0, 1.45fr) minmax(96px, 0.84fr) 104px;
@@ -1484,19 +1572,9 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 980px) {
+@container (max-width: 980px) {
   .playlist-page {
-    grid-template-columns: 1fr;
-    padding-inline: 8px;
-    overflow: auto;
-  }
-
-  .playlist-sidebar {
-    min-height: auto;
-  }
-
-  .playlist-sidebar__list {
-    max-height: 240px;
+    grid-template-columns: minmax(188px, 220px) minmax(0, 1fr);
   }
 
   .playlist-hero {
@@ -1515,9 +1593,13 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 760px) {
+@container (max-width: 760px) {
   .playlist-page {
-    padding: 0 6px 0;
+    grid-template-columns: minmax(164px, 196px) minmax(0, 1fr);
+  }
+
+  .playlist-sidebar {
+    padding: 14px 10px;
   }
 
   .playlist-hero {
@@ -1537,6 +1619,7 @@ onUnmounted(() => {
   .song-row {
     grid-template-columns: 1fr;
     gap: 10px;
+    padding: 12px;
   }
 
   .song-row__left,
@@ -1548,7 +1631,25 @@ onUnmounted(() => {
 
   .song-row__artist,
   .song-row__album {
+    display: none;
+  }
+
+  .song-row__title {
+    align-items: flex-start;
+  }
+
+  .song-row__submeta {
+    display: block;
+  }
+
+  .song-row__actions {
     padding-left: 46px;
+    gap: 8px;
+  }
+
+  .song-row__action {
+    min-height: 34px;
+    padding: 7px 10px;
   }
 }
 </style>

@@ -40,27 +40,34 @@
     <div class="song-duration">{{ formatDuration(music.duration) }}</div>
 
     <div class="song-actions">
-      <button class="action-btn app-icon-button accent compact" type="button" @click.stop="handlePlay" title="播放">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-      </button>
-      <button class="action-btn app-icon-button warning compact" type="button" @click.stop="handleAddToPlaylist" title="添加到歌单" aria-label="添加到歌单">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-        </svg>
-      </button>
-      <button class="action-btn app-icon-button secondary compact" type="button" @click.stop="handleAddToList" title="添加到播放列表" aria-label="添加到播放列表">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
-        </svg>
-      </button>
+      <NButton size="tiny" quaternary circle type="primary" @click.stop="handlePlay" title="播放">
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 15px; height: 15px;">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </template>
+      </NButton>
+      <NButton size="tiny" quaternary circle type="warning" @click.stop="handleAddToPlaylist" title="添加到歌单" aria-label="添加到歌单">
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 15px; height: 15px;">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          </svg>
+        </template>
+      </NButton>
+      <NButton size="tiny" quaternary circle type="info" @click.stop="handleAddToList" title="添加到播放列表" aria-label="添加到播放列表">
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width: 15px; height: 15px;">
+            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+          </svg>
+        </template>
+      </NButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { NButton } from 'naive-ui'
 import { usePlayerStore } from '../store/player'
 import type { MusicInfo } from '../types/music'
 import { formatQualityLabel, getTrackDisplayQuality } from '../lib/trackQuality'

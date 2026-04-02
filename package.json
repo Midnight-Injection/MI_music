@@ -20,8 +20,10 @@
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "@types/crypto-js": "^4.2.2",
+    "@vicons/ionicons5": "^0.13.0",
     "crypto-js": "^4.2.0",
     "motion-v": "^2.0.0",
+    "naive-ui": "^2.44.1",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"

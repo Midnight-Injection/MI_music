@@ -25,7 +25,9 @@
 
     <ContextRail v-if="showContextRail" class="app-layout-shell__rail" />
 
-    <PlayerBar v-if="showPlayerBar" class="app-layout-shell__player" />
+    <div v-if="showPlayerBar" class="app-layout-shell__player-slot">
+      <PlayerBar class="app-layout-shell__player" />
+    </div>
   </div>
 </template>
 
@@ -73,6 +75,7 @@ const pageMotion = computed(() => {
 
 <style scoped lang="scss">
 .app-layout-shell {
+  --app-layout-shell-panel-radius: var(--window-frame-radius, var(--radius-lg));
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -152,9 +155,21 @@ const pageMotion = computed(() => {
   z-index: 2;
 }
 
-.app-layout-shell__player {
+.app-layout-shell__player-slot {
+  --player-bar-radius: var(--app-layout-shell-panel-radius);
   grid-area: player;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--app-layout-shell-panel-radius);
+  z-index: 8;
+}
+
+.app-layout-shell__player {
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  border-radius: inherit;
   z-index: 8;
 }
 
