@@ -1120,7 +1120,7 @@ const currentTrackHealthRows = computed(() => {
 })
 
 const currentAppVersion = computed(() =>
-  appUpdateStore.currentVersion === '...' ? '0.1.1' : appUpdateStore.currentVersion
+  appUpdateStore.currentVersion === '...' ? '0.1.2' : appUpdateStore.currentVersion
 )
 
 const appUpdateStatusLabel = computed(() => {

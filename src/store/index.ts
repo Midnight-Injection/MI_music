@@ -10,7 +10,7 @@ import { useAppUpdateStore } from './appUpdate'
 
 export const useStore = defineStore('main', {
   state: () => ({
-    version: '0.1.1' as const,
+    version: '0.1.2' as const,
   }),
   actions: {},
 })
