@@ -20,6 +20,8 @@
     "shell:allow-open",
     "dialog:default",
     "fs:default",
+    "process:default",
+    "updater:default",
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",

@@ -12,8 +12,13 @@
           <template #trigger>
             <NButton quaternary circle size="small" @click="exportSettings">
               <template #icon>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px">
-                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  style="width: 18px; height: 18px"
+                >
+                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                 </svg>
               </template>
             </NButton>
@@ -24,8 +29,13 @@
           <template #trigger>
             <NButton quaternary circle size="small" @click="importSettings">
               <template #icon>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px">
-                  <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  style="width: 18px; height: 18px"
+                >
+                  <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
                 </svg>
               </template>
             </NButton>
@@ -56,7 +66,12 @@
               </span>
             </div>
             <button
-              :class="['toggle-btn', 'app-button', 'compact', channel.enabled ? 'danger' : 'success']"
+              :class="[
+                'toggle-btn',
+                'app-button',
+                'compact',
+                channel.enabled ? 'danger' : 'success',
+              ]"
               @click="toggleChannel(channel.id, !channel.enabled)"
             >
               {{ channel.enabled ? '禁用' : '启用' }}
@@ -74,15 +89,24 @@
             <div class="header-buttons">
               <NButton type="primary" size="small" @click="importUserSource">
                 <template #icon>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px">
-                    <path d="M12 5v14M5 12h14"/>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="width: 18px; height: 18px"
+                  >
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
                 </template>
                 导入音源
               </NButton>
             </div>
           </div>
-          <p class="section-description">导入 JS 自定义音源脚本。数字越小优先级越高；当前音源仍会优先参与对应歌曲的解析。播放器里的音频质量设置会直接影响这里的解析档位选择。</p>
+          <p class="section-description">
+            导入 JS
+            自定义音源脚本。数字越小优先级越高；当前音源仍会优先参与对应歌曲的解析。播放器里的音频质量设置会直接影响这里的解析档位选择。
+          </p>
 
           <div v-if="userSourceStore.isLoading" class="loading-state">
             <div class="loading-spinner"></div>
@@ -92,7 +116,9 @@
           <div v-else-if="userSourceStore.userSources.length === 0" class="empty-state">
             <div class="empty-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                <path
+                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
             <p class="empty-title">暂无自定义音源</p>
@@ -109,7 +135,9 @@
               <div class="card-header">
                 <div class="card-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                    <path
+                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                    />
                   </svg>
                 </div>
                 <div class="card-info">
@@ -117,20 +145,37 @@
                   <div class="card-meta">
                     <span v-if="source.author" class="meta-item">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        <path
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
                       </svg>
                       {{ source.author }}
                     </span>
                     <span v-if="source.version" class="meta-item">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        <path
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
                       </svg>
                       v{{ source.version }}
                     </span>
                   </div>
                 </div>
-                <div :class="['card-status', 'app-pill', 'compact', source.enabled ? 'success' : 'secondary']">
-                  {{ settingsStore.settings.activeUserSourceId === source.id ? '当前音源' : (source.enabled ? '已启用' : '已禁用') }}
+                <div
+                  :class="[
+                    'card-status',
+                    'app-pill',
+                    'compact',
+                    source.enabled ? 'success' : 'secondary',
+                  ]"
+                >
+                  {{
+                    settingsStore.settings.activeUserSourceId === source.id
+                      ? '当前音源'
+                      : source.enabled
+                        ? '已启用'
+                        : '已禁用'
+                  }}
                 </div>
               </div>
               <p v-if="source.description" class="card-description">{{ source.description }}</p>
@@ -149,17 +194,29 @@
               <div class="card-actions">
                 <NButton
                   size="small"
-                  :type="settingsStore.settings.activeUserSourceId === source.id ? 'primary' : 'default'"
+                  :type="
+                    settingsStore.settings.activeUserSourceId === source.id ? 'primary' : 'default'
+                  "
                   :disabled="!source.enabled"
                   @click="setActiveUserSource(source.id)"
                 >
                   <template #icon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
-                      <path d="M9 12l2 2 4-4"/>
-                      <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      style="width: 16px; height: 16px"
+                    >
+                      <path d="M9 12l2 2 4-4" />
+                      <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
                     </svg>
                   </template>
-                  {{ settingsStore.settings.activeUserSourceId === source.id ? '当前音源' : '设为当前' }}
+                  {{
+                    settingsStore.settings.activeUserSourceId === source.id
+                      ? '当前音源'
+                      : '设为当前'
+                  }}
                 </NButton>
                 <NButton
                   size="small"
@@ -167,24 +224,46 @@
                   @click="toggleUserSource(source.id, !source.enabled)"
                 >
                   <template #icon>
-                    <svg v-if="source.enabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
-                      <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    <svg
+                      v-if="source.enabled"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      style="width: 16px; height: 16px"
+                    >
+                      <path
+                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                      />
                     </svg>
-                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    <svg
+                      v-else
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      style="width: 16px; height: 16px"
+                    >
+                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   </template>
                   {{ source.enabled ? '禁用' : '启用' }}
                 </NButton>
-                <NButton
-                  size="small"
-                  type="error"
-                  @click="deleteUserSource(source.id)"
-                >
+                <NButton size="small" type="error" @click="deleteUserSource(source.id)">
                   <template #icon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
-                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      style="width: 16px; height: 16px"
+                    >
+                      <path
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   </template>
                   删除
@@ -270,9 +349,13 @@
                 {{ diagnosticsOpen ? '收起诊断' : '展开诊断' }}
               </button>
               <NButton size="small" @click="refreshDiagnostics">刷新</NButton>
-              <NButton size="small" secondary @click="handleClearPlaybackSourceCache">清空播放成功缓存</NButton>
+              <NButton size="small" secondary @click="handleClearPlaybackSourceCache"
+                >清空播放成功缓存</NButton
+              >
               <NButton size="small" warning @click="handleClearSourceHealth">清空健康记录</NButton>
-              <NButton size="small" type="error" @click="handleClearBadSourceBlacklist">清空失效音源黑名单</NButton>
+              <NButton size="small" type="error" @click="handleClearBadSourceBlacklist"
+                >清空失效音源黑名单</NButton
+              >
             </div>
 
             <div v-if="diagnosticsOpen" class="diagnostic-grid">
@@ -286,7 +369,9 @@
                 <template v-if="player.currentMusic">
                   <div class="diagnostic-kv">
                     <span>歌曲</span>
-                    <strong>{{ player.currentMusic.name }} - {{ player.currentMusic.artist }}</strong>
+                    <strong
+                      >{{ player.currentMusic.name }} - {{ player.currentMusic.artist }}</strong
+                    >
                   </div>
                   <div class="diagnostic-kv">
                     <span>解析来源</span>
@@ -324,7 +409,9 @@
               <div class="diagnostic-card">
                 <div class="diagnostic-card__header">
                   <h3>成功缓存</h3>
-                  <NTag v-if="currentTrackCacheRecord" type="success" size="small" :bordered="false">命中</NTag>
+                  <NTag v-if="currentTrackCacheRecord" type="success" size="small" :bordered="false"
+                    >命中</NTag
+                  >
                   <NTag v-else type="default" size="small" :bordered="false">空</NTag>
                 </div>
                 <template v-if="currentTrackCacheRecord">
@@ -347,7 +434,9 @@
               <div class="diagnostic-card">
                 <div class="diagnostic-card__header">
                   <h3>失效音源</h3>
-                  <NTag type="warning" size="small" :bordered="false">{{ currentTrackBlockedRecords.length }}</NTag>
+                  <NTag type="warning" size="small" :bordered="false">{{
+                    currentTrackBlockedRecords.length
+                  }}</NTag>
                 </div>
                 <div v-if="currentTrackBlockedRecords.length" class="diagnostic-list">
                   <div
@@ -359,7 +448,8 @@
                       {{ getUserSourceName(record.sourceId) }}
                     </div>
                     <div class="diagnostic-list__meta">
-                      过期于 {{ formatTimestamp(record.expiresAt) }} · {{ formatExpiry(record.expiresAt) }}
+                      过期于 {{ formatTimestamp(record.expiresAt) }} ·
+                      {{ formatExpiry(record.expiresAt) }}
                     </div>
                     <div class="diagnostic-list__reason">{{ record.reason }}</div>
                   </div>
@@ -386,23 +476,25 @@
                         :class="[
                           'app-pill',
                           'compact',
-                          row.record?.cooldownUntil ? 'warning' : row.record ? 'success' : 'secondary',
+                          row.record?.cooldownUntil
+                            ? 'warning'
+                            : row.record
+                              ? 'success'
+                              : 'secondary',
                         ]"
                       >
                         {{
-                          row.record?.cooldownUntil
-                            ? '冷却中'
-                            : row.record
-                              ? '已记录'
-                              : '未记录'
+                          row.record?.cooldownUntil ? '冷却中' : row.record ? '已记录' : '未记录'
                         }}
                       </span>
                     </div>
                     <div class="diagnostic-list__meta">
-                      成功 {{ row.record?.successCount || 0 }} / 失败 {{ row.record?.failureCount || 0 }}
+                      成功 {{ row.record?.successCount || 0 }} / 失败
+                      {{ row.record?.failureCount || 0 }}
                     </div>
                     <div class="diagnostic-list__meta">
-                      最近成功 {{ formatTimestamp(row.record?.lastSuccessAt) }} · 最近失败 {{ formatTimestamp(row.record?.lastFailureAt) }}
+                      最近成功 {{ formatTimestamp(row.record?.lastSuccessAt) }} · 最近失败
+                      {{ formatTimestamp(row.record?.lastFailureAt) }}
                     </div>
                     <div v-if="row.record?.lastError" class="diagnostic-list__reason">
                       {{ row.record.lastError }}
@@ -690,7 +782,106 @@
             :options="syncModeOptions"
             :disabled="true"
           />
-          <p class="sync-placeholder">同步功能将在后续版本实现，当前不会建立任何客户端或服务端连接。</p>
+          <p class="sync-placeholder">
+            同步功能将在后续版本实现，当前不会建立任何客户端或服务端连接。
+          </p>
+        </SettingGroup>
+      </SettingSection>
+
+      <!-- Update Tab -->
+      <SettingSection v-if="activeTab === 'update'" title="应用更新">
+        <SettingGroup
+          title="自动更新"
+          description="从 GitHub Releases 检查新版本，并在桌面端应用内下载安装。"
+        >
+          <SettingItem
+            label="启动时自动检查更新"
+            description="仅在 Tauri 桌面环境中生效。关闭后，仍可在这里手动检查。"
+            type="checkbox"
+            :model-value="settingsStore.settings.autoCheckAppUpdate"
+            @update:model-value="updateSetting('autoCheckAppUpdate', $event)"
+          />
+
+          <div class="update-card">
+            <div class="update-card__meta">
+              <div class="update-card__item">
+                <span class="update-card__label">当前版本</span>
+                <strong class="update-card__value">v{{ currentAppVersion }}</strong>
+              </div>
+              <div class="update-card__item">
+                <span class="update-card__label">更新状态</span>
+                <strong class="update-card__value">{{ appUpdateStatusLabel }}</strong>
+              </div>
+              <div class="update-card__item">
+                <span class="update-card__label">上次检查</span>
+                <strong class="update-card__value">{{ formattedAppUpdateLastCheckedAt }}</strong>
+              </div>
+            </div>
+
+            <div class="update-card__actions">
+              <NButton
+                size="small"
+                :loading="appUpdateStore.status === 'checking'"
+                @click="handleCheckForAppUpdate"
+              >
+                立即检查
+              </NButton>
+              <NButton
+                v-if="appUpdateStore.availableUpdate"
+                type="primary"
+                size="small"
+                :loading="
+                  appUpdateStore.status === 'downloading' || appUpdateStore.status === 'installing'
+                "
+                @click="handleInstallAppUpdate"
+              >
+                立即安装
+              </NButton>
+            </div>
+          </div>
+
+          <div class="update-status">
+            <div class="update-status__header">
+              <span class="update-status__title">{{ appUpdateStatusLabel }}</span>
+              <span class="update-status__desc">{{ appUpdateStatusDescription }}</span>
+            </div>
+
+            <NProgress
+              v-if="appUpdateStore.progress"
+              type="line"
+              :percentage="updateProgressPercent"
+              :processing="appUpdateStore.status === 'downloading'"
+              :show-indicator="updateProgressPercent >= 0"
+              status="success"
+            />
+
+            <div v-if="appUpdateStore.progress" class="update-progress-meta">
+              <span>已下载 {{ appUpdateStore.progress.downloadedBytes }} 字节</span>
+              <span>总大小 {{ appUpdateStore.progress.contentLength ?? '-' }} 字节</span>
+            </div>
+
+            <p v-if="appUpdateStore.errorMessage" class="update-status__error">
+              {{ appUpdateStore.errorMessage }}
+            </p>
+          </div>
+
+          <div v-if="appUpdateStore.availableUpdate" class="update-notes">
+            <div class="update-notes__meta">
+              <div>
+                <span class="update-card__label">新版本</span>
+                <strong class="update-card__value"
+                  >v{{ appUpdateStore.availableUpdate.version }}</strong
+                >
+              </div>
+              <div>
+                <span class="update-card__label">发布时间</span>
+                <strong class="update-card__value">{{ formattedAppUpdatePublishedAt }}</strong>
+              </div>
+            </div>
+            <pre class="update-notes__content">{{
+              appUpdateStore.availableUpdate.notes || '当前版本没有附带更新说明。'
+            }}</pre>
+          </div>
         </SettingGroup>
       </SettingSection>
 
@@ -700,7 +891,7 @@
         <div class="about-info">
           <div class="about-item">
             <span class="about-label">版本</span>
-            <span class="about-value">1.0.0</span>
+            <span class="about-value">v{{ currentAppVersion }}</span>
           </div>
           <div class="about-item">
             <span class="about-label">作者</span>
@@ -712,14 +903,22 @@
           </div>
         </div>
         <div class="about-links">
-          <NButton tag="a" href="https://github.com/yourusername/jiyu-music" text secondary size="small">
-              <template #icon>
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-              </template>
-              GitHub
-            </NButton>
+          <NButton
+            tag="a"
+            href="https://github.com/Midnight-Injection/MI_music"
+            text
+            secondary
+            size="small"
+          >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px">
+                <path
+                  d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                />
+              </svg>
+            </template>
+            GitHub
+          </NButton>
         </div>
         <div class="reset-section">
           <NButton type="error" size="small" @click="resetAllSettings">重置所有设置</NButton>
@@ -731,7 +930,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { NTabs, NTab, NButton, NTooltip, NTag, useMessage, useDialog } from 'naive-ui'
+import { NTabs, NTab, NButton, NTooltip, NTag, NProgress, useMessage, useDialog } from 'naive-ui'
+import { useAppUpdateStore } from '../store/appUpdate'
 import { useSettingsStore } from '../store/settings'
 import { useThemeStore } from '../store/theme'
 import { usePlayerStore } from '../store/player'
@@ -763,6 +963,7 @@ import { resolveMusicChannel } from '../modules/playback/types'
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
 const player = usePlayerStore()
+const appUpdateStore = useAppUpdateStore()
 const userSourceStore = useUserSourceStore()
 const message = useMessage()
 const dialog = useDialog()
@@ -780,52 +981,53 @@ const tabs = [
   { key: 'theme', label: '主题' },
   { key: 'network', label: '网络' },
   { key: 'sync', label: '同步' },
+  { key: 'update', label: '应用更新' },
   { key: 'sources', label: '渠道 / 音源' },
-  { key: 'about', label: '关于' }
+  { key: 'about', label: '关于' },
 ]
 
 // Option definitions
 const languageOptions = [
   { value: 'zh-CN', label: '简体中文' },
   { value: 'zh-TW', label: '繁體中文' },
-  { value: 'en-US', label: 'English' }
+  { value: 'en-US', label: 'English' },
 ]
 
 const windowSizeOptions = [
   { value: 'small', label: '小' },
   { value: 'medium', label: '中' },
   { value: 'large', label: '大' },
-  { value: 'custom', label: '自定义' }
+  { value: 'custom', label: '自定义' },
 ]
 
 const playModeOptions = [
   { value: 'loop', label: '列表循环' },
   { value: 'single', label: '单曲循环' },
-  { value: 'random', label: '随机播放' }
+  { value: 'random', label: '随机播放' },
 ]
 
 const audioQualityOptions = [
   { value: 'standard', label: '标准' },
   { value: 'high', label: '高品质' },
-  { value: 'lossless', label: '无损' }
+  { value: 'lossless', label: '无损' },
 ]
 
 const lyricPositionOptions = [
   { value: 'top', label: '顶部' },
   { value: 'center', label: '居中' },
-  { value: 'bottom', label: '底部' }
+  { value: 'bottom', label: '底部' },
 ]
 
 const themeModeOptions = [
   { value: 'light', label: '浅色' },
   { value: 'dark', label: '深色' },
-  { value: 'auto', label: '自动' }
+  { value: 'auto', label: '自动' },
 ]
 
 const syncModeOptions = [
   { value: 'disabled', label: '禁用' },
   { value: 'server', label: '服务器模式' },
-  { value: 'client', label: '客户端模式' }
+  { value: 'client', label: '客户端模式' },
 ]
 
 const baseplateStyleOptions = [
@@ -888,7 +1090,9 @@ const truncatedResolvedUrl = computed(() => {
 const currentTrackCacheRecord = computed(() => {
   diagnosticTick.value
   if (!player.currentMusic) return null
-  return getPlaybackSourceCacheRecord(player.currentMusic, settingsStore.settings.audioQuality) || null
+  return (
+    getPlaybackSourceCacheRecord(player.currentMusic, settingsStore.settings.audioQuality) || null
+  )
 })
 
 const currentTrackBlockedRecords = computed(() => {
@@ -910,21 +1114,89 @@ const currentTrackHealthRows = computed(() => {
       record:
         records.find(
           (item) =>
-            item.channel === channel
-            && item.action === 'musicUrl'
-            && item.sourceId === source.id,
+            item.channel === channel && item.action === 'musicUrl' && item.sourceId === source.id
         ) || null,
     }))
 })
+
+const currentAppVersion = computed(() =>
+  appUpdateStore.currentVersion === '...' ? '0.1.1' : appUpdateStore.currentVersion
+)
+
+const appUpdateStatusLabel = computed(() => {
+  switch (appUpdateStore.status) {
+    case 'checking':
+      return '正在检查更新'
+    case 'up-to-date':
+      return '已是最新版本'
+    case 'available':
+      return `发现新版本 v${appUpdateStore.availableUpdate?.version ?? '-'}`
+    case 'downloading':
+      return '正在下载更新'
+    case 'installing':
+      return '正在安装更新'
+    case 'completed':
+      return '更新已安装'
+    case 'error':
+      return '更新失败'
+    case 'unsupported':
+      return '当前环境不支持'
+    default:
+      return '等待检查'
+  }
+})
+
+const appUpdateStatusDescription = computed(() => {
+  if (appUpdateStore.status === 'error') {
+    return appUpdateStore.errorMessage || '更新流程执行失败'
+  }
+
+  if (appUpdateStore.availableUpdate) {
+    return `当前版本 v${currentAppVersion.value}，可升级到 v${appUpdateStore.availableUpdate.version}`
+  }
+
+  if (appUpdateStore.status === 'up-to-date') {
+    return `当前版本 v${currentAppVersion.value} 无需升级`
+  }
+
+  if (appUpdateStore.status === 'unsupported') {
+    return '仅 Tauri 桌面应用支持应用内自动更新'
+  }
+
+  return '发布新版本后，这里会显示 GitHub Releases 里的更新信息'
+})
+
+const formattedAppUpdateLastCheckedAt = computed(() =>
+  formatIsoDateTime(appUpdateStore.lastCheckedAt)
+)
+
+const formattedAppUpdatePublishedAt = computed(() =>
+  formatIsoDateTime(appUpdateStore.availableUpdate?.publishedAt ?? null)
+)
+
+const updateProgressPercent = computed(() => appUpdateStore.progress?.percent ?? 0)
 
 function refreshDiagnostics() {
   diagnosticTick.value += 1
   message.info('播放诊断已刷新')
 }
 
+function formatIsoDateTime(value: string | null | undefined) {
+  if (!value) return '尚未检查'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
 function getUserSourceName(sourceId?: string | null) {
   if (!sourceId) return '未知音源'
-  return userSourceStore.sortedUserSources.find((source) => source.id === sourceId)?.name || sourceId
+  return (
+    userSourceStore.sortedUserSources.find((source) => source.id === sourceId)?.name || sourceId
+  )
 }
 
 function formatTimestamp(timestamp?: number) {
@@ -1051,15 +1323,51 @@ async function updateBaseplateUseThemeAccent(value: boolean) {
   message.success(value ? '已启用主题高光联动' : '已关闭主题高光联动')
 }
 
+async function handleCheckForAppUpdate() {
+  const update = await appUpdateStore.checkForUpdates()
+
+  if (update) {
+    message.success(`检测到新版本 v${update.version}`)
+    return
+  }
+
+  if (appUpdateStore.status === 'up-to-date') {
+    message.success(`当前已是最新版本 v${currentAppVersion.value}`)
+    return
+  }
+
+  if (appUpdateStore.status === 'unsupported') {
+    message.warning('当前环境不支持自动更新')
+    return
+  }
+
+  if (appUpdateStore.status === 'error') {
+    message.error(appUpdateStore.errorMessage || '检查更新失败')
+  }
+}
+
+async function handleInstallAppUpdate() {
+  const ok = await appUpdateStore.installUpdate()
+
+  if (ok) {
+    message.success('更新包已安装，若应用未自动重启，请手动重启以完成切换')
+    return
+  }
+
+  message.error(appUpdateStore.errorMessage || '安装更新失败')
+}
+
 async function selectBaseplateImage() {
   try {
     const selected = await open({
       multiple: false,
       title: '选择底板图片',
-      filters: [{
-        name: 'Image',
-        extensions: ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif']
-      }]
+      filters: [
+        {
+          name: 'Image',
+          extensions: ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif'],
+        },
+      ],
     })
 
     if (!selected || typeof selected !== 'string') return
@@ -1113,7 +1421,7 @@ async function importUserSource() {
 
 // Toggle user source
 async function setActiveUserSource(id: string) {
-  const source = userSourceStore.userSources.find(item => item.id === id)
+  const source = userSourceStore.userSources.find((item) => item.id === id)
   if (!source || !source.enabled) {
     message.error('请先启用该自定义音源')
     return
@@ -1123,7 +1431,7 @@ async function setActiveUserSource(id: string) {
 }
 
 function getPreferredEnabledUserSource(excludeId?: string) {
-  return userSourceStore.enabledSources.find(source => source.id !== excludeId)
+  return userSourceStore.enabledSources.find((source) => source.id !== excludeId)
 }
 
 async function toggleUserSource(id: string, enabled: boolean) {
@@ -1165,7 +1473,7 @@ async function deleteUserSource(id: string) {
         console.error('Failed to delete user source:', error)
         message.error('删除失败')
       }
-    }
+    },
   })
 }
 
@@ -1188,7 +1496,7 @@ async function selectDownloadPath() {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: '选择下载路径'
+      title: '选择下载路径',
     })
 
     if (selected && typeof selected === 'string') {
@@ -1204,33 +1512,39 @@ async function selectDownloadPath() {
 // Export settings to JSON file
 async function exportSettings() {
   try {
-    const settings = JSON.stringify({
-      ...settingsStore.settings,
-      themeColor: themeStore.settings.themeColor,
-      themeMode: themeStore.settings.themeMode,
-      customColor: themeStore.settings.customColor,
-      fontFamilyPreset: themeStore.settings.fontFamilyPreset,
-      textColorPrimary: themeStore.settings.textColorPrimary,
-      textColorSecondary: themeStore.settings.textColorSecondary,
-      baseplateStyle: themeStore.settings.baseplateStyle,
-      baseplateColorA: themeStore.settings.baseplateColorA,
-      baseplateColorB: themeStore.settings.baseplateColorB,
-      baseplateAngle: themeStore.settings.baseplateAngle,
-      baseplateIntensity: themeStore.settings.baseplateIntensity,
-      baseplateUseThemeAccent: themeStore.settings.baseplateUseThemeAccent,
-      baseplateImagePath: themeStore.settings.baseplateImagePath,
-      baseplateImageOpacity: themeStore.settings.baseplateImageOpacity,
-      baseplateImageBlur: themeStore.settings.baseplateImageBlur,
-    }, null, 2)
+    const settings = JSON.stringify(
+      {
+        ...settingsStore.settings,
+        themeColor: themeStore.settings.themeColor,
+        themeMode: themeStore.settings.themeMode,
+        customColor: themeStore.settings.customColor,
+        fontFamilyPreset: themeStore.settings.fontFamilyPreset,
+        textColorPrimary: themeStore.settings.textColorPrimary,
+        textColorSecondary: themeStore.settings.textColorSecondary,
+        baseplateStyle: themeStore.settings.baseplateStyle,
+        baseplateColorA: themeStore.settings.baseplateColorA,
+        baseplateColorB: themeStore.settings.baseplateColorB,
+        baseplateAngle: themeStore.settings.baseplateAngle,
+        baseplateIntensity: themeStore.settings.baseplateIntensity,
+        baseplateUseThemeAccent: themeStore.settings.baseplateUseThemeAccent,
+        baseplateImagePath: themeStore.settings.baseplateImagePath,
+        baseplateImageOpacity: themeStore.settings.baseplateImageOpacity,
+        baseplateImageBlur: themeStore.settings.baseplateImageBlur,
+      },
+      null,
+      2
+    )
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const filename = `jiyu-music-settings-${timestamp}.json`
 
     const savePath = await save({
       defaultPath: filename,
-      filters: [{
-        name: 'JSON',
-        extensions: ['json']
-      }]
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json'],
+        },
+      ],
     })
 
     if (savePath && typeof savePath === 'string') {
@@ -1249,10 +1563,12 @@ async function importSettings() {
     const filePath = await open({
       multiple: false,
       title: '导入设置',
-      filters: [{
-        name: 'JSON',
-        extensions: ['json']
-      }]
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json'],
+        },
+      ],
     })
 
     if (filePath && typeof filePath === 'string') {
@@ -1337,7 +1653,7 @@ async function resetAllSettings() {
       await themeStore.resetTheme()
       settingsStore.syncThemeSettings(themeStore.settings)
       message.info('设置已重置为默认值')
-    }
+    },
   })
 }
 
@@ -1345,6 +1661,8 @@ onMounted(async () => {
   if (!userSourceStore.isLoaded) {
     await userSourceStore.loadUserSources()
   }
+
+  await appUpdateStore.initialize()
 })
 </script>
 
@@ -1479,6 +1797,105 @@ onMounted(async () => {
   color: var(--text-secondary);
   line-height: 1.6;
   font-size: 0.9rem;
+}
+
+.update-card,
+.update-status,
+.update-notes {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.update-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.update-card__meta {
+  flex: 1 1 420px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.update-card__item,
+.update-notes__meta {
+  display: grid;
+  gap: 6px;
+}
+
+.update-card__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.update-card__value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.update-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-status {
+  display: grid;
+  gap: 14px;
+}
+
+.update-status__header {
+  display: grid;
+  gap: 6px;
+}
+
+.update-status__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.update-status__desc,
+.update-progress-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.update-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.update-status__error {
+  margin: 0;
+  color: var(--danger-color);
+  font-size: 12px;
+}
+
+.update-notes__meta {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 12px;
+}
+
+.update-notes__content {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .baseplate-image-actions {
@@ -2031,8 +2448,6 @@ onMounted(async () => {
 .reset-btn {
   font-size: 14px;
 }
-
-
 
 @media (max-width: 768px) {
   .setting-page {

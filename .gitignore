@@ -28,6 +28,7 @@ src-tauri/target
 
 # Local workspace artifacts
 .claude
+.local/
 .omc
 .planning
 --status

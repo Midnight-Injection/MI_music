@@ -1,6 +1,7 @@
 import { onUnmounted, ref } from 'vue'
 import { usePlaylistStore } from '../store/playlist'
 import { usePlayerStore } from '../store/player'
+import { useAppUpdateStore } from '../store/appUpdate'
 import { useSettingsStore } from '../store/settings'
 import { useThemeStore } from '../store/theme'
 import { useUserSourceStore } from '../stores/userSource'
@@ -16,6 +17,7 @@ export function useAppBootstrap() {
   const themeStore = useThemeStore()
   const playlistStore = usePlaylistStore()
   const playerStore = usePlayerStore()
+  const appUpdateStore = useAppUpdateStore()
   const userSourceStore = useUserSourceStore()
   const appliedSettings = useAppliedSettings()
 
@@ -65,12 +67,15 @@ export function useAppBootstrap() {
     if (unsubscribePlayer) return
 
     unsubscribePlayer = playerStore.$subscribe((_mutation, state) => {
-      localStorage.setItem('player-session', JSON.stringify({
-        playlist: state.playlist,
-        currentIndex: state.currentIndex,
-        currentTime: state.currentTime,
-        wasPlaying: state.isPlaying,
-      }))
+      localStorage.setItem(
+        'player-session',
+        JSON.stringify({
+          playlist: state.playlist,
+          currentIndex: state.currentIndex,
+          currentTime: state.currentTime,
+          wasPlaying: state.isPlaying,
+        })
+      )
     })
   }
 
@@ -119,10 +124,17 @@ export function useAppBootstrap() {
       ensureSettingsPersistence()
       ensurePlayerPersistence()
 
+      try {
+        await appUpdateStore.initialize()
+        await appUpdateStore.runStartupCheck()
+      } catch (error) {
+        console.warn('Failed to initialize app updater:', error)
+      }
+
       if (
-        restoredPlayerSession?.wasPlaying
-        && settingsStore.settings.startupAutoPlay
-        && playerStore.currentMusic
+        restoredPlayerSession?.wasPlaying &&
+        settingsStore.settings.startupAutoPlay &&
+        playerStore.currentMusic
       ) {
         try {
           await playerStore.playMusic(playerStore.currentMusic)

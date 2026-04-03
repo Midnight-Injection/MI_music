@@ -2,15 +2,26 @@ export type Language = 'zh-CN' | 'zh-TW' | 'en-US'
 export type WindowSize = 'small' | 'medium' | 'large' | 'custom'
 export type PlayMode = 'loop' | 'single' | 'random'
 export type AudioQuality = 'standard' | 'high' | 'lossless'
-export type ThemeColorType = 'green' | 'blue' | 'red' | 'pink' | 'purple' | 'orange' | 'black' | 'grey' | 'custom'
+export type ThemeColorType =
+  | 'green'
+  | 'blue'
+  | 'red'
+  | 'pink'
+  | 'purple'
+  | 'orange'
+  | 'black'
+  | 'grey'
+  | 'custom'
 export type ThemeMode = 'light' | 'dark' | 'auto'
 export type BaseplateStyle = 'solid' | 'linear-gradient' | 'radial-gradient' | 'image'
 export type ControlPosition = 'left' | 'right'
 export type FontFamilyPreset = 'system' | 'apple' | 'windows' | 'serif'
 
 export const FONT_FAMILY_STACKS: Record<FontFamilyPreset, string> = {
-  system: '"Avenir Next", "SF Pro Display", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
-  apple: '"SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif',
+  system:
+    '"Avenir Next", "SF Pro Display", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  apple:
+    '"SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif',
   windows: '"Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif',
   serif: '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif',
 }
@@ -27,7 +38,7 @@ export const DEFAULT_CHANNEL_CONFIGS: ChannelConfig[] = [
   { id: 'kg', name: '酷狗', enabled: false },
   { id: 'wy', name: '网易', enabled: false },
   { id: 'tx', name: '腾讯', enabled: false },
-  { id: 'mg', name: '咪咕', enabled: false }
+  { id: 'mg', name: '咪咕', enabled: false },
 ]
 
 // Source name mapping for display
@@ -37,7 +48,7 @@ export const CHANNEL_NAMES: Record<string, string> = {
   kg: '酷狗音乐',
   wy: '网易云音乐',
   tx: 'QQ音乐',
-  mg: '咪咕音乐'
+  mg: '咪咕音乐',
 }
 
 // Settings interface
@@ -48,6 +59,8 @@ export interface Settings {
   fontSize: number
   animation: boolean
   controlPosition: ControlPosition
+  autoCheckAppUpdate: boolean
+  appUpdateLastCheckedAt: string
 
   // Player
   startupAutoPlay: boolean
@@ -110,6 +123,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: 14,
   animation: true,
   controlPosition: 'left',
+  autoCheckAppUpdate: true,
+  appUpdateLastCheckedAt: '',
 
   // Player
   startupAutoPlay: false,
@@ -161,5 +176,5 @@ export const DEFAULT_SETTINGS: Settings = {
 
   // Sources
   sources: [...DEFAULT_CHANNEL_CONFIGS],
-  activeUserSourceId: ''
+  activeUserSourceId: '',
 }
