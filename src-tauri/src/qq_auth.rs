@@ -58,7 +58,11 @@ pub async fn ensure_qq_auth_session(
             drop(guard);
 
             if let Err(error) = open_auth_window(&app, state.inner().clone()) {
-                finish_auth(state.inner().clone(), QqAuthOutcome::Failed(error.to_string())).await;
+                finish_auth(
+                    state.inner().clone(),
+                    QqAuthOutcome::Failed(error.to_string()),
+                )
+                .await;
             }
         }
 
@@ -154,7 +158,9 @@ async fn finalize_auth_success(app: AppHandle, state: SharedQqAuthState) -> Resu
     Ok(())
 }
 
-async fn extract_cookie_header<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) -> Option<String> {
+async fn extract_cookie_header<R: tauri::Runtime>(
+    window: &tauri::WebviewWindow<R>,
+) -> Option<String> {
     let target_urls = [
         "https://y.qq.com/",
         "https://c.y.qq.com/",
@@ -213,6 +219,5 @@ async fn finish_auth(state: SharedQqAuthState, outcome: QqAuthOutcome) {
 }
 
 fn is_login_success_url(url: &Url) -> bool {
-    url.host_str() == Some(QQ_AUTH_SUCCESS_HOST)
-        && url.path().starts_with(QQ_AUTH_SUCCESS_PATH)
+    url.host_str() == Some(QQ_AUTH_SUCCESS_HOST) && url.path().starts_with(QQ_AUTH_SUCCESS_PATH)
 }

@@ -817,7 +817,8 @@ impl MusicSource for QqSource {
     }
 
     async fn get_playlist_detail(&self, playlist_id: &str) -> Result<SourcePlaylistDetail> {
-        self.get_playlist_detail_with_cookie(playlist_id, None).await
+        self.get_playlist_detail_with_cookie(playlist_id, None)
+            .await
     }
 
     fn source_name(&self) -> &'static str {

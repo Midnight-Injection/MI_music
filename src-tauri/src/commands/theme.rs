@@ -62,7 +62,9 @@ fn get_theme_assets_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn extract_extension(path: &Path) -> &str {
-    path.extension().and_then(|ext| ext.to_str()).unwrap_or("png")
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("png")
 }
 
 fn is_managed_theme_asset(path: &Path, assets_dir: &Path) -> bool {
@@ -74,17 +76,15 @@ async fn get_string_setting(
     key: &str,
     fallback: &str,
 ) -> Result<String, String> {
-    Ok(match Setting::get(pool, key).await.map_err(|e| e.to_string())? {
-        Some(setting) => setting.value,
-        None => fallback.to_string(),
-    })
+    Ok(
+        match Setting::get(pool, key).await.map_err(|e| e.to_string())? {
+            Some(setting) => setting.value,
+            None => fallback.to_string(),
+        },
+    )
 }
 
-async fn get_i32_setting(
-    pool: &sqlx::SqlitePool,
-    key: &str,
-    fallback: i32,
-) -> Result<i32, String> {
+async fn get_i32_setting(pool: &sqlx::SqlitePool, key: &str, fallback: i32) -> Result<i32, String> {
     let value = get_string_setting(pool, key, &fallback.to_string()).await?;
     Ok(value.parse::<i32>().unwrap_or(fallback))
 }
@@ -225,9 +225,24 @@ pub async fn set_theme(
     )
     .await?;
     save_theme_setting(pool, "baseplate_style", settings.baseplate_style.clone()).await?;
-    save_theme_setting(pool, "baseplate_color_a", settings.baseplate_color_a.clone()).await?;
-    save_theme_setting(pool, "baseplate_color_b", settings.baseplate_color_b.clone()).await?;
-    save_theme_setting(pool, "baseplate_angle", settings.baseplate_angle.to_string()).await?;
+    save_theme_setting(
+        pool,
+        "baseplate_color_a",
+        settings.baseplate_color_a.clone(),
+    )
+    .await?;
+    save_theme_setting(
+        pool,
+        "baseplate_color_b",
+        settings.baseplate_color_b.clone(),
+    )
+    .await?;
+    save_theme_setting(
+        pool,
+        "baseplate_angle",
+        settings.baseplate_angle.to_string(),
+    )
+    .await?;
     save_theme_setting(
         pool,
         "baseplate_intensity",
@@ -293,9 +308,24 @@ pub async fn reset_theme(db_state: State<'_, DbState>) -> Result<ThemeSettings, 
     )
     .await?;
     save_theme_setting(pool, "baseplate_style", defaults.baseplate_style.clone()).await?;
-    save_theme_setting(pool, "baseplate_color_a", defaults.baseplate_color_a.clone()).await?;
-    save_theme_setting(pool, "baseplate_color_b", defaults.baseplate_color_b.clone()).await?;
-    save_theme_setting(pool, "baseplate_angle", defaults.baseplate_angle.to_string()).await?;
+    save_theme_setting(
+        pool,
+        "baseplate_color_a",
+        defaults.baseplate_color_a.clone(),
+    )
+    .await?;
+    save_theme_setting(
+        pool,
+        "baseplate_color_b",
+        defaults.baseplate_color_b.clone(),
+    )
+    .await?;
+    save_theme_setting(
+        pool,
+        "baseplate_angle",
+        defaults.baseplate_angle.to_string(),
+    )
+    .await?;
     save_theme_setting(
         pool,
         "baseplate_intensity",
@@ -345,7 +375,8 @@ pub async fn import_theme_baseplate_image(
     }
 
     let assets_dir = get_theme_assets_dir(&app)?;
-    fs::create_dir_all(&assets_dir).map_err(|e| format!("Failed to create theme assets dir: {}", e))?;
+    fs::create_dir_all(&assets_dir)
+        .map_err(|e| format!("Failed to create theme assets dir: {}", e))?;
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
