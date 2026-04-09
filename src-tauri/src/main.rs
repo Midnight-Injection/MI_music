@@ -1,9 +1,81 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Mutex as AsyncMutex;
 
+fn startup_log_path() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(base_dir) = std::env::var_os("LOCALAPPDATA").or_else(|| std::env::var_os("APPDATA")) {
+            return PathBuf::from(base_dir)
+                .join("Jiyu Music")
+                .join("logs")
+                .join("startup.log");
+        }
+    }
+
+    std::env::temp_dir()
+        .join("jiyu_music")
+        .join("logs")
+        .join("startup.log")
+}
+
+fn write_startup_log(message: &str) {
+    let log_path = startup_log_path();
+    if let Some(parent) = log_path.parent() {
+        let _ = create_dir_all(parent);
+    }
+
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(log_path) {
+        let _ = writeln!(
+            file,
+            "[{}] {}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+            message
+        );
+    }
+}
+
+fn init_startup_logging() {
+    let panic_log_path = startup_log_path();
+    if let Some(parent) = panic_log_path.parent() {
+        let _ = create_dir_all(parent);
+    }
+
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let location = panic_info
+            .location()
+            .map(|location| format!("{}:{}", location.file(), location.line()))
+            .unwrap_or_else(|| "unknown".to_string());
+        let payload = if let Some(message) = panic_info.payload().downcast_ref::<&str>() {
+            (*message).to_string()
+        } else if let Some(message) = panic_info.payload().downcast_ref::<String>() {
+            message.clone()
+        } else {
+            "panic without string payload".to_string()
+        };
+
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&panic_log_path) {
+            let _ = writeln!(
+                file,
+                "[{}] panic at {}: {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                location,
+                payload
+            );
+        }
+    }));
+
+    write_startup_log("startup logging initialized");
+}
+
 fn main() {
+    init_startup_logging();
+    write_startup_log("starting tauri application");
+
     // Create database state
     let db_state: Arc<AsyncMutex<Option<jiyu_music::Database>>> = Arc::new(AsyncMutex::new(None));
 
@@ -12,7 +84,17 @@ fn main() {
         Arc::new(Mutex::new(jiyu_music::LyricsState::new()));
 
     // Create player state
-    let player = jiyu_music::Player::new().expect("Failed to initialize audio player");
+    let player = match jiyu_music::Player::new() {
+        Ok(player) => {
+            write_startup_log("player initialized successfully");
+            player
+        }
+        Err(error) => {
+            write_startup_log(&format!("player initialization failed: {}", error));
+            eprintln!("Failed to initialize audio player: {}", error);
+            return;
+        }
+    };
     let player_state = Arc::new(AsyncMutex::new(player));
 
     // QQ auth state, in-memory only for current app run.
@@ -29,12 +111,15 @@ fn main() {
     #[cfg(feature = "dev-tools")]
     let builder = builder.plugin(tauri_plugin_mcp_bridge::init());
 
+    write_startup_log("plugins registered");
+
     builder
         .manage(db_state)
         .manage(lyrics_state)
         .manage(player_state)
         .manage(qq_auth_state)
         .setup(|app| {
+            write_startup_log("entering setup");
             // ── 创建主窗口 ──────────────────────────────────────
             // 需要在代码中创建（而非 tauri.conf.json），以便在 Windows 上
             // 注入 WebView2 浏览器参数，解决 autoplay 策略限制。
@@ -49,10 +134,24 @@ fn main() {
                     .resizable(true)
                     .accept_first_mouse(true)
                     .decorations(false)
-                    .transparent(true)
-                    .shadow(false)
                     .fullscreen(false)
-                    .devtools(true);
+                    .visible(true);
+
+            #[cfg(debug_assertions)]
+            {
+                builder = builder.devtools(true);
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                builder = builder.transparent(true).shadow(false);
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                // Windows/WebView2 对透明无边框窗口更敏感，先以稳定启动为优先。
+                builder = builder.transparent(false).shadow(true);
+            }
 
             // Windows: 允许 WebView2 自动播放音频（无需用户手势）
             // 这是音乐应用的必要配置，否则异步 URL 解析后会丢失用户手势上下文
@@ -62,7 +161,12 @@ fn main() {
                     builder.additional_browser_args("--autoplay-policy=no-user-gesture-required");
             }
 
-            builder.build().expect("Failed to create main window");
+            builder.build().map_err(|error| {
+                write_startup_log(&format!("failed to create main window: {}", error));
+                error
+            })?;
+
+            write_startup_log("main window created");
 
             Ok(())
         })
@@ -190,5 +294,8 @@ fn main() {
             jiyu_music::reset_theme,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|error| {
+            write_startup_log(&format!("error while running tauri application: {}", error));
+            panic!("error while running tauri application: {}", error);
+        });
 }

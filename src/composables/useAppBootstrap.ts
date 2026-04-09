@@ -8,8 +8,28 @@ import { useUserSourceStore } from '../stores/userSource'
 import { ensureDatabaseInitialized } from '../utils/tauriDatabase'
 import { useAppliedSettings } from './useAppliedSettings'
 
+const STARTUP_TIMEOUT_MS = 10000
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = STARTUP_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label}超时（>${Math.round(timeoutMs / 1000)}s）`))
+    }, timeoutMs)
+
+    promise
+      .then(value => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch(error => {
+        window.clearTimeout(timer)
+        reject(error)
+      })
+  })
 }
 
 export function useAppBootstrap() {
@@ -29,6 +49,45 @@ export function useAppBootstrap() {
   let bootstrapPromise: Promise<void> | null = null
   let unsubscribeSettings: (() => void) | null = null
   let unsubscribePlayer: (() => void) | null = null
+  const bootstrapErrors: string[] = []
+
+  function commitBootstrapState() {
+    errorMessage.value = bootstrapErrors.length ? bootstrapErrors.join('；') : null
+    isReady.value = bootstrapErrors.length === 0
+  }
+
+  function recordBootstrapError(message: string) {
+    if (!bootstrapErrors.includes(message)) {
+      bootstrapErrors.push(message)
+      commitBootstrapState()
+    }
+  }
+
+  async function runStartupTask(
+    label: string,
+    task: () => Promise<void> | void,
+    options: { critical?: boolean; timeoutMs?: number } = {}
+  ) {
+    try {
+      await withTimeout(Promise.resolve().then(() => task()), label, options.timeoutMs)
+    } catch (error) {
+      const message = `${label}失败：${getErrorMessage(error)}`
+      if (options.critical) {
+        console.error(`[Bootstrap] ${message}`, error)
+      } else {
+        console.warn(`[Bootstrap] ${message}`, error)
+      }
+      recordBootstrapError(message)
+    }
+  }
+
+  function scheduleBackgroundTask(
+    label: string,
+    task: () => Promise<void> | void,
+    timeoutMs = STARTUP_TIMEOUT_MS
+  ) {
+    void runStartupTask(label, task, { timeoutMs })
+  }
 
   function hydrateSettingsFromLocalStorage() {
     const saved = localStorage.getItem('settings')
@@ -85,68 +144,37 @@ export function useAppBootstrap() {
     bootstrapPromise = (async () => {
       isLoading.value = true
       errorMessage.value = null
+      bootstrapErrors.length = 0
+      isReady.value = false
 
       hydrateSettingsFromLocalStorage()
       const restoredPlayerSession = hydratePlayerSessionFromLocalStorage()
+      commitBootstrapState()
 
-      const errors: string[] = []
-
-      try {
-        await ensureDatabaseInitialized()
-      } catch (error) {
-        console.error('Failed to initialize database:', error)
-        errors.push(`数据库初始化失败：${getErrorMessage(error)}`)
-      }
-
-      try {
-        await themeStore.init()
-      } catch (error) {
-        console.error('Failed to initialize theme:', error)
-        errors.push(`主题初始化失败：${getErrorMessage(error)}`)
-      }
-
-      appliedSettings.init()
-
-      try {
-        await playlistStore.init()
-      } catch (error) {
-        console.error('Failed to initialize playlists:', error)
-        errors.push(`歌单初始化失败：${getErrorMessage(error)}`)
-      }
-
-      try {
-        await userSourceStore.loadUserSources()
-      } catch (error) {
-        console.error('Failed to load user sources during bootstrap:', error)
-        errors.push(`用户音源加载失败：${getErrorMessage(error)}`)
-      }
+      await runStartupTask('数据库初始化', ensureDatabaseInitialized, { critical: true })
+      await runStartupTask('主题初始化', () => themeStore.init(), { critical: true })
+      await runStartupTask('应用设置初始化', () => appliedSettings.init(), { critical: true })
 
       ensureSettingsPersistence()
       ensurePlayerPersistence()
 
-      try {
+      hasBootstrapped.value = true
+      commitBootstrapState()
+
+      scheduleBackgroundTask('歌单初始化', () => playlistStore.init())
+      scheduleBackgroundTask('用户音源加载', () => userSourceStore.loadUserSources())
+      scheduleBackgroundTask('应用更新初始化', async () => {
         await appUpdateStore.initialize()
         await appUpdateStore.runStartupCheck()
-      } catch (error) {
-        console.warn('Failed to initialize app updater:', error)
-      }
+      }, 8000)
 
       if (
         restoredPlayerSession?.wasPlaying &&
         settingsStore.settings.startupAutoPlay &&
         playerStore.currentMusic
       ) {
-        try {
-          await playerStore.playMusic(playerStore.currentMusic)
-        } catch (error) {
-          console.error('Failed to auto resume last track:', error)
-          errors.push(`自动恢复播放失败：${getErrorMessage(error)}`)
-        }
+        scheduleBackgroundTask('自动恢复播放', () => playerStore.playMusic(playerStore.currentMusic!), 15000)
       }
-
-      errorMessage.value = errors.length ? errors.join('；') : null
-      isReady.value = errors.length === 0
-      hasBootstrapped.value = true
     })()
 
     try {

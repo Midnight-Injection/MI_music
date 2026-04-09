@@ -1,39 +1,101 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 use crate::types::{UserSourceInfo, UserSourceScript};
 
 use super::user_source::{read_user_sources, save_user_sources};
 
+fn contains_js_files(path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+
+    let Ok(entries) = fs::read_dir(path) else {
+        return false;
+    };
+
+    entries.filter_map(Result::ok).any(|entry| {
+        entry
+            .path()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.eq_ignore_ascii_case("js"))
+            .unwrap_or(false)
+    })
+}
+
+fn collect_resource_candidates(resource_dir: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    for relative in [
+        "default-sources",
+        "洛雪音乐-音源",
+        "音源文件",
+        "docs/音源文件",
+        "_up_/docs/音源文件",
+    ] {
+        candidates.push(resource_dir.join(relative));
+    }
+
+    if let Ok(entries) = fs::read_dir(resource_dir) {
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if contains_js_files(&path) {
+                candidates.push(path.clone());
+            }
+
+            if path.is_dir() {
+                if let Ok(children) = fs::read_dir(&path) {
+                    for child in children.filter_map(Result::ok) {
+                        let child_path = child.path();
+                        if contains_js_files(&child_path) {
+                            candidates.push(child_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    candidates
+}
+
 /// Get the default sources directory path
-/// In dev mode: project_root/洛雪音乐-音源/
-/// In production: app_resource_dir/default-sources/
+/// In dev mode: project_root/洛雪音乐-音源/ or project_root/docs/音源文件/
+/// In production: app_resource_dir/default-sources/ (with bundled path fallbacks)
 fn get_default_sources_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    // Try development path first (project root)
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .map(PathBuf::from)
-        .map_err(|e| format!("Failed to get CARGO_MANIFEST_DIR: {}", e))?;
+    let mut checked_paths = Vec::new();
 
-    let project_root = manifest_dir.parent().ok_or("Failed to get project root")?;
-
-    let dev_sources_dir = project_root.join("洛雪音乐-音源");
-    if dev_sources_dir.exists() {
-        return Ok(dev_sources_dir);
+    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        let manifest_dir = PathBuf::from(manifest_dir);
+        if let Some(project_root) = manifest_dir.parent() {
+            for candidate in [
+                project_root.join("洛雪音乐-音源"),
+                project_root.join("default-sources"),
+                project_root.join("docs").join("音源文件"),
+            ] {
+                checked_paths.push(candidate.display().to_string());
+                if contains_js_files(&candidate) {
+                    return Ok(candidate);
+                }
+            }
+        }
     }
 
-    // Try production path (bundled resources)
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?;
-
-    let prod_sources_dir = resource_dir.join("default-sources");
-    if prod_sources_dir.exists() {
-        return Ok(prod_sources_dir);
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        for candidate in collect_resource_candidates(&resource_dir) {
+            checked_paths.push(candidate.display().to_string());
+            if contains_js_files(&candidate) {
+                return Ok(candidate);
+            }
+        }
     }
 
-    Err("Default sources directory not found. Expected '洛雪音乐-音源/' in project root or 'default-sources/' in resources.".to_string())
+    Err(format!(
+        "Default sources directory not found. Checked: {}",
+        checked_paths.join(", ")
+    ))
 }
 
 /// Check if default sources have been imported

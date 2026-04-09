@@ -43,6 +43,7 @@ pub fn create_lyrics_window(app: &AppHandle) -> tauri::Result<tauri::WebviewWind
         .decorations(false)
         .always_on_top(true)
         .skip_taskbar(true)
+        .visible(false)
         .center()
         .inner_size(600.0, 120.0)
         .resizable(true)
