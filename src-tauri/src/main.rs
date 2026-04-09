@@ -109,6 +109,12 @@ fn main() {
             jiyu_music::probe_media_url,
             jiyu_music::cache_media_url,
             jiyu_music::load_cached_media_blob,
+            jiyu_music::get_cached_playback,
+            jiyu_music::upsert_cached_playback,
+            jiyu_music::clear_cached_playback,
+            jiyu_music::cache_playback_media,
+            jiyu_music::prune_playback_cache,
+            jiyu_music::get_playback_cache_stats,
             // Download commands (from download.rs)
             jiyu_music::create_download_task,
             jiyu_music::get_download_tasks,

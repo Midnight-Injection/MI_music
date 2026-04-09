@@ -68,6 +68,8 @@ export interface Settings {
   audioQuality: AudioQuality
   volume: number
   autoSkipOnError: boolean
+  streamCacheEnabled: boolean
+  streamCacheCapacityMb: number
 
   // Lyrics
   lyricShow: boolean
@@ -132,6 +134,8 @@ export const DEFAULT_SETTINGS: Settings = {
   audioQuality: 'standard',
   volume: 0.8,
   autoSkipOnError: true,
+  streamCacheEnabled: true,
+  streamCacheCapacityMb: 1024,
 
   // Lyrics
   lyricShow: true,

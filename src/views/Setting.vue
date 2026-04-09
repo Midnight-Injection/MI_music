@@ -586,6 +586,24 @@
             :model-value="settingsStore.settings.downloadLyrics"
             @update:model-value="updateSetting('downloadLyrics', $event)"
           />
+          <SettingItem
+            label="听歌缓存"
+            description="播放累计超过 30 秒后，自动缓存到应用数据目录下的 musiccache。"
+            type="checkbox"
+            :model-value="settingsStore.settings.streamCacheEnabled"
+            @update:model-value="updateSetting('streamCacheEnabled', $event)"
+          />
+          <SettingItem
+            label="缓存容量"
+            description="达到容量上限后，会自动清理最近最少使用的缓存文件。"
+            type="number"
+            :model-value="settingsStore.settings.streamCacheCapacityMb"
+            :min="0"
+            :max="10240"
+            suffix=" MB"
+            :disabled="!settingsStore.settings.streamCacheEnabled"
+            @update:model-value="updateSetting('streamCacheCapacityMb', Math.max(0, Number($event) || 0))"
+          />
         </SettingGroup>
       </SettingSection>
 

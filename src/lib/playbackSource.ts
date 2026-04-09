@@ -28,6 +28,8 @@ const RESOLVER_NAMES: Record<PlaybackResolution['resolver'], string> = {
   'custom-source': '自定义音源',
   'built-in': '内置兜底',
   'direct-url': '直链',
+  'cached-local': '本地缓存',
+  'cached-remote': '已保存直链',
 }
 
 export function getChannelDisplayName(channel?: string | null): string | null {
@@ -95,6 +97,14 @@ export function getPlaybackSourceDisplayInfo(
       break
     case 'direct-url':
       primaryLabel = '直链'
+      compactLabel = `${actualChannel || originalChannel} · ${primaryLabel}`
+      break
+    case 'cached-local':
+      primaryLabel = '本地缓存'
+      compactLabel = `${actualChannel || originalChannel} · ${primaryLabel}`
+      break
+    case 'cached-remote':
+      primaryLabel = '已保存直链'
       compactLabel = `${actualChannel || originalChannel} · ${primaryLabel}`
       break
   }

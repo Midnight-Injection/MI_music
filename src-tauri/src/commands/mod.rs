@@ -8,6 +8,7 @@ pub mod download;
 pub mod effects;
 pub mod lyrics;
 pub mod lyrics_window;
+pub mod playback_cache;
 pub mod player;
 pub mod script_runtime;
 pub mod search;
@@ -41,6 +42,10 @@ pub use lyrics::{
 pub use lyrics_window::{
     lock_lyrics_window, set_lyrics_always_on_top, set_lyrics_window_position,
     set_lyrics_window_size, toggle_lyrics_window, update_desktop_lyrics,
+};
+pub use playback_cache::{
+    cache_playback_media, clear_cached_playback, get_cached_playback, get_playback_cache_stats,
+    prune_playback_cache, upsert_cached_playback,
 };
 pub use player::{
     add_to_queue, clear_queue, get_player_state, get_queue, pause_music, play_music, play_next,

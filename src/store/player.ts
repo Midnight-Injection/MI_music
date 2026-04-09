@@ -8,6 +8,12 @@ import { localizePlaybackUrl, warmLocalizedPlaybackUrl } from '../modules/playba
 import { useLyricResolver } from '../modules/playback/lyricResolver'
 import { buildSuspiciousPlaybackMessage } from '../modules/playback/playbackValidation'
 import { usePlaybackResolver } from '../modules/playback/playbackResolver'
+import {
+  cachePlaybackMedia,
+  getCachedPlayback,
+  prunePlaybackCache,
+  upsertCachedPlayback,
+} from '../modules/playback/playbackCache'
 import { rememberSuccessfulSource, forgetSuccessfulSource } from '../modules/playback/sourceSuccessCache'
 import { buildTrackIdentityKey } from '../modules/playback/trackIdentity'
 import type { PlaybackResolution } from '../modules/playback/types'
@@ -42,6 +48,24 @@ interface PersistedPlayerSession {
   wasPlaying?: boolean
 }
 
+interface PlaybackQueueContext {
+  type: 'playlist'
+  playlistId: number
+  playlistName: string
+  tracks: MusicInfo[]
+}
+
+interface TrackPlaybackSession {
+  trackKey: string
+  listenedSeconds: number
+  lastObservedTime: number | null
+  savedResolvedUrl: boolean
+  cachedLocally: boolean
+  prefetchedNext: boolean
+  savingResolvedUrl: boolean
+  cachingLocally: boolean
+}
+
 function nowMs() {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
     return performance.now()
@@ -74,6 +98,7 @@ export const usePlayerStore = defineStore('player', () => {
   const resolvedChannel = ref<MusicSource | null>(null)
   const resolvedUserSourceId = ref<string | null>(null)
   const playbackNotice = ref('')
+  const queueContext = ref<PlaybackQueueContext | null>(null)
   let playbackNoticeTimer: number | null = null
 
   // Lyrics state
@@ -86,7 +111,9 @@ export const usePlayerStore = defineStore('player', () => {
   const resolvedUrl = ref<string | null>(null)
   const isLoadingUrl = ref(false)
   const lyricRequestId = ref(0)
+  const activeResolution = ref<PlaybackResolution | null>(null)
   let loadedTrackKey: string | null = null
+  let trackPlaybackSession: TrackPlaybackSession | null = null
 
   const hasMusic = computed(() => currentMusic.value !== null)
   const hasLyrics = computed(() => lyrics.value.length > 0)
@@ -184,17 +211,22 @@ export const usePlayerStore = defineStore('player', () => {
     audio.onTimeUpdate((time) => {
       currentTime.value = time
       syncCurrentLyricIndexForTime(time)
+      maybeHandleTrackMilestones(time)
     })
 
     audio.onPause(() => {
       console.log('[Player] pause event - setting isPlaying to false')
       isPlaying.value = false
+      if (trackPlaybackSession) {
+        trackPlaybackSession.lastObservedTime = currentTime.value
+      }
     })
 
     audio.onEnded(() => {
       console.log('[Player] ended event - song finished')
       isPlaying.value = false
       clearActivePlaybackMetrics()
+      trackPlaybackSession = null
       playNext()
     })
 
@@ -202,6 +234,7 @@ export const usePlayerStore = defineStore('player', () => {
       console.error('[Player] Audio playback error:', err.message)
       isPlaying.value = false
       clearActivePlaybackMetrics()
+      trackPlaybackSession = null
       if (settingsStore.settings.autoSkipOnError && playlist.value.length > 1) {
         playNext()
       }
@@ -227,6 +260,172 @@ export const usePlayerStore = defineStore('player', () => {
     resolvedResolver.value = null
     resolvedChannel.value = null
     resolvedUserSourceId.value = null
+    activeResolution.value = null
+  }
+
+  function resetTrackPlaybackSession(
+    music: MusicInfo | null,
+    resolution: PlaybackResolution | null = null,
+  ) {
+    if (!music) {
+      trackPlaybackSession = null
+      return
+    }
+
+    trackPlaybackSession = {
+      trackKey: getTrackPlaybackKey(music),
+      listenedSeconds: 0,
+      lastObservedTime: null,
+      savedResolvedUrl: resolution ? !isRemotePlaybackUrl(resolution.url) || resolution.resolver === 'cached-remote' : false,
+      cachedLocally: !settingsStore.settings.streamCacheEnabled || resolution?.resolver === 'cached-local',
+      prefetchedNext: false,
+      savingResolvedUrl: false,
+      cachingLocally: false,
+    }
+  }
+
+  function updateTrackPlaybackSessionProgress(time: number) {
+    if (!trackPlaybackSession || !currentMusic.value) return
+    if (trackPlaybackSession.trackKey !== getTrackPlaybackKey(currentMusic.value)) return
+
+    if (trackPlaybackSession.lastObservedTime === null) {
+      trackPlaybackSession.lastObservedTime = time
+      return
+    }
+
+    const delta = time - trackPlaybackSession.lastObservedTime
+    trackPlaybackSession.lastObservedTime = time
+
+    if (delta <= 0 || delta > 5) return
+    trackPlaybackSession.listenedSeconds += delta
+  }
+
+  function getNextTrackFromQueueContext(music: MusicInfo): MusicInfo | null {
+    if (!queueContext.value) return null
+
+    const currentTrackKey = getTrackPlaybackKey(music)
+    const currentIndexInContext = queueContext.value.tracks.findIndex(
+      (track) => getTrackPlaybackKey(track) === currentTrackKey
+    )
+
+    if (currentIndexInContext < 0) return null
+    return queueContext.value.tracks[currentIndexInContext + 1] || null
+  }
+
+  async function persistResolvedPlaybackUrl(music: MusicInfo, resolution: PlaybackResolution) {
+    if (!isRemotePlaybackUrl(resolution.url)) return
+
+    await upsertCachedPlayback(music, settingsStore.settings.audioQuality, {
+      remoteUrl: resolution.url,
+      sourceId: resolution.userSourceId || null,
+      channel: resolution.channel,
+      resolver: resolution.resolver,
+      touchAccessedAt: true,
+      lastVerifiedAt: new Date().toISOString(),
+    })
+  }
+
+  async function ensureTrackStreamCached(music: MusicInfo, resolution: PlaybackResolution) {
+    if (!settingsStore.settings.streamCacheEnabled || !isRemotePlaybackUrl(resolution.url)) return
+
+    await prunePlaybackCache(settingsStore.settings.streamCacheCapacityMb)
+    await cachePlaybackMedia(music, settingsStore.settings.audioQuality, resolution.url, {
+      sourceId: resolution.userSourceId || null,
+      channel: resolution.channel,
+      resolver: resolution.resolver,
+    })
+  }
+
+  function scheduleTrackMilestones(music: MusicInfo, resolution: PlaybackResolution) {
+    const activeTrackKey = getTrackPlaybackKey(music)
+
+    void (async () => {
+      if (!trackPlaybackSession || trackPlaybackSession.trackKey !== activeTrackKey) return
+
+      if (!trackPlaybackSession.savedResolvedUrl) {
+        try {
+          trackPlaybackSession.savingResolvedUrl = true
+          await persistResolvedPlaybackUrl(music, resolution)
+          if (
+            trackPlaybackSession &&
+            trackPlaybackSession.trackKey === activeTrackKey
+          ) {
+            trackPlaybackSession.savedResolvedUrl = true
+            trackPlaybackSession.savingResolvedUrl = false
+          }
+        } catch (error) {
+          if (
+            trackPlaybackSession &&
+            trackPlaybackSession.trackKey === activeTrackKey
+          ) {
+            trackPlaybackSession.savingResolvedUrl = false
+          }
+          console.warn('[Player] Failed to persist resolved playback URL:', error)
+        }
+      }
+
+      if (!trackPlaybackSession || trackPlaybackSession.trackKey !== activeTrackKey) return
+      if (trackPlaybackSession.cachedLocally) return
+
+      try {
+        trackPlaybackSession.cachingLocally = true
+        await ensureTrackStreamCached(music, resolution)
+        if (
+          trackPlaybackSession &&
+          trackPlaybackSession.trackKey === activeTrackKey
+        ) {
+          trackPlaybackSession.cachedLocally = true
+          trackPlaybackSession.cachingLocally = false
+        }
+      } catch (error) {
+        if (
+          trackPlaybackSession &&
+          trackPlaybackSession.trackKey === activeTrackKey
+        ) {
+          trackPlaybackSession.cachingLocally = false
+        }
+        console.warn('[Player] Failed to cache streamed track locally:', error)
+      }
+    })()
+  }
+
+  function maybeHandleTrackMilestones(time: number) {
+    updateTrackPlaybackSessionProgress(time)
+
+    if (!trackPlaybackSession || !currentMusic.value || !activeResolution.value) return
+    if (trackPlaybackSession.listenedSeconds < 30) return
+
+    if (
+      (trackPlaybackSession.savedResolvedUrl || trackPlaybackSession.savingResolvedUrl)
+      && (trackPlaybackSession.cachedLocally || trackPlaybackSession.cachingLocally)
+    ) {
+      return
+    }
+
+    scheduleTrackMilestones(currentMusic.value, activeResolution.value)
+  }
+
+  function maybePrefetchNextTrack(music: MusicInfo) {
+    if (!trackPlaybackSession || trackPlaybackSession.prefetchedNext) return
+
+    const nextTrack = getNextTrackFromQueueContext(music)
+    trackPlaybackSession.prefetchedNext = true
+    if (!nextTrack) return
+
+    void (async () => {
+      try {
+        const existingCache = await getCachedPlayback(nextTrack, settingsStore.settings.audioQuality)
+        if (existingCache?.remoteUrl || existingCache?.playableLocalUrl) {
+          return
+        }
+
+        const playbackResolver = usePlaybackResolver()
+        const resolution = await playbackResolver.resolve(nextTrack)
+        await persistResolvedPlaybackUrl(nextTrack, resolution)
+      } catch (error) {
+        console.warn('[Player] Failed to prefetch next track playback URL:', error)
+      }
+    })()
   }
 
   function setPlaybackNotice(message: string) {
@@ -362,6 +561,8 @@ export const usePlayerStore = defineStore('player', () => {
       startedAt: requestStartedAt,
       trackName: music.name,
     }
+    trackPlaybackSession = null
+    activeResolution.value = null
     isLoadingUrl.value = true
     clearPlaybackNotice()
 
@@ -467,8 +668,10 @@ export const usePlayerStore = defineStore('player', () => {
 
         resolvedUrl.value = finalPlaybackUrl
         applyResolvedPlaybackState(resolution)
+        activeResolution.value = resolution
         isPlaying.value = true
         loadedTrackKey = getTrackPlaybackKey(music)
+        resetTrackPlaybackSession(music, resolution)
         rememberPlaybackUrlProbeResult(url, true)
 
         if (resolution.userSourceId) {
@@ -503,6 +706,7 @@ export const usePlayerStore = defineStore('player', () => {
           })
         }
 
+        maybePrefetchNextTrack(music)
         void resolveLyricsForTrack(music, resolution)
         break
       }
@@ -520,6 +724,8 @@ export const usePlayerStore = defineStore('player', () => {
       }
       // Clear loading state
       isLoadingUrl.value = false
+      clearResolvedPlaybackState()
+      trackPlaybackSession = null
       // Re-throw the error so caller can handle it
       throw error
     } finally {
@@ -582,6 +788,9 @@ export const usePlayerStore = defineStore('player', () => {
   async function setProgress(time: number) {
     currentTime.value = time
     syncCurrentLyricIndexForTime(time)
+    if (trackPlaybackSession) {
+      trackPlaybackSession.lastObservedTime = time
+    }
     try {
       audio.seek(time)
     } catch (error) {
@@ -621,9 +830,14 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
-  function setPlaylist(list: MusicInfo[], index = 0) {
+  function setPlaylist(
+    list: MusicInfo[],
+    index = 0,
+    options: { queueContext?: PlaybackQueueContext | null } = {},
+  ) {
     playlist.value = list
     currentIndex.value = index
+    queueContext.value = options.queueContext ?? null
     if (list[index]) {
       void playMusic(list[index]).catch(() => undefined)
     }
@@ -650,6 +864,7 @@ export const usePlayerStore = defineStore('player', () => {
 
     playlist.value = nextPlaylist
     currentIndex.value = targetIndex
+    queueContext.value = null
 
     const targetTrack = playlist.value[targetIndex] || music
     await playMusic(targetTrack)
@@ -671,6 +886,7 @@ export const usePlayerStore = defineStore('player', () => {
 
     const activeTrackKey = currentMusic.value ? getTrackPlaybackKey(currentMusic.value) : null
     playlist.value = [...existing, ...nextItems]
+    queueContext.value = null
 
     if (activeTrackKey) {
       const updatedIndex = playlist.value.findIndex(
@@ -733,6 +949,8 @@ export const usePlayerStore = defineStore('player', () => {
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
+    queueContext.value = null
+    trackPlaybackSession = null
   }
 
   function clearQueue() {
@@ -742,6 +960,7 @@ export const usePlayerStore = defineStore('player', () => {
     }
     playlist.value = [currentMusic.value]
     currentIndex.value = 0
+    queueContext.value = null
   }
 
   function restoreSession(session: PersistedPlayerSession) {
@@ -756,6 +975,8 @@ export const usePlayerStore = defineStore('player', () => {
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
+    queueContext.value = null
+    trackPlaybackSession = null
 
     audio.pause()
     audio.reset()
@@ -806,6 +1027,7 @@ export const usePlayerStore = defineStore('player', () => {
     resolvedChannel,
     resolvedUserSourceId,
     playbackNotice,
+    queueContext,
     isLoadingUrl,
     playMusic,
     pauseMusic,

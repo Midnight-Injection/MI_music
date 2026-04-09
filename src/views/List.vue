@@ -148,6 +148,7 @@
             <label class="playlist-table__check">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
             </label>
+            <div class="playlist-table__index">#</div>
             <div>歌曲</div>
             <div>歌手</div>
             <div>专辑</div>
@@ -184,6 +185,8 @@
                 </label>
               </div>
 
+              <div class="song-row__index">{{ formatSongIndex(index) }}</div>
+
               <div class="song-row__title">
                 <button
                   type="button"
@@ -194,7 +197,12 @@
                   {{ isCurrentPlaying(music) ? '❚❚' : '▶' }}
                 </button>
                 <div class="song-row__title-meta">
-                  <span class="song-row__name">{{ music.name }}</span>
+                  <div class="song-row__name-line">
+                    <span v-if="isMobileTrackLayout" class="song-row__mobile-index">
+                      {{ formatSongIndex(index) }}
+                    </span>
+                    <span class="song-row__name">{{ music.name }}</span>
+                  </div>
                   <span class="song-row__hint">双击可直接播放</span>
                   <span v-if="isMobileTrackLayout" class="song-row__submeta">
                     {{ music.artist }}<template v-if="music.album"> · {{ music.album }}</template>
@@ -663,12 +671,26 @@ async function syncCurrentPlaylist() {
 
 function playAll() {
   if (!currentPlaylist.value?.musics.length) return
-  playerStore.setPlaylist([...currentPlaylist.value.musics], 0)
+  playerStore.setPlaylist([...currentPlaylist.value.musics], 0, {
+    queueContext: {
+      type: 'playlist',
+      playlistId: currentPlaylist.value.id,
+      playlistName: currentPlaylist.value.name,
+      tracks: [...currentPlaylist.value.musics],
+    },
+  })
 }
 
 function playMusic(_music: MusicInfo, index: number) {
   if (!currentPlaylist.value) return
-  playerStore.setPlaylist([...currentPlaylist.value.musics], index)
+  playerStore.setPlaylist([...currentPlaylist.value.musics], index, {
+    queueContext: {
+      type: 'playlist',
+      playlistId: currentPlaylist.value.id,
+      playlistName: currentPlaylist.value.name,
+      tracks: [...currentPlaylist.value.musics],
+    },
+  })
 }
 
 function playMusicFromContext() {
@@ -711,6 +733,12 @@ function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+function formatSongIndex(index: number): string {
+  const total = currentPlaylist.value?.musics.length || 0
+  const width = total >= 100 ? 3 : 2
+  return String(index + 1).padStart(width, '0')
 }
 
 function formatTotalDuration(musics: MusicInfo[]): string {
@@ -965,6 +993,8 @@ onUnmounted(() => {
 .playlist-page {
   container-type: inline-size;
   width: 100%;
+  height: 100%;
+  max-height: 100%;
   min-width: 0;
   display: grid;
   grid-template-columns: clamp(236px, 22vw, 284px) minmax(0, 1fr);
@@ -995,6 +1025,7 @@ onUnmounted(() => {
   flex-direction: column;
   padding: 16px 10px;
   border-radius: var(--radius-md);
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--panel-strong);
@@ -1068,6 +1099,7 @@ onUnmounted(() => {
   gap: 6px;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding-right: 2px;
 }
 
@@ -1141,16 +1173,19 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0;
   min-width: 0;
+  max-height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .playlist-workbench {
-  flex: 1 1 0%;
+  flex: 0 0 auto;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
   border-radius: var(--radius-md);
 }
 
@@ -1401,12 +1436,12 @@ onUnmounted(() => {
 }
 
 .playlist-empty {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  overflow: auto;
+  overflow: visible;
   padding: 40px 20px;
   text-align: center;
   background:
@@ -1430,11 +1465,11 @@ onUnmounted(() => {
 }
 
 .playlist-library {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 14px;
   background: var(--liquid-content-surface);
 }
@@ -1463,7 +1498,7 @@ onUnmounted(() => {
 .playlist-table__head,
 .song-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1.55fr) minmax(84px, 0.78fr) minmax(84px, 0.78fr) 56px 116px;
+  grid-template-columns: 40px 44px minmax(0, 1.55fr) minmax(84px, 0.78fr) minmax(84px, 0.78fr) 56px 116px;
   gap: 10px;
   align-items: center;
 }
@@ -1483,15 +1518,14 @@ onUnmounted(() => {
 }
 
 .playlist-table {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  height: 100%;
-  max-height: 100%;
+  height: auto;
+  max-height: none;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   padding-right: 2px;
 }
 
@@ -1502,6 +1536,25 @@ onUnmounted(() => {
 
 .playlist-table__duration {
   text-align: right;
+}
+
+.playlist-table__index,
+.song-row__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.playlist-table__index {
+  justify-self: center;
+  color: var(--text-secondary);
 }
 
 .playlist-table__actions {
@@ -1550,6 +1603,13 @@ onUnmounted(() => {
   font-size: 0.86rem;
 }
 
+.song-row__index {
+  justify-self: center;
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--text-primary) 74%, var(--text-secondary));
+  opacity: 0.9;
+}
+
 .song-row__title {
   display: flex;
   align-items: center;
@@ -1572,6 +1632,32 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.song-row__name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.song-row__mobile-index {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  color: color-mix(in srgb, var(--text-primary) 74%, var(--text-secondary));
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.song-row.is-playing .song-row__index,
+.song-row.is-playing .song-row__mobile-index {
+  color: color-mix(in srgb, var(--text-primary) 92%, white);
+  opacity: 1;
 }
 
 .song-row__name {
@@ -1718,7 +1804,7 @@ onUnmounted(() => {
 
   .playlist-table__head,
   .song-row {
-    grid-template-columns: 48px minmax(0, 1.3fr) minmax(94px, 0.78fr) minmax(94px, 0.78fr) 68px 126px;
+    grid-template-columns: 48px 44px minmax(0, 1.3fr) minmax(94px, 0.78fr) minmax(94px, 0.78fr) 68px 126px;
   }
 }
 
@@ -1755,18 +1841,18 @@ onUnmounted(() => {
 
   .playlist-table__head,
   .song-row {
-    grid-template-columns: 42px minmax(0, 1.2fr) minmax(82px, 0.72fr) minmax(82px, 0.72fr) 64px 114px;
+    grid-template-columns: 42px 40px minmax(0, 1.2fr) minmax(82px, 0.72fr) minmax(82px, 0.72fr) 64px 114px;
   }
 }
 
 @container (max-width: 1080px) {
   .playlist-table__head,
   .song-row {
-    grid-template-columns: 42px minmax(0, 1.45fr) minmax(96px, 0.84fr) 104px;
+    grid-template-columns: 42px 40px minmax(0, 1.45fr) minmax(96px, 0.84fr) 104px;
   }
 
-  .playlist-table__head > :nth-child(4),
   .playlist-table__head > :nth-child(5),
+  .playlist-table__head > :nth-child(6),
   .song-row__album,
   .song-row__duration {
     display: none;
@@ -1852,12 +1938,17 @@ onUnmounted(() => {
   }
 
   .song-row__artist,
-  .song-row__album {
+  .song-row__album,
+  .song-row__index {
     display: none;
   }
 
   .song-row__title {
     align-items: flex-start;
+  }
+
+  .song-row__mobile-index {
+    display: inline-flex;
   }
 
   .song-row__submeta {

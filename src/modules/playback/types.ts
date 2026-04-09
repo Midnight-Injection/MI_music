@@ -6,7 +6,7 @@ export interface PlaybackResolution {
   url: string
   channel: MusicSource
   quality?: string
-  resolver: 'custom-source' | 'built-in' | 'direct-url'
+  resolver: 'custom-source' | 'built-in' | 'direct-url' | 'cached-local' | 'cached-remote'
   userSourceId?: string
   matchedTrack?: MusicInfo
 }

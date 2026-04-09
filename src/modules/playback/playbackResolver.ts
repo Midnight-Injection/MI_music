@@ -13,6 +13,7 @@ import { getChannelFailureSummary } from '../source-health/store'
 import { canUsePlaybackUrl } from './urlProbe'
 import { searchBuiltInTracks } from '../search/providers'
 import { buildTrackSearchKeyword, pickMatchedTrack } from './matchedTrack'
+import { clearCachedPlayback, getCachedPlayback } from './playbackCache'
 
 const TX_FALLBACK_CHANNEL_PRIORITY: BuiltInSearchChannel[] = ['kw', 'kg', 'mg', 'wy']
 const TX_DIRECT_RESOLUTION_TIMEOUT_MS = 12000
@@ -177,6 +178,35 @@ export function usePlaybackResolver(): PlaybackResolver {
     options: PlaybackResolveOptions = {}
   ): Promise<PlaybackResolution> {
     const channel = resolveMusicChannel(track)
+    const cachedPlayback = await getCachedPlayback(track, settingsStore.settings.audioQuality)
+
+    if (cachedPlayback?.playableLocalUrl) {
+      return {
+        url: cachedPlayback.playableLocalUrl,
+        channel,
+        quality: cachedPlayback.audioQuality,
+        resolver: 'cached-local',
+      }
+    }
+
+    if (cachedPlayback?.remoteUrl) {
+      const remoteUrl = cachedPlayback.remoteUrl.trim()
+      if (remoteUrl && (await canUsePlaybackUrl(remoteUrl))) {
+        return {
+          url: remoteUrl,
+          channel,
+          quality: cachedPlayback.audioQuality,
+          resolver: 'cached-remote',
+        }
+      }
+
+      void clearCachedPlayback(track, settingsStore.settings.audioQuality, {
+        clearRemoteUrl: true,
+      }).catch((error) => {
+        console.warn('[PlaybackResolver] Failed to clear stale cached playback URL:', error)
+      })
+    }
+
     const directResolution = await resolveDirectUrl(track)
     if (directResolution) return directResolution
 
