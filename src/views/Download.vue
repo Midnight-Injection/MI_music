@@ -93,11 +93,26 @@
         </NTabs>
 
         <div class="queue-summary">
-          <NTag round size="small" type="default">总任务 {{ queue.length }}</NTag>
-          <NTag round size="small" type="primary">下载中 {{ downloadQueue.active.length }}</NTag>
-          <NTag round size="small" type="warning">等待 {{ downloadQueue.pending.length }}</NTag>
-          <NTag round size="small" type="success">完成 {{ downloadQueue.completed.length }}</NTag>
-          <NTag round size="small" type="error">失败 {{ downloadQueue.failed.length }}</NTag>
+          <div class="summary-item">
+            <span class="summary-count">{{ queue.length }}</span>
+            <span class="summary-label">总任务</span>
+          </div>
+          <div class="summary-item summary-item--active">
+            <span class="summary-count">{{ downloadQueue.active.length }}</span>
+            <span class="summary-label">下载中</span>
+          </div>
+          <div class="summary-item summary-item--pending">
+            <span class="summary-count">{{ downloadQueue.pending.length }}</span>
+            <span class="summary-label">等待</span>
+          </div>
+          <div class="summary-item summary-item--done">
+            <span class="summary-count">{{ downloadQueue.completed.length }}</span>
+            <span class="summary-label">完成</span>
+          </div>
+          <div class="summary-item summary-item--failed">
+            <span class="summary-count">{{ downloadQueue.failed.length }}</span>
+            <span class="summary-label">失败</span>
+          </div>
         </div>
       </div>
     </div>
@@ -106,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { NTabs, NTabPane, NButton, NTag, NEmpty } from 'naive-ui'
+import { NTabs, NTabPane, NButton, NEmpty } from 'naive-ui'
 import { useDownloadStore } from '../store/download'
 import { useSettingsStore } from '../store/settings'
 import { invoke } from '@tauri-apps/api/core'
@@ -346,16 +361,13 @@ onUnmounted(() => {
   container-type: inline-size;
   width: 100%;
   min-width: 0;
-  min-height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
 
   &.page-shell {
     width: 100%;
     max-width: none;
-    min-height: 100%;
     margin: 0;
     padding: 0;
     gap: 0;
@@ -365,6 +377,7 @@ onUnmounted(() => {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     overflow: hidden;
     border-radius: var(--radius-md);
     background: var(--panel-gradient);
@@ -383,8 +396,8 @@ onUnmounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 18px;
-      padding: 22px 24px 16px;
+      gap: 14px;
+      padding: 18px 18px 14px;
       border-bottom: 1px solid var(--border-color);
     }
 
@@ -415,10 +428,9 @@ onUnmounted(() => {
     }
 
     .batch-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, auto));
-      justify-content: end;
-      gap: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       flex: 0 0 auto;
     }
 
@@ -426,7 +438,7 @@ onUnmounted(() => {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      padding: 14px 18px 0;
+      padding: 12px 14px 0;
 
       .tab {
         font-size: 14px;
@@ -440,9 +452,73 @@ onUnmounted(() => {
 
     .queue-summary {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 12px 18px 0;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 2px;
+      padding: 10px 18px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: var(--pill-secondary-bg);
+      border: 1px solid var(--pill-secondary-border);
+
+      & + .summary-item {
+        margin-left: 2px;
+      }
+
+      &--active {
+        background: var(--pill-success-bg);
+        border-color: var(--pill-success-border);
+      }
+
+      &--pending {
+        background: var(--pill-warning-bg);
+        border-color: var(--pill-warning-border);
+      }
+
+      &--done {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: rgba(74, 222, 128, 0.16);
+      }
+
+      &--failed {
+        background: var(--pill-danger-bg);
+        border-color: var(--pill-danger-border);
+      }
+    }
+
+    .summary-count {
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+    }
+
+    .summary-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .summary-item--active .summary-count {
+      color: #63e89b;
+    }
+
+    .summary-item--pending .summary-count {
+      color: #f0c060;
+    }
+
+    .summary-item--done .summary-count {
+      color: rgba(24, 160, 88, 0.8);
+    }
+
+    .summary-item--failed .summary-count {
+      color: #ff8d9e;
     }
 
     .queue-list {
@@ -452,6 +528,14 @@ onUnmounted(() => {
       flex-direction: column;
       overflow-y: auto;
       padding: 12px;
+
+      :deep(.n-empty) {
+        flex: 1 1 0%;
+        min-height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
       .empty-state {
         flex: 1;
@@ -497,7 +581,7 @@ onUnmounted(() => {
   @container (max-width: 960px) {
     .queue-panel {
       .queue-panel__head {
-        padding: 18px 18px 14px;
+        padding: 16px 14px 12px;
       }
 
       .queue-tabs,
@@ -506,7 +590,8 @@ onUnmounted(() => {
       }
 
       .batch-actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        justify-content: flex-start;
       }
     }
   }
@@ -518,7 +603,8 @@ onUnmounted(() => {
       }
 
       .batch-actions {
-        grid-template-columns: 1fr;
+        width: 100%;
+        justify-content: flex-start;
       }
 
       .queue-tabs {
@@ -550,6 +636,38 @@ onUnmounted(() => {
 
       .btn {
         width: 100%;
+      }
+    }
+  }
+  @container (max-width: 480px) {
+    .queue-panel {
+      .queue-panel__head {
+        padding: 12px 10px 10px;
+      }
+
+      .batch-actions {
+        width: 100%;
+        flex-wrap: wrap;
+
+        button {
+          flex: 1 1 calc(50% - 4px);
+          min-width: 0;
+        }
+      }
+
+      .queue-summary {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 10px 10px;
+      }
+
+      .summary-item {
+        padding: 4px 10px;
+      }
+
+      .queue-list {
+        padding: 8px;
       }
     }
   }

@@ -6,6 +6,9 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(async () => ({
   plugins: [vue()],
   clearScreen: false,
+  define: {
+    'import.meta.env.VITE_UI_MODE': JSON.stringify(process.env.VITE_UI_MODE || 'pc'),
+  },
   server: {
     port: 1520,
     strictPort: true,

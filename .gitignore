@@ -67,3 +67,4 @@ coverage/
 .cache/
 tmp/
 !/tmp/
+.playwright-mcp/

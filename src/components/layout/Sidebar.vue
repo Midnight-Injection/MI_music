@@ -6,7 +6,7 @@
       </div>
       <div class="sidebar__brand-copy">
         <strong>极域音乐</strong>
-        <small>Desktop Player</small>
+        <small>{{ uiMode.isTV ? 'TV Player' : uiMode.isMobile ? 'Mobile Player' : 'Desktop Player' }}</small>
       </div>
     </div>
 
@@ -17,6 +17,8 @@
         :to="item.path"
         class="sidebar__nav-item"
         active-class="is-active"
+        tabindex="0"
+        :data-tv-focusable="uiMode.isTV ? '' : undefined"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path :d="item.icon" />
@@ -25,7 +27,7 @@
       </router-link>
     </nav>
 
-    <div class="sidebar__panel">
+    <div v-if="!uiMode.isTV && !uiMode.isMobile" class="sidebar__panel">
       <div class="sidebar__profile">
         <div class="sidebar__avatar">JY</div>
         <div class="sidebar__profile-copy">
@@ -44,38 +46,11 @@
 </template>
 
 <script setup lang="ts">
-const navItems = [
-  {
-    path: '/search',
-    label: '搜索',
-    icon: 'M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.44 1.41-1.41-4.44-4.44A6.5 6.5 0 0 0 10.5 4Z M6 10.5a4.5 4.5 0 1 1 9 0a4.5 4.5 0 0 1-9 0Z',
-  },
-  {
-    path: '/songList',
-    label: '歌单',
-    icon: 'M5 6.5h14M5 12h14M5 17.5h9M17 16V8l4 2.25V18L17 16Z',
-  },
-  {
-    path: '/leaderboard',
-    label: '榜单',
-    icon: 'M6 18.5h12M8 18.5V11m4 7.5V6m4 12.5v-9',
-  },
-  {
-    path: '/list',
-    label: '我的歌单',
-    icon: 'M6 7h12M6 12h12M6 17h7M17.5 15.5V8l3.5 1.8v5.7',
-  },
-  {
-    path: '/download',
-    label: '下载',
-    icon: 'M12 4v10m0 0l4-4m-4 4l-4-4M5 19h14',
-  },
-  {
-    path: '/setting',
-    label: '设置',
-    icon: 'M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 0 0 0-7Zm8 3.5l-1.83-.4a6.98 6.98 0 0 0-.65-1.57l1.03-1.56-1.41-1.41-1.56 1.03a6.98 6.98 0 0 0-1.57-.65L12 4l-1.81 1.83a6.98 6.98 0 0 0-1.57.65L7.06 5.45 5.64 6.86l1.03 1.56c-.28.5-.49 1.02-.65 1.57L4.2 12l1.82 1.81c.16.55.37 1.07.65 1.57l-1.03 1.56 1.42 1.41 1.56-1.03c.5.28 1.02.49 1.57.65L12 20l1.83-1.82c.55-.16 1.07-.37 1.57-.65l1.56 1.03 1.41-1.41-1.03-1.56c.28-.5.49-1.02.65-1.57L20 12Z',
-  },
-]
+import { useUIModeStore } from '../../store/uiMode'
+import { useNavItems } from '../../composables/useNavItems'
+
+const uiMode = useUIModeStore()
+const { navItems } = useNavItems()
 </script>
 
 <style scoped lang="scss">
@@ -253,4 +228,111 @@ const navItems = [
   }
 }
 
+// === TV 模式适配 ===
+[data-ui-mode='tv'] {
+  .sidebar {
+    padding: 24px 16px 20px;
+    border-radius: var(--radius-lg);
+    backdrop-filter: none;
+  }
+
+  .sidebar__logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+
+    span {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  .sidebar__brand-copy strong {
+    font-size: 1.2rem;
+  }
+
+  .sidebar__brand-copy small {
+    font-size: 0.78rem;
+  }
+
+  .sidebar__nav-item {
+    min-height: 56px;
+    padding: 0 16px;
+    border-radius: 18px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    span {
+      font-size: 1.06rem;
+    }
+  }
+}
+
+</style>
+
+<style lang="scss">
+.app-layout-shell--compact .sidebar {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.app-layout-shell--compact .sidebar__brand {
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 0 6px 0 0;
+  border-bottom: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-layout-shell--compact .sidebar__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+}
+
+.app-layout-shell--compact .sidebar__logo span {
+  width: 10px;
+  height: 10px;
+}
+
+.app-layout-shell--compact .sidebar__brand-copy {
+  display: none;
+}
+
+.app-layout-shell--compact .sidebar__nav {
+  flex-direction: row;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-layout-shell--compact .sidebar__nav-item {
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.app-layout-shell--compact .sidebar__nav-item span {
+  display: none;
+}
+
+.app-layout-shell--compact .sidebar__nav-item svg {
+  width: 16px;
+  height: 16px;
+}
+
+.app-layout-shell--compact .sidebar__panel {
+  display: none;
+}
 </style>

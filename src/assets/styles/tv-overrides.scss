@@ -1,0 +1,78 @@
+// TV / 低性能设备模式 - CSS 变量覆盖
+// 通过 [data-ui-mode="tv"] 选择器实现 PC/TV 双模式样式共存
+//
+// 性能优化策略:
+// 1. 移除所有 backdrop-filter（毛玻璃） - GPU 重绘最重的操作
+// 2. 简化 box-shadow - 减少合成层
+// 3. 简化渐变 - 减少 paint 耗时
+// 4. 禁用全局 transition - 减少帧计算
+// 5. 用纯色替代半透明叠加 - 减少混合计算
+
+[data-ui-mode='tv'] {
+  // === 字体放大 (10-foot UI) ===
+  --app-font-size: 22px;
+
+  // === 布局放大 ===
+  --sidebar-width: 260px;
+  --player-bar-height: 100px;
+  --header-height: 80px;
+  --rail-width: 300px;
+
+  // === 圆角放大 ===
+  --radius-xs: 14px;
+  --radius-sm: 16px;
+  --radius-md: 20px;
+  --radius-lg: 24px;
+
+  // === 性能优化: 禁用毛玻璃 ===
+  --glass-blur: blur(0px);
+
+  // === 性能优化: 简化阴影 ===
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.32);
+  --shadow: var(--shadow-md);
+  --panel-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --liquid-deep-shadow: rgba(0, 0, 0, 0.2);
+  --shell-shadow: none;
+
+  // === 性能优化: 简化渐变 - 用纯色替代 ===
+  --shell-surface: rgba(255, 255, 255, 0.08);
+  --panel-gradient: rgba(255, 255, 255, 0.06);
+  --panel-muted: rgba(255, 255, 255, 0.04);
+  --panel-strong: rgba(255, 255, 255, 0.1);
+  --liquid-content-surface: rgba(255, 255, 255, 0.04);
+
+  // === 性能优化: 简化按钮阴影 ===
+  --button-primary-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --button-accent-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --button-success-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --button-warning-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --button-danger-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+
+  // === 性能优化: 简化光晕 ===
+  --glow-primary: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --glow-secondary: 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  // === TV 焦点系统变量 ===
+  --tv-focus-width: 3px;
+  --tv-focus-color: var(--primary-color);
+  --tv-focus-offset: 4px;
+
+  // === 最小触控目标 (遥控器适配) ===
+  --tv-touch-min: 48px;
+
+  // === 窗口框架适配 ===
+  --window-frame-radius: 0px;
+
+  // === 页面标题放大 ===
+  --tv-page-title-size: 3rem;
+
+  // === 性能优化: 简化面板背景 ===
+  --panel-surface: rgba(8, 14, 24, 0.88);
+  --panel-surface-strong: rgba(255, 255, 255, 0.1);
+  --modal-surface: rgba(4, 8, 18, 0.92);
+  --input-surface: rgba(255, 255, 255, 0.1);
+  --input-surface-focus: rgba(255, 255, 255, 0.14);
+}

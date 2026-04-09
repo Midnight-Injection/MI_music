@@ -4,15 +4,18 @@
     :class="{
       'app-layout-shell--no-rail': !showContextRail,
       'app-layout-shell--no-player': !showPlayerBar,
+      'app-layout-shell--mobile': uiMode.isMobile,
+      'app-layout-shell--compact': isCompactLayout,
     }"
   >
-    <Sidebar class="app-layout-shell__sidebar" />
+    <Sidebar v-if="!uiMode.isMobile" class="app-layout-shell__sidebar" />
 
     <div class="app-layout-shell__main" :class="{ 'app-layout-shell__main--immersive': isPlayerDetail }">
       <Header v-if="showHeader" class="app-layout-shell__header" />
 
       <RouterView v-slot="{ Component, route }">
         <motion.main
+          v-if="!uiMode.isMobile"
           :key="route.fullPath"
           :class="['app-layout-shell__content', { 'app-layout-shell__content--immersive': isPlayerDetail }]"
           :initial="pageMotion.initial"
@@ -20,30 +23,57 @@
         >
           <component :is="Component" :key="route.fullPath" />
         </motion.main>
+        <main
+          v-else
+          :key="route.fullPath"
+          :class="['app-layout-shell__content', { 'app-layout-shell__content--immersive': isPlayerDetail }]"
+        >
+          <component :is="Component" :key="route.fullPath" />
+        </main>
       </RouterView>
     </div>
 
-    <ContextRail v-if="showContextRail" class="app-layout-shell__rail" />
+    <ContextRail v-if="showContextRail && !uiMode.isMobile" class="app-layout-shell__rail" />
 
-    <div v-if="showPlayerBar" class="app-layout-shell__player-slot">
+    <div v-if="showPlayerBar && !uiMode.isMobile" class="app-layout-shell__player-slot">
       <PlayerBar class="app-layout-shell__player" />
     </div>
+
+    <!-- Mobile: 迷你播放条 -->
+    <MobileMiniPlayer v-if="uiMode.isMobile && !isPlayerDetail" class="app-layout-shell__mini-player" />
+
+    <!-- Mobile: 底部标签栏 -->
+    <MobileTabBar v-if="uiMode.isMobile" class="app-layout-shell__tab-bar" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { motion } from 'motion-v'
 import { RouterView, useRoute } from 'vue-router'
 import ContextRail from './ContextRail.vue'
 import Header from './Header.vue'
+import MobileMiniPlayer from './MobileMiniPlayer.vue'
+import MobileTabBar from './MobileTabBar.vue'
 import PlayerBar from './PlayerBar.vue'
 import Sidebar from './Sidebar.vue'
 import { pageVariants } from '../../lib/motion'
 import { useSettingsStore } from '../../store/settings'
+import { useUIModeStore } from '../../store/uiMode'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
+const uiMode = useUIModeStore()
+const windowWidth = ref(window.innerWidth)
+
+function updateWindowWidth() {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => window.addEventListener('resize', updateWindowWidth))
+onUnmounted(() => window.removeEventListener('resize', updateWindowWidth))
+
+const isCompactLayout = computed(() => windowWidth.value <= 920 && !uiMode.isMobile)
 
 const isPlayerDetail = computed(() => route.name === 'PlayerDetail')
 const isSongListPage = computed(() => route.name === 'SongList')
@@ -136,6 +166,7 @@ const pageMotion = computed(() => {
 }
 
 .app-layout-shell__content {
+  height: 100%;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -173,44 +204,104 @@ const pageMotion = computed(() => {
   z-index: 8;
 }
 
+// === Mobile 布局 ===
+.app-layout-shell--mobile {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto auto;
+  grid-template-areas:
+    'main'
+    'player'
+    'tabs';
+  gap: 0;
+  border-radius: 0;
+}
+
+.app-layout-shell__mini-player {
+  grid-area: player;
+}
+
+.app-layout-shell__tab-bar {
+  grid-area: tabs;
+}
+
 @media (max-width: 1180px) {
-  .app-layout-shell,
-  .app-layout-shell--no-player:not(.app-layout-shell--no-rail) {
+  .app-layout-shell:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-player:not(.app-layout-shell--no-rail):not(.app-layout-shell--mobile) {
     grid-template-columns: clamp(148px, 18vw, 186px) minmax(0, 1fr);
     grid-template-areas:
       'sidebar main'
       'sidebar player';
   }
 
-  .app-layout-shell--no-player,
-  .app-layout-shell--no-player.app-layout-shell--no-rail {
+  .app-layout-shell--no-player:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-player.app-layout-shell--no-rail:not(.app-layout-shell--mobile) {
     grid-template-areas: 'sidebar main';
+  }
+
+  .app-layout-shell__rail {
+    display: none;
   }
 }
 
 @media (max-width: 920px) {
-  .app-layout-shell,
-  .app-layout-shell--no-player,
-  .app-layout-shell--no-rail,
-  .app-layout-shell--no-player.app-layout-shell--no-rail {
+  .app-layout-shell:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-player:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-rail:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-player.app-layout-shell--no-rail:not(.app-layout-shell--mobile) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       'sidebar'
       'main'
       'player';
+    gap: 6px;
   }
 
-  .app-layout-shell--no-player,
-  .app-layout-shell--no-player.app-layout-shell--no-rail {
+  .app-layout-shell--no-player:not(.app-layout-shell--mobile),
+  .app-layout-shell--no-player.app-layout-shell--no-rail:not(.app-layout-shell--mobile) {
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       'sidebar'
       'main';
   }
 
-  .app-layout-shell__sidebar {
-    max-height: 280px;
+  .app-layout-shell__rail {
+    display: none;
+  }
+}
+
+// === TV 模式布局 ===
+[data-ui-mode='tv'] {
+  .app-layout-shell,
+  .app-layout-shell--no-rail {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      'sidebar main'
+      'sidebar player';
+    gap: 16px;
+  }
+
+  .app-layout-shell--no-player,
+  .app-layout-shell--no-player.app-layout-shell--no-rail {
+    grid-template-areas: 'sidebar main';
+  }
+
+  .app-layout-shell__rail {
+    display: none;
+  }
+
+  .app-layout-shell__player-slot {
+    border-radius: var(--radius-lg);
+    box-shadow: none;
+  }
+
+  .app-layout-shell__content {
+    padding-bottom: 20px;
+    box-shadow: none;
+  }
+
+  .app-layout-shell__main {
+    box-shadow: none;
   }
 }
 </style>

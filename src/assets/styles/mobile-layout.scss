@@ -1,0 +1,216 @@
+// Mobile 模式 - 布局与交互样式
+// 通过 [data-ui-mode="mobile"] 选择器生效
+//
+// 注意: AppLayoutShell.vue 的 scoped 样式中已包含 .app-layout-shell--mobile 的 grid 定义
+// 此文件仅处理全局组件级别的移动端适配
+
+[data-ui-mode='mobile'] {
+  // ================================================================
+  // 1. 全局触控优化
+  // ================================================================
+
+  // 最小触控目标
+  button,
+  [role='button'],
+  a {
+    min-height: var(--mobile-touch-min);
+  }
+
+  // 禁用 hover 效果（移动端无 hover）
+  .sidebar__nav-item:hover,
+  .player-bar__btn:hover,
+  .player-bar__text-btn:hover,
+  .app-button:hover:not(:disabled),
+  .app-icon-button:hover:not(:disabled) {
+    transform: none;
+    filter: none;
+  }
+
+  // ================================================================
+  // 2. 移动端 Shell
+  // ================================================================
+
+  .mobile-shell {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; // 动态视口高度，避免虚拟键盘问题
+    overflow: hidden;
+    background: var(--bg-primary);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  // ================================================================
+  // 3. 主内容区适配
+  // ================================================================
+
+  .app-layout-shell__main {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .app-layout-shell__content {
+    padding: 12px 16px 16px;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-layout-shell__mini-player {
+    border-top: 1px solid var(--border-color);
+  }
+
+  .app-layout-shell__tab-bar {
+    border-top: 1px solid var(--border-color);
+  }
+
+  // ================================================================
+  // 4. 迷你播放条
+  // ================================================================
+
+  .mobile-mini-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--mobile-mini-player-height, 56px);
+    padding: 0 12px;
+    background: var(--panel-surface);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    &__cover {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &__cover--placeholder {
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(247, 232, 255, 0.34), rgba(196, 171, 245, 0.26));
+      color: var(--text-secondary);
+    }
+
+    &__info {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    &__title {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__artist {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__btn {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      flex-shrink: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+
+      svg {
+        width: 22px;
+        height: 22px;
+      }
+    }
+  }
+
+  // ================================================================
+  // 5. 底部标签栏
+  // ================================================================
+
+  .mobile-tab-bar {
+    display: flex;
+    align-items: stretch;
+    height: var(--mobile-tab-height, 64px);
+    background: var(--panel-surface);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    &__item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+
+      svg {
+        width: 22px;
+        height: 22px;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+
+      span {
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      &.is-active {
+        color: var(--primary-color);
+      }
+    }
+  }
+
+  // ================================================================
+  // 6. 页面元素适配
+  // ================================================================
+
+  .page-shell {
+    padding: 12px 16px 0;
+    gap: 14px;
+  }
+
+  .page-hero {
+    padding: 18px 16px;
+    gap: 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .section-card {
+    padding: 14px;
+    border-radius: var(--radius-md);
+  }
+
+  // ================================================================
+  // 7. 小屏手机适配
+  // ================================================================
+
+  @media (max-width: 375px) {
+    .mobile-tab-bar__item span {
+      font-size: 0.58rem;
+    }
+  }
+}

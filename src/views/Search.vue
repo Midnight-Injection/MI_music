@@ -657,9 +657,17 @@ watch(
   { immediate: true }
 )
 
+const DEFAULT_SEARCH_KEYWORD = '热门歌曲'
+
 onMounted(async () => {
   document.addEventListener('click', hideContextMenu)
   await refreshAvailableChannels()
+
+  // 首次打开且没有关键词时，自动搜索默认关键词
+  if (!searchKeyword.value.trim()) {
+    searchKeyword.value = DEFAULT_SEARCH_KEYWORD
+    await handleSearch()
+  }
 })
 
 onUnmounted(() => {
@@ -674,7 +682,10 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .search-page {
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 
   &.page-shell {
     width: 100%;
@@ -691,6 +702,7 @@ onUnmounted(() => {
   border-radius: var(--radius-md);
   background: var(--panel-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
 }
 
 .search-home__hero {
@@ -827,6 +839,8 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   padding-bottom: 12px;
+  flex: 1 1 0%;
+  min-height: 0;
 }
 
 .search-error,
@@ -863,6 +877,11 @@ onUnmounted(() => {
 .results-container {
   padding: 16px 18px 14px;
   border-radius: var(--radius-md);
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .results-header {
@@ -872,6 +891,7 @@ onUnmounted(() => {
   gap: 10px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .results-count {
@@ -900,6 +920,7 @@ onUnmounted(() => {
   font-size: 0.66rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .song-list {
@@ -907,7 +928,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 460px;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -933,6 +955,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding-top: 14px;
+  flex-shrink: 0;
 }
 
 .pagination-btn {
@@ -1059,13 +1082,50 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: flex-start;
   }
+}
 
-  .song-list {
-    max-height: none;
+@media (max-width: 920px) {
+  .search-home__hero {
+    display: none;
   }
 
-  .search-preview-list {
-    max-height: none;
+  .search-home {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .search-home__toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .search-home__search-shell {
+    min-height: 38px;
+    border-radius: 12px;
+  }
+
+  .channel-tabs {
+    gap: 6px;
+  }
+
+  .results-columns {
+    display: none;
+  }
+
+  .results-header {
+    padding-bottom: 6px;
+  }
+
+  .results-subtitle {
+    display: none;
+  }
+
+  .results-container {
+    padding: 10px 12px;
+  }
+
+  .pagination-bar {
+    padding-top: 8px;
   }
 }
 </style>

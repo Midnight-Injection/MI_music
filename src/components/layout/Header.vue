@@ -99,7 +99,7 @@ function handleSearch() {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 320px;
+  width: clamp(180px, 25vw, 320px);
   max-width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -131,7 +131,7 @@ function handleSearch() {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  min-width: 122px;
+  min-width: 100px;
   flex: 0 1 182px;
   max-width: 182px;
   min-height: 40px;
@@ -160,6 +160,150 @@ function handleSearch() {
     margin-top: 2px;
     color: var(--text-secondary);
     font-size: 0.66rem;
+  }
+}
+
+@media (max-width: 920px) {
+  .header {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 4px 10px 0;
+  }
+
+  .header__actions {
+    justify-content: flex-start;
+  }
+
+  .header__search {
+    width: clamp(140px, 40vw, 260px);
+  }
+
+  .header__status {
+    min-width: 80px;
+    flex: 0 1 140px;
+    max-width: 140px;
+    min-height: 34px;
+
+    strong {
+      font-size: 0.74rem;
+    }
+  }
+
+  .header__title-block {
+    h2 {
+      font-size: 0.96rem;
+    }
+
+    p {
+      font-size: 0.68rem;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .header {
+    padding: 2px 8px 0;
+  }
+
+  .header__title-block {
+    .page-kicker {
+      font-size: 0.64rem;
+    }
+
+    h2 {
+      font-size: 0.86rem;
+    }
+
+    p {
+      display: none;
+    }
+  }
+
+  .header__search {
+    width: clamp(100px, 35vw, 200px);
+    height: 34px;
+  }
+
+  .header__status {
+    flex: 0 1 120px;
+    max-width: 120px;
+    min-height: 34px;
+
+    span {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 920px) {
+  .header {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 4px 10px 0;
+  }
+
+  .header__actions {
+    justify-content: flex-start;
+  }
+
+  .header__search {
+    width: clamp(140px, 40vw, 260px);
+  }
+
+  .header__status {
+    min-width: 80px;
+    flex: 0 1 140px;
+    max-width: 140px;
+    min-height: 34px;
+
+    strong {
+      font-size: 0.74rem;
+    }
+  }
+
+  .header__title-block {
+    h2 {
+      font-size: 0.96rem;
+    }
+
+    p {
+      font-size: 0.68rem;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .header {
+    padding: 2px 8px 0;
+  }
+
+  .header__title-block {
+    .page-kicker {
+      font-size: 0.64rem;
+    }
+
+    h2 {
+      font-size: 0.86rem;
+    }
+
+    p {
+      display: none;
+    }
+  }
+
+  .header__search {
+    width: clamp(100px, 35vw, 200px);
+    height: 34px;
+  }
+
+  .header__status {
+    flex: 0 1 120px;
+    max-width: 120px;
+    min-height: 34px;
+
+    span {
+      display: none;
+    }
   }
 }
 </style>

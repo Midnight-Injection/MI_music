@@ -19,8 +19,10 @@ import {
 } from '../modules/playback/badSourceBlacklist'
 import { markSourceFailure } from '../modules/source-health/store'
 import { useSettingsStore } from './settings'
+import { createAudioAdapter } from '../modules/playback/audioAdapter'
+import type { AudioAdapter } from '../modules/playback/audioAdapter'
 
-const audioElement = typeof Audio !== 'undefined' ? new Audio() : null
+const audio: AudioAdapter = createAudioAdapter()
 let audioEventsBound = false
 let playbackRequestToken = 0
 let activePlaybackMetrics: {
@@ -52,20 +54,9 @@ function getTrackPlaybackKey(music: MusicInfo) {
   return buildTrackIdentityKey(music)
 }
 
-// 暴露 audioElement 到 window 以便调试
-;(() => {
-  if (audioElement) {
-    ;(window as any).__PLAYER_AUDIO__ = audioElement
-    console.log('[Player] audioElement exposed to window.__PLAYER_AUDIO__')
-    console.log('[Player] Initial audioElement state:', {
-      volume: audioElement.volume,
-      muted: audioElement.muted,
-      paused: audioElement.paused,
-      src: audioElement.src,
-      defaultMuted: audioElement.defaultMuted,
-    })
-  }
-})()
+// 暴露 audio adapter 到 window 以便调试
+;(window as any).__PLAYER_AUDIO_ADAPTER__ = audio
+console.log('[Player] AudioAdapter created:', audio.constructor.name)
 
 export const usePlayerStore = defineStore('player', () => {
   const settingsStore = useSettingsStore()
@@ -95,27 +86,20 @@ export const usePlayerStore = defineStore('player', () => {
   const resolvedUrl = ref<string | null>(null)
   const isLoadingUrl = ref(false)
   const lyricRequestId = ref(0)
+  let loadedTrackKey: string | null = null
 
   const hasMusic = computed(() => currentMusic.value !== null)
   const hasLyrics = computed(() => lyrics.value.length > 0)
 
   function syncAudioState() {
-    if (!audioElement) {
-      console.log('[Player] syncAudioState: audioElement is null')
-      return
-    }
     console.log(
       '[Player] syncAudioState: setting volume:',
       volume.value,
       'playbackRate:',
-      playbackRate.value,
-      'current volume:',
-      audioElement.volume,
-      'muted:',
-      audioElement.muted
+      playbackRate.value
     )
-    audioElement.volume = volume.value
-    audioElement.playbackRate = playbackRate.value
+    audio.setVolume(volume.value)
+    audio.setPlaybackRate(playbackRate.value)
   }
 
   function syncCurrentLyricIndexForTime(timeSeconds = currentTime.value) {
@@ -166,25 +150,19 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function bindAudioEvents() {
-    if (!audioElement || audioEventsBound) return
+    if (audioEventsBound) return
 
-    audioElement.preload = 'auto'
-
-    audioElement.addEventListener('loadedmetadata', () => {
-      console.log('[Player] loadedmetadata event, duration:', audioElement.duration)
-      duration.value = Number.isFinite(audioElement.duration) ? audioElement.duration : 0
+    audio.onLoadedMetadata((d) => {
+      console.log('[Player] loadedmetadata event, duration:', d)
+      duration.value = d
     })
 
-    audioElement.addEventListener('canplay', () => {
+    audio.onCanPlay(() => {
       console.log(
-        '[Player] canplay event, readyState:',
-        audioElement.readyState,
-        'duration:',
-        audioElement.duration,
+        '[Player] canplay event, duration:',
+        audio.duration,
         'volume:',
-        audioElement.volume,
-        'muted:',
-        audioElement.muted
+        audio.volume
       )
       if (activePlaybackMetrics) {
         console.log(
@@ -193,8 +171,9 @@ export const usePlayerStore = defineStore('player', () => {
       }
     })
 
-    audioElement.addEventListener('playing', () => {
+    audio.onPlaying(() => {
       console.log('[Player] playing event - audio is now playing')
+      isPlaying.value = true
       if (activePlaybackMetrics) {
         console.log(
           `[Player][Perf] ${activePlaybackMetrics.trackName} playing after ${Math.round(nowMs() - activePlaybackMetrics.startedAt)}ms`
@@ -202,37 +181,25 @@ export const usePlayerStore = defineStore('player', () => {
       }
     })
 
-    audioElement.addEventListener('timeupdate', () => {
-      currentTime.value = audioElement.currentTime
-      syncCurrentLyricIndexForTime(audioElement.currentTime)
+    audio.onTimeUpdate((time) => {
+      currentTime.value = time
+      syncCurrentLyricIndexForTime(time)
     })
 
-    audioElement.addEventListener('play', () => {
-      console.log('[Player] play event - setting isPlaying to true')
-      isPlaying.value = true
-    })
-
-    audioElement.addEventListener('pause', () => {
+    audio.onPause(() => {
       console.log('[Player] pause event - setting isPlaying to false')
       isPlaying.value = false
     })
 
-    audioElement.addEventListener('ended', () => {
+    audio.onEnded(() => {
       console.log('[Player] ended event - song finished')
       isPlaying.value = false
       clearActivePlaybackMetrics()
       playNext()
     })
 
-    audioElement.addEventListener('error', () => {
-      console.error(
-        '[Player] Audio element playback failed:',
-        audioElement.error,
-        'code:',
-        audioElement.error?.code,
-        'message:',
-        audioElement.error?.message
-      )
+    audio.onError((err) => {
+      console.error('[Player] Audio playback error:', err.message)
       isPlaying.value = false
       clearActivePlaybackMetrics()
       if (settingsStore.settings.autoSkipOnError && playlist.value.length > 1) {
@@ -240,24 +207,8 @@ export const usePlayerStore = defineStore('player', () => {
       }
     })
 
-    audioElement.addEventListener('volumechange', () => {
-      console.log(
-        '[Player] volumechange event - volume:',
-        audioElement.volume,
-        'muted:',
-        audioElement.muted
-      )
-    })
-
     audioEventsBound = true
-    console.log(
-      '[Player] Audio events bound, audioElement id:',
-      audioElement.id,
-      'volume:',
-      audioElement.volume,
-      'muted:',
-      audioElement.muted
-    )
+    console.log('[Player] Audio events bound via AudioAdapter')
     syncAudioState()
   }
 
@@ -310,66 +261,33 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   async function startAudioPlayback(src: string) {
-    if (!audioElement) {
-      throw new Error('当前环境不支持音频播放')
-    }
-
-    console.log('[Player] Before sync - audioElement state:', {
-      src: audioElement.src?.substring(0, 60),
-      paused: audioElement.paused,
-      volume: audioElement.volume,
-      muted: audioElement.muted,
-      currentTime: audioElement.currentTime,
-      readyState: audioElement.readyState,
-    })
+    console.log('[Player] startAudioPlayback, src:', src?.substring(0, 60))
 
     syncAudioState()
 
-    console.log('[Player] After sync - audioElement state:', {
-      volume: audioElement.volume,
-      muted: audioElement.muted,
-      playbackRate: audioElement.playbackRate,
-    })
-
-    if (audioElement.src !== src) {
-      console.log(
-        '[Player] Setting new src, old:',
-        audioElement.src?.substring(0, 50),
-        'new:',
-        src?.substring(0, 50)
-      )
-      audioElement.src = src
-    }
-    audioElement.currentTime = 0
+    audio.setSrc(src)
+    audio.seek(0)
 
     if (activePlaybackMetrics) {
       activePlaybackMetrics.playRequestedAt = nowMs()
     }
 
     console.log('[Player] Calling play()...')
-    await audioElement.play()
+    await audio.play()
     console.log(
-      '[Player] play() succeeded, audioElement.paused:',
-      audioElement.paused,
-      'audioElement.currentTime:',
-      audioElement.currentTime
+      '[Player] play() succeeded, paused:',
+      audio.paused,
+      'currentTime:',
+      audio.currentTime
     )
   }
 
   function stopAudioPlaybackForRetry() {
-    if (!audioElement) return
-
     try {
-      audioElement.pause()
+      audio.pause()
+      audio.reset()
     } catch (error) {
-      console.warn('[Player] Failed to pause audio during retry:', error)
-    }
-
-    try {
-      audioElement.removeAttribute('src')
-      audioElement.load()
-    } catch (error) {
-      console.warn('[Player] Failed to reset audio element during retry:', error)
+      console.warn('[Player] Failed to reset audio during retry:', error)
     }
 
     isPlaying.value = false
@@ -378,11 +296,10 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   async function waitForPlaybackMetadata(timeoutMs = PLAYBACK_METADATA_TIMEOUT_MS): Promise<number | null> {
-    if (!audioElement) return null
-
     const readDuration = () => {
-      if (!Number.isFinite(audioElement.duration) || audioElement.duration <= 0) return null
-      return audioElement.duration
+      const d = audio.duration
+      if (!Number.isFinite(d) || d <= 0) return null
+      return d
     }
 
     const immediateDuration = readDuration()
@@ -392,34 +309,22 @@ export const usePlayerStore = defineStore('player', () => {
       let settled = false
       let timer: number | null = null
 
-      const cleanup = () => {
-        audioElement.removeEventListener('loadedmetadata', handleResolve)
-        audioElement.removeEventListener('durationchange', handleResolve)
-        audioElement.removeEventListener('canplay', handleResolve)
-        audioElement.removeEventListener('error', handleResolve)
-        if (timer !== null) {
-          window.clearTimeout(timer)
-        }
-      }
-
-      const finish = () => {
+      const finish = (value: number | null) => {
         if (settled) return
         settled = true
-        cleanup()
-        resolve(readDuration())
+        if (timer !== null) window.clearTimeout(timer)
+        unsubMetadata()
+        unsubCanPlay()
+        unsubError()
+        resolve(value)
       }
 
-      const handleResolve = () => {
-        finish()
-      }
-
-      audioElement.addEventListener('loadedmetadata', handleResolve)
-      audioElement.addEventListener('durationchange', handleResolve)
-      audioElement.addEventListener('canplay', handleResolve)
-      audioElement.addEventListener('error', handleResolve)
+      const unsubMetadata = audio.onLoadedMetadata((d) => finish(d || null))
+      const unsubCanPlay = audio.onCanPlay(() => finish(readDuration()))
+      const unsubError = audio.onError(() => finish(null))
 
       timer = window.setTimeout(() => {
-        finish()
+        finish(readDuration())
       }, timeoutMs)
     })
   }
@@ -540,7 +445,19 @@ export const usePlayerStore = defineStore('player', () => {
         }
 
         const actualDuration = await waitForPlaybackMetadata()
-        const suspiciousPlaybackMessage = buildSuspiciousPlaybackMessage(music, actualDuration || undefined)
+
+        if (!actualDuration || actualDuration <= 0) {
+          console.warn(`[Player] Track "${music.name}" has zero duration, skipping to next`)
+          stopAudioPlaybackForRetry()
+          clearActivePlaybackMetrics(currentToken)
+          isLoadingUrl.value = false
+          if (playlist.value.length > 1) {
+            playNext()
+          }
+          return
+        }
+
+        const suspiciousPlaybackMessage = buildSuspiciousPlaybackMessage(music, actualDuration)
         if (suspiciousPlaybackMessage && resolution.userSourceId) {
           rejectCustomPlaybackSource(music, resolution, suspiciousPlaybackMessage)
           excludedSourceIds.add(resolution.userSourceId)
@@ -551,6 +468,7 @@ export const usePlayerStore = defineStore('player', () => {
         resolvedUrl.value = finalPlaybackUrl
         applyResolvedPlaybackState(resolution)
         isPlaying.value = true
+        loadedTrackKey = getTrackPlaybackKey(music)
         rememberPlaybackUrlProbeResult(url, true)
 
         if (resolution.userSourceId) {
@@ -612,7 +530,7 @@ export const usePlayerStore = defineStore('player', () => {
   async function pauseMusic() {
     isPlaying.value = false
     try {
-      audioElement?.pause()
+      audio.pause()
     } catch (error) {
       console.error('[Player] Failed to pause audio:', error)
     }
@@ -620,20 +538,28 @@ export const usePlayerStore = defineStore('player', () => {
 
   async function resumeMusic() {
     console.log(
-      '[Player] resumeMusic called, audioElement:',
-      !!audioElement,
-      'src:',
-      audioElement?.src?.substring(0, 50)
+      '[Player] resumeMusic called, paused:',
+      audio.paused,
+      'currentTime:',
+      audio.currentTime
     )
-    if (!audioElement) {
-      console.error('[Player] resumeMusic: audioElement is null')
+    if (isLoadingUrl.value) {
+      console.log('[Player] resumeMusic: URL is still loading, ignoring')
       return
     }
-    if (!audioElement.src) {
+    const expectedKey = currentMusic.value ? getTrackPlaybackKey(currentMusic.value) : null
+    if (expectedKey && loadedTrackKey !== expectedKey) {
+      console.log('[Player] resumeMusic: track mismatch, restarting playback for:', currentMusic.value?.name)
+      if (currentMusic.value) {
+        await playMusic(currentMusic.value)
+      }
+      return
+    }
+    if (audio.paused && audio.currentTime === 0 && !audio.duration) {
       if (currentMusic.value) {
         await playMusic(currentMusic.value)
       } else {
-        console.error('[Player] resumeMusic: audioElement has no src')
+        console.error('[Player] resumeMusic: no src loaded')
       }
       return
     }
@@ -641,19 +567,14 @@ export const usePlayerStore = defineStore('player', () => {
     try {
       console.log(
         '[Player] resumeMusic: calling play(), currentTime:',
-        audioElement.currentTime,
+        audio.currentTime,
         'duration:',
-        audioElement.duration
+        audio.duration
       )
-      await audioElement.play()
+      await audio.play()
       console.log('[Player] resumeMusic: play() succeeded')
     } catch (error) {
-      console.error(
-        '[Player] Failed to resume audio:',
-        error,
-        'src:',
-        audioElement.src?.substring(0, 50)
-      )
+      console.error('[Player] Failed to resume audio:', error)
       isPlaying.value = false
     }
   }
@@ -662,9 +583,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = time
     syncCurrentLyricIndexForTime(time)
     try {
-      if (audioElement) {
-        audioElement.currentTime = Math.max(0, time)
-      }
+      audio.seek(time)
     } catch (error) {
       console.error('[Player] Failed to seek:', error)
     }
@@ -806,16 +725,23 @@ export const usePlayerStore = defineStore('player', () => {
     playlist.value = []
     currentIndex.value = 0
     pauseMusic()
-    if (audioElement) {
-      audioElement.removeAttribute('src')
-      audioElement.load()
-    }
+    audio.reset()
     currentMusic.value = null
     currentTime.value = 0
     duration.value = 0
+    loadedTrackKey = null
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
+  }
+
+  function clearQueue() {
+    if (!currentMusic.value) {
+      clearPlaylist()
+      return
+    }
+    playlist.value = [currentMusic.value]
+    currentIndex.value = 0
   }
 
   function restoreSession(session: PersistedPlayerSession) {
@@ -826,15 +752,13 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = Math.max(0, session.currentTime || 0)
     duration.value = currentMusic.value?.duration || 0
     isPlaying.value = false
+    loadedTrackKey = null
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
 
-    if (audioElement) {
-      audioElement.pause()
-      audioElement.removeAttribute('src')
-      audioElement.load()
-    }
+    audio.pause()
+    audio.reset()
   }
 
   function setLyrics(lines: LyricLine[]) {
@@ -898,6 +822,7 @@ export const usePlayerStore = defineStore('player', () => {
     playNext,
     playPrevious,
     clearPlaylist,
+    clearQueue,
     restoreSession,
     setLyrics,
     setCurrentLyricIndex,

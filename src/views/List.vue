@@ -230,7 +230,7 @@
       </section>
     </section>
 
-    <NModal v-model:show="showCreateDialog" preset="card" title="创建歌单" style="width: 440px">
+    <NModal v-model:show="showCreateDialog" preset="card" title="创建歌单" style="width: clamp(320px, 85vw, 440px)">
       <p>起一个清晰的名字，后续从搜索结果里就能直接添加进去。</p>
       <NInput
         v-model:value="newPlaylistName"
@@ -243,7 +243,7 @@
       </template>
     </NModal>
 
-    <NModal v-model:show="showImportDialog" preset="card" title="导入歌单" style="width: 520px">
+    <NModal v-model:show="showImportDialog" preset="card" title="导入歌单" style="width: clamp(340px, 85vw, 520px)">
       <div class="import-dialog">
         <p class="import-dialog__copy">
           先选择渠道，再粘贴分享链接。第一版优先支持网易云和腾讯歌单导入。
@@ -966,11 +966,10 @@ onUnmounted(() => {
   container-type: inline-size;
   width: 100%;
   min-width: 0;
-  min-height: 100%;
   display: grid;
   grid-template-columns: clamp(236px, 22vw, 284px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 10px;
-  height: 100%;
   min-height: 0;
   align-items: stretch;
   overflow: hidden;
@@ -978,7 +977,6 @@ onUnmounted(() => {
   &.page-shell {
     width: 100%;
     max-width: none;
-    min-height: 100%;
     margin: 0;
     padding: 0;
   }
@@ -997,7 +995,6 @@ onUnmounted(() => {
   flex-direction: column;
   padding: 16px 10px;
   border-radius: var(--radius-md);
-  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--panel-strong);
@@ -1140,20 +1137,16 @@ onUnmounted(() => {
 }
 
 .playlist-main {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 0;
-  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  height: 100%;
   overflow: hidden;
 }
 
 .playlist-workbench {
-  flex: 1 1 auto;
-  height: 100%;
-  max-height: 100%;
+  flex: 1 1 0%;
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -1703,13 +1696,18 @@ onUnmounted(() => {
 
 @container (max-width: 1320px) {
   .playlist-page {
-    grid-template-columns: clamp(224px, 25vw, 260px) minmax(0, 1fr);
+    grid-template-columns: clamp(200px, 22vw, 260px) minmax(0, 1fr);
     gap: 14px;
   }
 
   .playlist-hero {
-    grid-template-columns: 128px minmax(0, 1fr);
+    grid-template-columns: clamp(80px, 10cqw, 128px) minmax(0, 1fr);
     padding: 18px 18px 16px;
+  }
+
+  .playlist-hero__cover {
+    width: clamp(80px, 10cqw, 128px);
+    height: clamp(80px, 10cqw, 128px);
   }
 
   .playlist-hero__actions {
@@ -1726,7 +1724,7 @@ onUnmounted(() => {
 
 @container (max-width: 1180px) {
   .playlist-page {
-    grid-template-columns: clamp(212px, 28vw, 240px) minmax(0, 1fr);
+    grid-template-columns: clamp(180px, 24vw, 240px) minmax(0, 1fr);
   }
 
   .playlist-sidebar {
@@ -1738,17 +1736,17 @@ onUnmounted(() => {
   }
 
   .playlist-hero {
-    grid-template-columns: 116px minmax(0, 1fr);
+    grid-template-columns: clamp(72px, 9cqw, 116px) minmax(0, 1fr);
     padding: 18px 18px 16px;
   }
 
   .playlist-hero__cover {
-    width: 116px;
-    height: 116px;
+    width: clamp(72px, 9cqw, 116px);
+    height: clamp(72px, 9cqw, 116px);
   }
 
   .playlist-hero__meta h2 {
-    font-size: clamp(1.38rem, 2.4vw, 1.85rem);
+    font-size: clamp(1.2rem, 2.2vw, 1.7rem);
   }
 
   .playlist-library {
@@ -1781,16 +1779,16 @@ onUnmounted(() => {
 
 @container (max-width: 980px) {
   .playlist-page {
-    grid-template-columns: minmax(188px, 220px) minmax(0, 1fr);
+    grid-template-columns: clamp(160px, 22vw, 220px) minmax(0, 1fr);
   }
 
   .playlist-hero {
-    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-columns: clamp(68px, 9cqw, 104px) minmax(0, 1fr);
   }
 
   .playlist-hero__cover {
-    width: 104px;
-    height: 104px;
+    width: clamp(68px, 9cqw, 104px);
+    height: clamp(68px, 9cqw, 104px);
   }
 
   .playlist-hero__actions {
@@ -1806,7 +1804,7 @@ onUnmounted(() => {
 
 @container (max-width: 760px) {
   .playlist-page {
-    grid-template-columns: minmax(164px, 196px) minmax(0, 1fr);
+    grid-template-columns: clamp(140px, 20vw, 196px) minmax(0, 1fr);
   }
 
   .playlist-sidebar {
@@ -1823,17 +1821,17 @@ onUnmounted(() => {
   }
 
   .playlist-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: clamp(60px, 8cqw, 96px) minmax(0, 1fr);
     padding: 16px;
+  }
+
+  .playlist-hero__cover {
+    width: clamp(60px, 8cqw, 96px);
+    height: clamp(60px, 8cqw, 96px);
   }
 
   .import-dialog__channels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .playlist-hero__cover {
-    width: 96px;
-    height: 96px;
   }
 
   .playlist-table__head {

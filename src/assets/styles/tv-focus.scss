@@ -1,0 +1,287 @@
+// TV / 低性能设备模式 - 焦点、导航与性能优化样式
+// 仅在 [data-ui-mode="tv"] 下生效
+
+[data-ui-mode='tv'] {
+  // ================================================================
+  // 1. 全局性能优化
+  // ================================================================
+
+  // 禁用所有元素的 transition - 低性能设备最大性能杀手
+  &,
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+
+  // 焦点切换保留极短过渡 (视觉反馈)
+  *:focus-visible {
+    transition: outline 0.1s ease, background-color 0.1s ease !important;
+  }
+
+  // ================================================================
+  // 2. 移除 GPU 密集型效果
+  // ================================================================
+
+  // 移除所有 backdrop-filter（即使变量设了 blur(0)，某些浏览器仍触发合成）
+  .glass-panel,
+  .sidebar,
+  .player-bar,
+  [class*='backdrop'] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  // 移除 inset box-shadow（触发额外合成层）
+  .glass-panel {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .section-card {
+    box-shadow: none;
+  }
+
+  .page-hero {
+    box-shadow: none;
+  }
+
+  // 移除 DesktopWindowShell 的 clip-path 和伪元素
+  .desktop-window-shell {
+    clip-path: none;
+
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
+
+  // ================================================================
+  // 3. 简化渐变为纯色
+  // ================================================================
+
+  // 侧栏用纯色替代多层渐变
+  .sidebar {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebar__nav-item {
+    background: transparent;
+
+    &:hover,
+    &.is-active {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+    }
+  }
+
+  .sidebar__panel {
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: none;
+  }
+
+  .sidebar__logo {
+    box-shadow: 0 2px 6px rgba(74, 48, 134, 0.2);
+    background: linear-gradient(145deg, #cfbbff, #8a68e0);
+  }
+
+  // ================================================================
+  // 4. 焦点系统
+  // ================================================================
+
+  *:focus-visible {
+    outline: var(--tv-focus-width) solid var(--tv-focus-color);
+    outline-offset: var(--tv-focus-offset);
+    border-radius: var(--radius-sm);
+  }
+
+  // 禁用 hover 效果 - TV 无鼠标
+  .sidebar__nav-item:hover,
+  .player-bar__btn:hover,
+  .player-bar__text-btn:hover,
+  .app-button:hover:not(:disabled),
+  .app-icon-button:hover:not(:disabled) {
+    transform: none;
+    filter: none;
+    background-color: transparent;
+  }
+
+  // 焦点激活 - 用简单纯色背景替代渐变
+  .sidebar__nav-item:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    border-color: var(--tv-focus-color);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .player-bar__btn:focus-visible,
+  .player-bar__play:focus-visible,
+  .player-bar__text-btn:focus-visible {
+    outline: var(--tv-focus-width) solid var(--tv-focus-color);
+    outline-offset: 2px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .app-button:focus-visible,
+  .app-icon-button:focus-visible {
+    outline: var(--tv-focus-width) solid var(--tv-focus-color);
+    outline-offset: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  // ================================================================
+  // 5. 按钮与交互元素放大
+  // ================================================================
+
+  button,
+  [role='button'] {
+    min-width: var(--tv-touch-min);
+    min-height: var(--tv-touch-min);
+  }
+
+  .player-bar__btn {
+    min-width: 48px;
+    height: 48px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .player-bar__play {
+    width: 64px;
+    height: 64px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .player-bar__text-btn {
+    min-width: 64px;
+    height: 44px;
+    font-size: 0.86rem;
+  }
+
+  .app-icon-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  .app-icon-button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .app-button {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 1rem;
+  }
+
+  .app-pill {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 0.86rem;
+  }
+
+  // ================================================================
+  // 6. 播放栏放大与简化
+  // ================================================================
+
+  .player-bar {
+    padding: 16px 20px;
+    gap: 20px;
+  }
+
+  .player-bar__cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  .player-bar__track strong {
+    font-size: 1.1rem;
+  }
+
+  .player-bar__track > span {
+    font-size: 0.86rem;
+  }
+
+  .player-bar__timeline {
+    font-size: 0.86rem;
+  }
+
+  .player-bar__progress-track {
+    height: 6px;
+  }
+
+  .player-bar__progress-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  // ================================================================
+  // 7. 页面元素放大
+  // ================================================================
+
+  .page-title {
+    font-size: var(--tv-page-title-size, 3rem);
+  }
+
+  .page-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .page-shell {
+    padding: 20px 22px 0;
+    gap: 20px;
+  }
+
+  .page-hero {
+    padding: 30px 32px;
+    gap: 24px;
+  }
+
+  .page-kicker {
+    font-size: 0.96rem;
+    gap: 14px;
+  }
+
+  .page-kicker::before {
+    width: 32px;
+    background: var(--primary-color);
+  }
+
+  .page-meta-pill {
+    min-height: 42px;
+    padding: 0 16px;
+    font-size: 0.9rem;
+  }
+
+  .section-card {
+    padding: 24px;
+  }
+
+  // ================================================================
+  // 8. TV Shell 全屏
+  // ================================================================
+
+  .tv-shell {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  // ================================================================
+  // 9. 硬件加速提示 (减少闪烁)
+  // ================================================================
+
+  .player-bar,
+  .sidebar,
+  .app-layout-shell {
+    transform: translateZ(0);
+    will-change: auto;
+  }
+}

@@ -1,0 +1,64 @@
+// Mobile 模式 - CSS 变量覆盖
+// 通过 [data-ui-mode="mobile"] 选择器实现样式共存
+//
+// 优化策略:
+// 1. 禁用毛玻璃 - 移动端 GPU 性能有限
+// 2. 简化阴影 - 减少合成层
+// 3. 触控友好尺寸 - 最小 44px 触控目标
+// 4. 适度字号 - 16px 基础字号
+
+[data-ui-mode='mobile'] {
+  // === 字体 ===
+  --app-font-size: 16px;
+
+  // === 布局调整 ===
+  --sidebar-width: 0px;
+  --rail-width: 0px;
+  --player-bar-height: 56px;
+  --header-height: 52px;
+  --mobile-tab-height: 64px;
+  --mobile-mini-player-height: 56px;
+
+  // === 圆角 ===
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+
+  // === 性能优化: 禁用毛玻璃 ===
+  --glass-blur: blur(0px);
+
+  // === 性能优化: 简化阴影 ===
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.22);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.26);
+  --shadow: var(--shadow-sm);
+  --panel-shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.12);
+  --shell-shadow: none;
+
+  // === 性能优化: 简化渐变 ===
+  --shell-surface: rgba(255, 255, 255, 0.06);
+  --panel-gradient: rgba(255, 255, 255, 0.05);
+  --panel-muted: rgba(255, 255, 255, 0.03);
+  --panel-strong: rgba(255, 255, 255, 0.08);
+
+  // === 触控目标 ===
+  --mobile-touch-min: 44px;
+
+  // === 窗口框架 ===
+  --window-frame-radius: 0px;
+
+  // === 面板背景 ===
+  --panel-surface: rgba(10, 16, 28, 0.85);
+  --panel-surface-strong: rgba(255, 255, 255, 0.08);
+  --modal-surface: rgba(6, 10, 20, 0.9);
+  --input-surface: rgba(255, 255, 255, 0.08);
+  --input-surface-focus: rgba(255, 255, 255, 0.12);
+
+  // === 简化按钮阴影 ===
+  --button-primary-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --button-accent-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --glow-primary: none;
+  --glow-secondary: none;
+}

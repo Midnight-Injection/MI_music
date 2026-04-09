@@ -4,9 +4,18 @@
       <NDialogProvider>
         <NNotificationProvider>
           <AppBootstrap v-slot="{ isReady, errorMessage }">
-            <DesktopWindowShell :caption="windowCaption" :is-ready="isReady" :error-message="errorMessage">
+            <!-- PC 模式: 桌面窗口 Shell -->
+            <DesktopWindowShell v-if="uiMode.isPC" :caption="windowCaption" :is-ready="isReady" :error-message="errorMessage">
               <AppLayoutShell />
             </DesktopWindowShell>
+            <!-- TV 模式: 全屏无边框 -->
+            <div v-else-if="uiMode.isTV" class="tv-shell">
+              <AppLayoutShell />
+            </div>
+            <!-- Mobile 模式: 全屏 + 底部导航 -->
+            <div v-else class="mobile-shell">
+              <AppLayoutShell />
+            </div>
           </AppBootstrap>
         </NNotificationProvider>
       </NDialogProvider>
@@ -23,6 +32,7 @@ import AppLayoutShell from './components/layout/AppLayoutShell.vue'
 import DesktopWindowShell from './components/layout/DesktopWindowShell.vue'
 import { createThemeOverrides } from './plugins/naive-ui'
 import { useThemeStore } from './store/theme'
+import { useUIModeStore } from './store/uiMode'
 import { FONT_FAMILY_STACKS } from './types/settings'
 
 function withAlpha(color: string, alpha: number) {
@@ -43,6 +53,7 @@ function withAlpha(color: string, alpha: number) {
 
 const route = useRoute()
 const themeStore = useThemeStore()
+const uiMode = useUIModeStore()
 const windowCaption = computed(() => String(route.meta.title || '极域音乐'))
 const naiveTheme = computed(() => (themeStore.resolvedMode === 'dark' ? darkTheme : null))
 const naiveThemeOverrides = computed(() => {
@@ -88,5 +99,12 @@ const naiveThemeOverrides = computed(() => {
   min-height: 0;
   display: grid;
   overflow: hidden;
+}
+
+.tv-shell {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
 }
 </style>

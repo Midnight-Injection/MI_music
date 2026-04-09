@@ -310,7 +310,7 @@
       v-model:show="addToPlaylistDialog.show"
       preset="card"
       title="添加到歌单"
-      style="width: 520px"
+      style="width: clamp(340px, 85vw, 520px)"
       @click-outside="closeAddToPlaylistDialog"
     >
       <p v-if="addToPlaylistDialog.music">
@@ -1044,6 +1044,12 @@ watch(
 
 onMounted(() => {
   document.addEventListener('click', hideContextMenu)
+
+  // 首次打开且没有搜索过时，自动搜索默认关键词
+  if (!searchKeyword.value.trim()) {
+    searchKeyword.value = '热门歌单'
+    void handleSearchSubmit()
+  }
 })
 
 onUnmounted(() => {
@@ -1057,13 +1063,20 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .song-list-page {
-  height: 100%;
   overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   &.page-shell {
     width: 100%;
     max-width: none;
     padding: 0;
+  }
+
+  > .search-home {
+    flex-shrink: 0;
   }
 }
 
@@ -1689,6 +1702,22 @@ onUnmounted(() => {
 
   .playlist-detail__cover-shell {
     width: min(280px, 100%);
+  }
+}
+
+@media (max-width: 920px) {
+  .search-home__hero {
+    display: none;
+  }
+
+  .search-home {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .search-home__toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
   }
 }
 </style>

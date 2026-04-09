@@ -267,3 +267,9 @@
   transition: none !important;
   scroll-behavior: auto !important;
 }
+
+// TV / 低性能模式: 禁用全局动画和过渡
+[data-ui-mode='tv'] * {
+  animation-duration: 0ms !important;
+  transition-duration: 0ms !important;
+}

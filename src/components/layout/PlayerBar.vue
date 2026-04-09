@@ -27,17 +27,17 @@
 
     <div class="player-bar__center">
       <div class="player-bar__controls">
-        <button class="player-bar__btn" :title="playModeTitle" @click="togglePlayMode">
+        <button class="player-bar__btn" :title="playModeTitle" :data-tv-focusable="uiMode.isTV ? '' : undefined" tabindex="0" @click="togglePlayMode">
           {{ playModeIcon }}
         </button>
-        <button class="player-bar__btn" title="上一首" @click="player.playPrevious">
+        <button class="player-bar__btn" title="上一首" aria-label="上一首" :data-tv-focusable="uiMode.isTV ? '' : undefined" tabindex="0" @click="player.playPrevious">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
         </button>
-        <button class="player-bar__play" :title="player.isPlaying ? '暂停' : '播放'" @click="togglePlay">
+        <button class="player-bar__play" :title="player.isPlaying ? '暂停' : '播放'" :aria-label="player.isPlaying ? '暂停' : '播放'" :data-tv-focusable="uiMode.isTV ? '' : undefined" tabindex="0" @click="togglePlay">
           <svg v-if="player.isPlaying" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
           <svg v-else viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         </button>
-        <button class="player-bar__btn" title="下一首" @click="player.playNext">
+        <button class="player-bar__btn" title="下一首" aria-label="下一首" :data-tv-focusable="uiMode.isTV ? '' : undefined" tabindex="0" @click="player.playNext">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
         </button>
       </div>
@@ -75,6 +75,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { motion } from 'motion-v'
 import { useRouter } from 'vue-router'
 import { usePlayerStore } from '../../store/player'
+import { useUIModeStore } from '../../store/uiMode'
 import { useUserSourceStore } from '../../stores/userSource'
 import type { PlayMode } from '../../types/player'
 import { getPlaybackSourceDisplayInfo } from '../../lib/playbackSource'
@@ -82,6 +83,7 @@ import { formatQualityLabel, getTrackDisplayQuality } from '../../lib/trackQuali
 
 const router = useRouter()
 const player = usePlayerStore()
+const uiMode = useUIModeStore()
 const userSourceStore = useUserSourceStore()
 
 const defaultCover = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%236a53ad" width="120" height="120"/%3E%3Ccircle cx="60" cy="60" r="30" fill="%23ffffff" fill-opacity="0.22"/%3E%3C/svg%3E'
@@ -221,6 +223,7 @@ function formatTime(seconds: number): string {
 }
 
 function handleKeyboardShortcuts(event: KeyboardEvent) {
+  if (uiMode.isMobile) return
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
 
   switch (event.code) {
@@ -230,11 +233,19 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
       break
     case 'ArrowLeft':
       event.preventDefault()
-      player.setProgress(Math.max(0, player.currentTime - 5))
+      if (uiMode.isTV) {
+        player.playPrevious()
+      } else {
+        player.setProgress(Math.max(0, player.currentTime - 5))
+      }
       break
     case 'ArrowRight':
       event.preventDefault()
-      player.setProgress(Math.min(player.duration, player.currentTime + 5))
+      if (uiMode.isTV) {
+        player.playNext()
+      } else {
+        player.setProgress(Math.min(player.duration, player.currentTime + 5))
+      }
       break
     case 'KeyM':
       event.preventDefault()
@@ -472,4 +483,71 @@ onUnmounted(() => {
   }
 }
 
-</style>
+@media (max-width: 920px) {
+  .player-bar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 140px);
+    gap: 8px;
+    padding: 6px 10px;
+    min-height: 48px;
+  }
+
+  .player-bar__center {
+    order: -1;
+    flex: 1;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .player-bar__timeline {
+    display: none;
+  }
+
+  .player-bar__side {
+    input {
+      width: 60px;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .player-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 4px 8px;
+    min-height: 40px;
+  }
+
+  .player-bar__side {
+    display: none;
+  }
+
+  .player-bar__main {
+    gap: 6px;
+  }
+
+  .player-bar__cover {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .player-bar__play {
+    width: 32px;
+    height: 32px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .player-bar__btn {
+    min-width: 28px;
+    height: 28px;
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+  }
+}</style>

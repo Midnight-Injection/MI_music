@@ -19,17 +19,54 @@ fn main() {
     let qq_auth_state: jiyu_music::SharedQqAuthState =
         Arc::new(AsyncMutex::new(jiyu_music::QqAuthState::default()));
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_mcp_bridge::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(feature = "dev-tools")]
+    {
+        builder = builder.plugin(tauri_plugin_mcp_bridge::init());
+    }
+
+    builder
         .manage(db_state)
         .manage(lyrics_state)
         .manage(player_state)
         .manage(qq_auth_state)
+        .setup(|app| {
+            // ── 创建主窗口 ──────────────────────────────────────
+            // 需要在代码中创建（而非 tauri.conf.json），以便在 Windows 上
+            // 注入 WebView2 浏览器参数，解决 autoplay 策略限制。
+            use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+            let builder =
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    .title("Jiyu Music")
+                    .inner_size(1440.0, 1055.0)
+                    .min_inner_size(654.0, 479.0)
+                    .resizable(true)
+                    .accept_first_mouse(true)
+                    .decorations(false)
+                    .transparent(true)
+                    .shadow(false)
+                    .fullscreen(false)
+                    .devtools(true);
+
+            // Windows: 允许 WebView2 自动播放音频（无需用户手势）
+            // 这是音乐应用的必要配置，否则异步 URL 解析后会丢失用户手势上下文
+            #[cfg(target_os = "windows")]
+            {
+                builder =
+                    builder.additional_browser_args("--autoplay-policy=no-user-gesture-required");
+            }
+
+            builder.build().expect("Failed to create main window");
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             jiyu_music::exit_app,
             jiyu_music::set_network_proxy,

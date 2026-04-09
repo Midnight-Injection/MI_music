@@ -1668,8 +1668,7 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .setting-page {
-  padding-top: 0;
-  padding-bottom: 20px;
+  overflow-y: auto;
 
   &.page-shell {
     width: 100%;
@@ -1786,10 +1785,12 @@ onMounted(async () => {
 }
 
 .tab-content {
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
   padding: 18px 18px 8px;
   border-radius: 22px;
   background: var(--panel-gradient);
+  overflow-y: auto;
 }
 
 .sync-placeholder {

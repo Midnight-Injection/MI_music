@@ -689,13 +689,46 @@ onUnmounted(() => {
   cursor: nwse-resize;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 920px) {
   .desktop-window-shell__frame {
-    padding: 8px;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .desktop-window-shell__titlebar {
+    min-height: 38px;
+    border-radius: 12px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .desktop-window-shell__eyebrow {
+    display: none;
   }
 
   .desktop-window-shell__status {
     display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .desktop-window-shell__frame {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .desktop-window-shell__titlebar {
+    min-height: 32px;
+    border-radius: 10px;
+  }
+
+  .desktop-window-shell__control {
+    width: 11px;
+    height: 11px;
+  }
+
+  .desktop-window-shell__title {
+    font-size: 0.78rem;
   }
 }
 </style>

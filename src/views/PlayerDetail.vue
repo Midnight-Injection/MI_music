@@ -109,7 +109,17 @@
               <p class="section-head__eyebrow">队列</p>
               <h2>接下来播放</h2>
             </div>
-            <p class="section-head__note">{{ player.playlist.length }} 首歌曲</p>
+            <div class="section-head__actions">
+              <p class="section-head__note">{{ player.playlist.length }} 首歌曲</p>
+              <button
+                v-if="player.playlist.length > 1"
+                type="button"
+                class="queue-clear-btn"
+                @click="player.clearQueue()"
+              >
+                清空队列
+              </button>
+            </div>
           </div>
 
           <div v-if="player.playlist.length" class="queue-list">
@@ -655,27 +665,29 @@ onUnmounted(() => {
 
 .detail-rail {
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 14px;
 }
 
 .cover-card {
   position: relative;
-  padding: 16px;
-  border-radius: 30px;
+  padding: 12px;
+  border-radius: 26px;
   background: var(--panel-gradient);
   border: 1px solid var(--border-color);
   overflow: hidden;
   box-shadow: var(--panel-shadow-soft);
+  min-height: 0;
 }
 
 .cover-card__glow {
   position: absolute;
   right: -18%;
   bottom: -18%;
-  width: 180px;
-  height: 180px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in srgb, var(--primary-color) 22%, transparent), transparent 70%);
   pointer-events: none;
@@ -688,7 +700,7 @@ onUnmounted(() => {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 24px;
+  border-radius: 20px;
   background: rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow-lg);
 }
@@ -697,22 +709,22 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 1rem;
+  font-size: 0.9rem;
   letter-spacing: 0.08em;
 }
 
 .track-copy {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   padding: 2px 4px;
   min-width: 0;
 }
 
 .track-copy__title {
   margin: 0;
-  font-size: clamp(1.9rem, 3vw, 3.2rem);
-  line-height: 1;
+  font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+  line-height: 1.1;
   letter-spacing: -0.04em;
   word-break: break-word;
   overflow: hidden;
@@ -725,37 +737,41 @@ onUnmounted(() => {
 .track-copy__subtitle {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .detail-facts {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 18px;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
 }
 
 .detail-facts__row {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .detail-facts__label {
+  flex-shrink: 0;
   color: var(--text-tertiary);
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+  min-width: 64px;
 }
 
 .detail-facts__value {
   color: var(--text-primary);
-  font-size: 0.94rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.35;
   word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lyrics-stage,
@@ -792,6 +808,33 @@ onUnmounted(() => {
   color: var(--text-tertiary);
   font-size: 0.85rem;
   text-align: right;
+}
+
+.section-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.queue-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+
+  &:hover {
+    background: rgba(255, 107, 129, 0.14);
+    border-color: rgba(255, 107, 129, 0.28);
+    color: #ffc5cf;
+  }
 }
 
 .section-head--lyrics h2 {

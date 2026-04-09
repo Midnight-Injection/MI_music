@@ -6,7 +6,7 @@
     @mouseleave="isHover = false"
     @focusin="isHover = true"
     @focusout="isHover = false"
-    @dblclick="handlePlay"
+    @click="handlePlay"
     @contextmenu.prevent="handleContextMenu"
   >
     <div class="song-cover">
