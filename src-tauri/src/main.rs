@@ -40,7 +40,8 @@ fn main() {
             // 注入 WebView2 浏览器参数，解决 autoplay 策略限制。
             use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-            let builder =
+            #[allow(unused_mut)]
+            let mut builder =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                     .title("Jiyu Music")
                     .inner_size(1440.0, 1055.0)
