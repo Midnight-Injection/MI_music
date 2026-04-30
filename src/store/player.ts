@@ -10,6 +10,7 @@ import { buildSuspiciousPlaybackMessage } from '../modules/playback/playbackVali
 import { usePlaybackResolver } from '../modules/playback/playbackResolver'
 import {
   cachePlaybackMedia,
+  clearCachedPlayback,
   getCachedPlayback,
   prunePlaybackCache,
   upsertCachedPlayback,
@@ -100,6 +101,7 @@ export const usePlayerStore = defineStore('player', () => {
   const playbackNotice = ref('')
   const queueContext = ref<PlaybackQueueContext | null>(null)
   let playbackNoticeTimer: number | null = null
+  let audioEventSession: { token: number; trackKey: string } | null = null
 
   // Lyrics state
   const lyrics = ref<LyricLine[]>([])
@@ -180,11 +182,13 @@ export const usePlayerStore = defineStore('player', () => {
     if (audioEventsBound) return
 
     audio.onLoadedMetadata((d) => {
+      if (!isActiveAudioEventSession()) return
       console.log('[Player] loadedmetadata event, duration:', d)
       duration.value = d
     })
 
     audio.onCanPlay(() => {
+      if (!isActiveAudioEventSession()) return
       console.log(
         '[Player] canplay event, duration:',
         audio.duration,
@@ -199,6 +203,7 @@ export const usePlayerStore = defineStore('player', () => {
     })
 
     audio.onPlaying(() => {
+      if (!isActiveAudioEventSession()) return
       console.log('[Player] playing event - audio is now playing')
       isPlaying.value = true
       if (activePlaybackMetrics) {
@@ -209,12 +214,14 @@ export const usePlayerStore = defineStore('player', () => {
     })
 
     audio.onTimeUpdate((time) => {
+      if (!isActiveAudioEventSession()) return
       currentTime.value = time
       syncCurrentLyricIndexForTime(time)
       maybeHandleTrackMilestones(time)
     })
 
     audio.onPause(() => {
+      if (!isActiveAudioEventSession()) return
       console.log('[Player] pause event - setting isPlaying to false')
       isPlaying.value = false
       if (trackPlaybackSession) {
@@ -223,18 +230,24 @@ export const usePlayerStore = defineStore('player', () => {
     })
 
     audio.onEnded(() => {
+      if (!isActiveAudioEventSession()) return
       console.log('[Player] ended event - song finished')
       isPlaying.value = false
-      clearActivePlaybackMetrics()
+      clearActivePlaybackMetrics(audioEventSession?.token)
       trackPlaybackSession = null
+      audioEventSession = null
+      if (isLoadingUrl.value) return
       playNext()
     })
 
     audio.onError((err) => {
+      if (!isActiveAudioEventSession()) return
       console.error('[Player] Audio playback error:', err.message)
       isPlaying.value = false
-      clearActivePlaybackMetrics()
+      if (isLoadingUrl.value) return
+      clearActivePlaybackMetrics(audioEventSession?.token)
       trackPlaybackSession = null
+      audioEventSession = null
       if (settingsStore.settings.autoSkipOnError && playlist.value.length > 1) {
         playNext()
       }
@@ -320,6 +333,7 @@ export const usePlayerStore = defineStore('player', () => {
       sourceId: resolution.userSourceId || null,
       channel: resolution.channel,
       resolver: resolution.resolver,
+      actualQuality: resolution.quality || null,
       touchAccessedAt: true,
       lastVerifiedAt: new Date().toISOString(),
     })
@@ -333,6 +347,7 @@ export const usePlayerStore = defineStore('player', () => {
       sourceId: resolution.userSourceId || null,
       channel: resolution.channel,
       resolver: resolution.resolver,
+      actualQuality: resolution.quality || null,
     })
   }
 
@@ -455,15 +470,42 @@ export const usePlayerStore = defineStore('player', () => {
     activePlaybackMetrics = null
   }
 
+  function isCurrentPlaybackRequest(token: number, music: MusicInfo) {
+    if (token !== playbackRequestToken) return false
+    if (!currentMusic.value) return false
+    return getTrackPlaybackKey(currentMusic.value) === getTrackPlaybackKey(music)
+  }
+
+  function isActiveAudioEventSession() {
+    if (!audioEventSession || !currentMusic.value) return false
+    return (
+      audioEventSession.token === playbackRequestToken
+      && audioEventSession.trackKey === getTrackPlaybackKey(currentMusic.value)
+    )
+  }
+
+  function setActiveAudioEventSession(token: number, music: MusicInfo) {
+    audioEventSession = {
+      token,
+      trackKey: getTrackPlaybackKey(music),
+    }
+  }
+
+  function clearAudioEventSession(expectedToken?: number) {
+    if (expectedToken && audioEventSession?.token !== expectedToken) return
+    audioEventSession = null
+  }
+
   function isRemotePlaybackUrl(url: string) {
     return url.startsWith('https://') || url.startsWith('http://')
   }
 
-  async function startAudioPlayback(src: string) {
+  async function startAudioPlayback(src: string, token: number, music: MusicInfo) {
     console.log('[Player] startAudioPlayback, src:', src?.substring(0, 60))
 
     syncAudioState()
 
+    setActiveAudioEventSession(token, music)
     audio.setSrc(src)
     audio.seek(0)
 
@@ -481,7 +523,7 @@ export const usePlayerStore = defineStore('player', () => {
     )
   }
 
-  function stopAudioPlaybackForRetry() {
+  function stopAudioPlaybackForRetry(options: { clearSession?: boolean } = {}) {
     try {
       audio.pause()
       audio.reset()
@@ -492,6 +534,14 @@ export const usePlayerStore = defineStore('player', () => {
     isPlaying.value = false
     currentTime.value = 0
     duration.value = 0
+    if (options.clearSession) {
+      clearAudioEventSession()
+    }
+  }
+
+  function stopAudioPlaybackForRequest(token: number) {
+    if (audioEventSession?.token !== token) return
+    stopAudioPlaybackForRetry({ clearSession: true })
   }
 
   async function waitForPlaybackMetadata(timeoutMs = PLAYBACK_METADATA_TIMEOUT_MS): Promise<number | null> {
@@ -549,6 +599,29 @@ export const usePlayerStore = defineStore('player', () => {
     clearCachedCustomResolution(music, settingsStore.settings.audioQuality, resolution.userSourceId)
   }
 
+  async function invalidateCachedPlaybackResolution(
+    music: MusicInfo,
+    resolution: PlaybackResolution,
+    reason: string,
+  ) {
+    if (resolution.resolver !== 'cached-remote' && resolution.resolver !== 'cached-local') {
+      return false
+    }
+
+    console.warn('[Player] Invalidating cached playback resolution:', {
+      track: `${music.name} - ${music.artist}`,
+      resolver: resolution.resolver,
+      reason,
+    })
+
+    await clearCachedPlayback(music, settingsStore.settings.audioQuality, {
+      clearRemoteUrl: resolution.resolver === 'cached-remote',
+      clearLocalFile: resolution.resolver === 'cached-local',
+    })
+
+    return true
+  }
+
   async function playMusic(music: MusicInfo): Promise<void> {
     if (!music) {
       throw new Error('无效的音乐信息')
@@ -563,6 +636,7 @@ export const usePlayerStore = defineStore('player', () => {
     }
     trackPlaybackSession = null
     activeResolution.value = null
+    loadedTrackKey = null
     isLoadingUrl.value = true
     clearPlaybackNotice()
 
@@ -584,7 +658,7 @@ export const usePlayerStore = defineStore('player', () => {
         const resolution = await playbackResolver.resolve(music, {
           excludedSourceIds: [...excludedSourceIds],
         })
-        if (currentToken !== playbackRequestToken) {
+        if (!isCurrentPlaybackRequest(currentToken, music)) {
           console.warn('[Player] Skipping stale playback request for:', music.name)
           return
         }
@@ -616,9 +690,32 @@ export const usePlayerStore = defineStore('player', () => {
 
         let finalPlaybackUrl = url
         try {
-          await startAudioPlayback(url)
+          await startAudioPlayback(url, currentToken, music)
+          if (!isCurrentPlaybackRequest(currentToken, music)) {
+            stopAudioPlaybackForRequest(currentToken)
+            return
+          }
         } catch (primaryError) {
+          if (!isCurrentPlaybackRequest(currentToken, music)) {
+            stopAudioPlaybackForRequest(currentToken)
+            return
+          }
+
           if (!isRemotePlaybackUrl(url)) {
+            if (
+              await invalidateCachedPlaybackResolution(
+                music,
+                resolution,
+                primaryError instanceof Error ? primaryError.message : '本地缓存播放失败',
+              )
+            ) {
+              if (!isCurrentPlaybackRequest(currentToken, music)) {
+                stopAudioPlaybackForRequest(currentToken)
+                return
+              }
+              stopAudioPlaybackForRequest(currentToken)
+              continue
+            }
             throw primaryError
           }
 
@@ -627,7 +724,26 @@ export const usePlayerStore = defineStore('player', () => {
             primaryError
           )
           const localizedFallbackUrl = await localizePlaybackUrl(url)
+          if (!isCurrentPlaybackRequest(currentToken, music)) {
+            stopAudioPlaybackForRequest(currentToken)
+            return
+          }
           if (!localizedFallbackUrl || localizedFallbackUrl === url) {
+            if (
+              await invalidateCachedPlaybackResolution(
+                music,
+                resolution,
+                primaryError instanceof Error ? primaryError.message : '缓存播放地址失效',
+              )
+            ) {
+              if (!isCurrentPlaybackRequest(currentToken, music)) {
+                stopAudioPlaybackForRequest(currentToken)
+                return
+              }
+              stopAudioPlaybackForRequest(currentToken)
+              continue
+            }
+
             if (resolution.userSourceId) {
               rejectCustomPlaybackSource(
                 music,
@@ -635,21 +751,38 @@ export const usePlayerStore = defineStore('player', () => {
                 primaryError instanceof Error ? primaryError.message : '音源播放失败'
               )
               excludedSourceIds.add(resolution.userSourceId)
-              stopAudioPlaybackForRetry()
+              stopAudioPlaybackForRetry({ clearSession: true })
               continue
             }
             throw primaryError
           }
 
           finalPlaybackUrl = localizedFallbackUrl
-          await startAudioPlayback(localizedFallbackUrl)
+          await startAudioPlayback(localizedFallbackUrl, currentToken, music)
+          if (!isCurrentPlaybackRequest(currentToken, music)) {
+            stopAudioPlaybackForRequest(currentToken)
+            return
+          }
         }
 
         const actualDuration = await waitForPlaybackMetadata()
+        if (!isCurrentPlaybackRequest(currentToken, music)) {
+          stopAudioPlaybackForRequest(currentToken)
+          return
+        }
 
         if (!actualDuration || actualDuration <= 0) {
           console.warn(`[Player] Track "${music.name}" has zero duration, skipping to next`)
-          stopAudioPlaybackForRetry()
+          if (await invalidateCachedPlaybackResolution(music, resolution, '音频时长为 0')) {
+            if (!isCurrentPlaybackRequest(currentToken, music)) {
+              stopAudioPlaybackForRequest(currentToken)
+              return
+            }
+            stopAudioPlaybackForRequest(currentToken)
+            continue
+          }
+
+          stopAudioPlaybackForRetry({ clearSession: true })
           clearActivePlaybackMetrics(currentToken)
           isLoadingUrl.value = false
           if (playlist.value.length > 1) {
@@ -659,11 +792,22 @@ export const usePlayerStore = defineStore('player', () => {
         }
 
         const suspiciousPlaybackMessage = buildSuspiciousPlaybackMessage(music, actualDuration)
-        if (suspiciousPlaybackMessage && resolution.userSourceId) {
-          rejectCustomPlaybackSource(music, resolution, suspiciousPlaybackMessage)
-          excludedSourceIds.add(resolution.userSourceId)
-          stopAudioPlaybackForRetry()
-          continue
+        if (suspiciousPlaybackMessage) {
+          if (resolution.userSourceId) {
+            rejectCustomPlaybackSource(music, resolution, suspiciousPlaybackMessage)
+            excludedSourceIds.add(resolution.userSourceId)
+            stopAudioPlaybackForRetry({ clearSession: true })
+            continue
+          }
+
+          if (await invalidateCachedPlaybackResolution(music, resolution, suspiciousPlaybackMessage)) {
+            if (!isCurrentPlaybackRequest(currentToken, music)) {
+              stopAudioPlaybackForRequest(currentToken)
+              return
+            }
+            stopAudioPlaybackForRequest(currentToken)
+            continue
+          }
         }
 
         resolvedUrl.value = finalPlaybackUrl
@@ -711,6 +855,11 @@ export const usePlayerStore = defineStore('player', () => {
         break
       }
     } catch (error) {
+      if (!isCurrentPlaybackRequest(currentToken, music)) {
+        console.warn('[Player] Ignoring stale playback error for:', music.name, error)
+        return
+      }
+
       clearActivePlaybackMetrics(currentToken)
       console.error('[Player] playMusic error:', error)
       setPlaybackNotice(error instanceof Error ? error.message : '播放失败，请稍后重试')
@@ -726,10 +875,13 @@ export const usePlayerStore = defineStore('player', () => {
       isLoadingUrl.value = false
       clearResolvedPlaybackState()
       trackPlaybackSession = null
+      clearAudioEventSession(currentToken)
       // Re-throw the error so caller can handle it
       throw error
     } finally {
-      isLoadingUrl.value = false
+      if (isCurrentPlaybackRequest(currentToken, music)) {
+        isLoadingUrl.value = false
+      }
     }
   }
 
@@ -937,6 +1089,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function clearPlaylist() {
+    playbackRequestToken += 1
     lyricRequestId.value += 1
     playlist.value = []
     currentIndex.value = 0
@@ -949,6 +1102,7 @@ export const usePlayerStore = defineStore('player', () => {
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
+    clearAudioEventSession()
     queueContext.value = null
     trackPlaybackSession = null
   }
@@ -964,6 +1118,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function restoreSession(session: PersistedPlayerSession) {
+    playbackRequestToken += 1
     lyricRequestId.value += 1
     playlist.value = [...(session.playlist || [])]
     currentIndex.value = Math.max(0, Math.min(session.currentIndex || 0, Math.max(playlist.value.length - 1, 0)))
@@ -975,6 +1130,7 @@ export const usePlayerStore = defineStore('player', () => {
     resetLyricsState()
     clearResolvedPlaybackState()
     clearActivePlaybackMetrics()
+    clearAudioEventSession()
     queueContext.value = null
     trackPlaybackSession = null
 

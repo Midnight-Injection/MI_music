@@ -11,6 +11,7 @@ export interface PlaybackCacheRecord {
   sourceId?: string | null
   channel?: string | null
   resolver?: string | null
+  actualQuality?: string | null
   fileSizeBytes: number
   lastVerifiedAt?: string | null
   lastAccessedAt: string
@@ -31,6 +32,7 @@ export interface SavePlaybackCachePayload {
   sourceId?: string | null
   channel?: string | null
   resolver?: string | null
+  actualQuality?: string | null
   fileSizeBytes?: number
   lastVerifiedAt?: string | null
   touchAccessedAt?: boolean
@@ -94,6 +96,7 @@ export async function upsertCachedPlayback(
       sourceId: payload.sourceId ?? null,
       channel: payload.channel ?? null,
       resolver: payload.resolver ?? null,
+      actualQuality: payload.actualQuality ?? null,
       fileSizeBytes: payload.fileSizeBytes ?? 0,
       lastVerifiedAt: payload.lastVerifiedAt ?? null,
       touchAccessedAt: payload.touchAccessedAt ?? true,
@@ -120,7 +123,7 @@ export async function cachePlaybackMedia(
   track: MusicInfo,
   audioQuality: string,
   url: string,
-  payload: Pick<SavePlaybackCachePayload, 'sourceId' | 'channel' | 'resolver'> = {},
+  payload: Pick<SavePlaybackCachePayload, 'sourceId' | 'channel' | 'resolver' | 'actualQuality'> = {},
 ) {
   if (!isTauri()) return null
 
@@ -131,6 +134,7 @@ export async function cachePlaybackMedia(
     sourceId: payload.sourceId ?? null,
     channel: payload.channel ?? null,
     resolver: payload.resolver ?? null,
+    actualQuality: payload.actualQuality ?? null,
   })
 }
 

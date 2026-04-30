@@ -184,7 +184,7 @@ export function usePlaybackResolver(): PlaybackResolver {
       return {
         url: cachedPlayback.playableLocalUrl,
         channel,
-        quality: cachedPlayback.audioQuality,
+        quality: cachedPlayback.actualQuality || undefined,
         resolver: 'cached-local',
       }
     }
@@ -195,7 +195,7 @@ export function usePlaybackResolver(): PlaybackResolver {
         return {
           url: remoteUrl,
           channel,
-          quality: cachedPlayback.audioQuality,
+          quality: cachedPlayback.actualQuality || undefined,
           resolver: 'cached-remote',
         }
       }

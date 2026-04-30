@@ -12,6 +12,7 @@ pub struct PlaybackCacheEntry {
     pub source_id: Option<String>,
     pub channel: Option<String>,
     pub resolver: Option<String>,
+    pub actual_quality: Option<String>,
     pub file_size_bytes: i64,
     pub last_verified_at: Option<String>,
     pub last_accessed_at: String,
@@ -29,6 +30,7 @@ pub struct UpsertPlaybackCacheEntry {
     pub source_id: Option<String>,
     pub channel: Option<String>,
     pub resolver: Option<String>,
+    pub actual_quality: Option<String>,
     pub file_size_bytes: Option<i64>,
     pub last_verified_at: Option<String>,
     pub touch_accessed_at: Option<bool>,
@@ -90,19 +92,21 @@ impl PlaybackCacheEntry {
                 source_id,
                 channel,
                 resolver,
+                actual_quality,
                 file_size_bytes,
                 last_verified_at,
                 last_accessed_at,
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(track_key, audio_quality) DO UPDATE SET
                 remote_url = excluded.remote_url,
                 local_file_path = excluded.local_file_path,
                 source_id = excluded.source_id,
                 channel = excluded.channel,
                 resolver = excluded.resolver,
+                actual_quality = excluded.actual_quality,
                 file_size_bytes = excluded.file_size_bytes,
                 last_verified_at = excluded.last_verified_at,
                 last_accessed_at = excluded.last_accessed_at,
@@ -117,6 +121,7 @@ impl PlaybackCacheEntry {
         .bind(&input.source_id)
         .bind(&input.channel)
         .bind(&input.resolver)
+        .bind(&input.actual_quality)
         .bind(input.file_size_bytes.unwrap_or(0))
         .bind(&input.last_verified_at)
         .bind(&last_accessed_at)

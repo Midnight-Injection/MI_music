@@ -208,6 +208,7 @@ pub async fn cache_playback_media(
     source_id: Option<String>,
     channel: Option<String>,
     resolver: Option<String>,
+    actual_quality: Option<String>,
 ) -> Result<PlaybackCacheEntry, String> {
     let normalized = normalize_remote_url(&url)?;
     let cache_root = ensure_music_cache_dir(&app).await?;
@@ -245,6 +246,7 @@ pub async fn cache_playback_media(
                     source_id,
                     channel,
                     resolver,
+                    actual_quality: actual_quality.clone(),
                     file_size_bytes: Some(metadata.len() as i64),
                     last_verified_at: Some(now_iso()),
                     touch_accessed_at: Some(true),
@@ -292,6 +294,7 @@ pub async fn cache_playback_media(
             source_id,
             channel,
             resolver,
+            actual_quality,
             file_size_bytes: Some(metadata.len() as i64),
             last_verified_at: Some(now_iso()),
             touch_accessed_at: Some(true),

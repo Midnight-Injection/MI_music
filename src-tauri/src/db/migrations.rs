@@ -76,6 +76,11 @@ fn get_migrations() -> &'static [Migration] {
             name: "005_playback_cache",
             sql: include_str!("migrations/005_playback_cache.sql"),
         },
+        Migration {
+            version: 6,
+            name: "006_playback_cache_actual_quality",
+            sql: include_str!("migrations/006_playback_cache_actual_quality.sql"),
+        },
     ]
 }
 
@@ -94,6 +99,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.0, 5);
+        assert_eq!(result.0, 6);
     }
 }
